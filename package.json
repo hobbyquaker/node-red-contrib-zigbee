@@ -1,0 +1,19 @@
+{
+  "name": "node-red-contrib-zigbee",
+  "version": "0.0.1-alpha.0",
+  "author": "Sebastian Raff <hobbyquaker@gmail.com>",
+  "license": "MIT",
+  "description": "Node-RED Nodes for Zigbee Devices",
+  "repository": "https://github.com/hobbyquaker/node-red-contrib-zigbee",
+  "dependencies": {
+    "zigbee-shepherd": "0.3.0"
+  },
+  "node-red": {
+    "nodes": {
+      "zigbee-shepherd": "nodes/shepherd.js",
+      "zigbee-join": "nodes/join.js",
+      "zigbee-list": "nodes/list.js",
+      "zigbee-attreport": "nodes/attreport.js"
+    }
+  }
+}

@@ -1,0 +1,145 @@
+<script type="text/javascript">
+    RED.nodes.registerType('zigbee-shepherd', {
+        category: 'config',
+        credentials: {
+            panId: {
+                type: 'text',
+                value: 'FFFF',
+                validate: function (v) {
+                    if (!/[0-9a-fA-F]{4}/) {
+                        return false;
+                    }
+                    v = parseInt(v, 16);
+                    return v === 65535 || (v >= 0 && v <= 16383);
+                }
+                },
+            precfgkey: {
+                type: 'text',
+                value: '01030507090B0D0F00020406080A0C0D',
+                validate: function (v) {
+                    return /[0-9a-fA-F]{32}/.test(v);
+                }
+            }
+        },
+        defaults: {
+            name: {value: 'zigbee shepherd', require: true},
+            path: {value: '/dev/serial0', required: true},
+            baudRate: {value: 115200, required: true},
+            rtscts: {value: true},
+            channelList: {value: [11]}
+        },
+        label: function() {
+            return this.name || 'zigbee shepherd'
+        },
+        paletteLabel: 'shepherd',
+        oneditprepare: function () {
+
+            $('#rtscts').val(String(Boolean(this.rtscts)));
+            $('#rtscts').trigger('change');
+
+            if (!this.credentials.panId) {
+                $('#node-config-input-panId').val('FFFF');
+            }
+            if (!this.credentials.precfgkey) {
+                $('#node-config-input-precfgkey').val('01030507090B0D0F00020406080A0C0D');
+            }
+
+            this.channelList.forEach(channel => {
+                if (channel) {
+                    $('#channel-' + channel).prop('checked', true);
+                }
+            });
+        },
+        oneditsave: function () {
+            const arr = [];
+            for (let i = 11; i <= 26; i++) {
+                if ($('#channel-' + i).is(':checked')) {
+                    arr.push(i);
+                }
+            }
+            this.channelList = arr;
+            this.rtscts = $('#rtscts').val() === 'true';
+        }
+
+    });
+</script>
+
+<script type="text/x-red" data-template-name="zigbee-shepherd">
+    <div class="form-row">
+        <label for="node-config-input-name"><i class="icon-bookmark"></i> name</label>
+        <input type="text" id="node-config-input-name">
+    </div>
+    <div class="form-row"><h4>serialport</h4></div>
+    <div class="form-row">
+        <label for="node-config-input-path"><i class="icon-bookmark"></i> path</label>
+        <input type="text" id="node-config-input-path">
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-baudRate"><i class="icon-bookmark"></i> baudRate</label>
+        <input type="text" id="node-config-input-baudRate">
+    </div>
+    <div class="form-row">
+        <label for="rtscts"><i class="icon-bookmark"></i> rtscts</label>
+        <select id="rtscts">
+            <option value="true">true</option>
+            <option value="false">false</option>
+        </select>
+    </div>
+
+    <style>
+        #channels {
+            width: calc(70% - 100px);
+            display: inline-block;
+            margin: 0;
+        }
+        #channels label {
+            display: inline;
+            margin-right: 8px;
+            white-space: nowrap;
+        }
+        #channels label input {
+            width: auto;
+            margin-top: -2px;
+        }
+        #channels-label {
+            vertical-align: text-bottom;
+
+        }
+    </style>
+
+    <div class="form-row"><h4>zigbee</h4></div>
+
+    <div class="form-row">
+        <label id="channels-label" for="channels"><i class="icon-bookmark"></i> channels<br><br><br></label>
+        <div id="channels">
+
+            <label><input type="checkbox" id="channel-11"> 11</label>
+            <label><input type="checkbox" id="channel-12"> 12</label>
+            <label><input type="checkbox" id="channel-13"> 13</label>
+            <label><input type="checkbox" id="channel-14"> 14</label>
+            <label><input type="checkbox" id="channel-15"> 15</label><br>
+            <label><input type="checkbox" id="channel-16"> 16</label>
+            <label><input type="checkbox" id="channel-17"> 17</label>
+            <label><input type="checkbox" id="channel-18"> 18</label>
+            <label><input type="checkbox" id="channel-19"> 19</label>
+            <label><input type="checkbox" id="channel-20"> 20</label><br>
+            <label><input type="checkbox" id="channel-21"> 21</label>
+            <label><input type="checkbox" id="channel-22"> 22</label>
+            <label><input type="checkbox" id="channel-23"> 23</label>
+            <label><input type="checkbox" id="channel-24"> 24</label>
+            <label><input type="checkbox" id="channel-25"> 25</label><br>
+            <label><input type="checkbox" id="channel-26"> 26</label>
+
+        </div>
+    </div>
+
+    <div class="form-row">
+        <label for="node-config-input-panId"><i class="icon-bookmark"></i> panId</label>
+        <input type="text" id="node-config-input-panId">
+    </div>
+
+    <div class="form-row">
+        <label for="node-config-input-precfgkey"><i class="icon-bookmark"></i> precfgkey</label>
+        <input type="text" id="node-config-input-precfgkey">
+    </div>
+</script>
