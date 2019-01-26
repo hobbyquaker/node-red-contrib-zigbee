@@ -5,18 +5,19 @@
             panId: {
                 type: 'text',
                 value: 'FFFF',
-                validate: function (v) {
-                    if (!/[0-9a-fA-F]{4}/) {
+                validate(v) {
+                    if (!/[0-9a-fA-F]{4}/.test(v)) {
                         return false;
                     }
+
                     v = parseInt(v, 16);
                     return v === 65535 || (v >= 0 && v <= 16383);
                 }
-                },
+            },
             precfgkey: {
                 type: 'text',
                 value: '01030507090B0D0F00020406080A0C0D',
-                validate: function (v) {
+                validate(v) {
                     return /[0-9a-fA-F]{32}/.test(v);
                 }
             }
@@ -28,18 +29,18 @@
             rtscts: {value: true},
             channelList: {value: [11]}
         },
-        label: function() {
-            return this.name || 'zigbee shepherd'
+        label() {
+            return this.name || 'zigbee shepherd';
         },
         paletteLabel: 'shepherd',
-        oneditprepare: function () {
-
+        oneditprepare() {
             $('#rtscts').val(String(Boolean(this.rtscts)));
             $('#rtscts').trigger('change');
 
             if (!this.credentials.panId) {
                 $('#node-config-input-panId').val('FFFF');
             }
+
             if (!this.credentials.precfgkey) {
                 $('#node-config-input-precfgkey').val('01030507090B0D0F00020406080A0C0D');
             }
@@ -50,13 +51,14 @@
                 }
             });
         },
-        oneditsave: function () {
+        oneditsave() {
             const arr = [];
             for (let i = 11; i <= 26; i++) {
                 if ($('#channel-' + i).is(':checked')) {
                     arr.push(i);
                 }
             }
+
             this.channelList = arr;
             this.rtscts = $('#rtscts').val() === 'true';
         }
@@ -142,4 +144,11 @@
         <label for="node-config-input-precfgkey"><i class="icon-bookmark"></i> precfgkey</label>
         <input type="text" id="node-config-input-precfgkey">
     </div>
+    <div class="form-row">
+        Changing the configuration of an already existing Shepherd needs a Node-RED restart after deployment.
+    </div>
+
+
+
+
 </script>

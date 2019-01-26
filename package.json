@@ -1,20 +1,61 @@
 {
   "name": "node-red-contrib-zigbee",
-  "version": "0.0.1-alpha.1",
+  "version": "0.0.3",
+  "keywords": [
+    "node-red",
+    "zigbee",
+    "hue",
+    "aqara",
+    "tradfri",
+    "smart home automation",
+    "cc2530",
+    "cc2531"
+  ],
+  "main": "none",
   "author": "Sebastian Raff <hobbyquaker@gmail.com>",
   "license": "MIT",
   "description": "Node-RED Nodes for Zigbee Devices",
   "repository": "https://github.com/hobbyquaker/node-red-contrib-zigbee",
   "dependencies": {
+    "just-extend": "^4.0.2",
     "zigbee-shepherd": "git+https://github.com/Koenkk/zigbee-shepherd.git#ce52ac4131e2a505af6197b4a26d2b5360e4eb80",
     "zigbee-shepherd-converters": "^7.0.22"
+  },
+  "scripts": {
+    "test": "camo-purge; xo",
+    "lintfix": "xo --fix"
   },
   "node-red": {
     "nodes": {
       "zigbee-shepherd": "nodes/shepherd.js",
-      "zigbee-join": "nodes/join.js",
-      "zigbee-list": "nodes/list.js",
-      "zigbee-attreport": "nodes/attreport.js"
+      "zigbee-devices": "nodes/devices.js",
+      "zigbee-converter": "nodes/converter.js",
+      "zigbee-event": "nodes/event.js",
+      "zigbee-command": "nodes/command.js"
     }
+  },
+  "devDependencies": {
+    "camo-purge": "^1.0.2",
+    "eslint-plugin-html": "^5.0.0",
+    "xo": "^0.24.0"
+  },
+  "xo": {
+    "space": 4,
+    "plugin": "html",
+    "global": [
+      "$",
+      "RED"
+    ],
+    "extensions": [
+      "js",
+      "html"
+    ],
+    "rules": {
+      "no-template-curly-in-string": "warn",
+      "capitalized-comments": 0,
+      "spaced-comment": 0,
+      "unicorn/catch-error-name": 0
+    },
+    "ignore": []
   }
 }

@@ -1,0 +1,98 @@
+<script type="text/javascript">
+    RED.nodes.registerType('zigbee-event', {
+
+        category: 'zigbee',
+        defaults: {
+            shepherd: {value: '', type: 'zigbee-shepherd', required: true},
+            device: {value: ''},
+            events: {value: ['attReport', 'devChange']}
+        },
+        inputs: 0,
+        outputs: 1,
+        icon: 'bee.png',
+        color: '#E2D96E',
+        paletteLabel: 'event',
+        align: 'left',
+        label() {
+            return this.name || 'event';
+        },
+        labelStyle() {
+            return this.name ? 'node_label_italic' : '';
+        },
+        oneditprepare() {
+            this.events.forEach(event => {
+                $('#node-input-event-' + event).prop('checked', true);
+            });
+
+            $('#node-input-shepherd').change(() => {
+                const id = $('#node-input-shepherd').val();
+                $.getJSON('zigbee-shepherd/devices?id=' + id, data => {
+                    devices = data;
+                    $('#node-input-device').html('<option value="">*</option>');
+                    Object.keys(data).forEach(addr => {
+                        if (data[addr].type !== 'Coordinator') {
+                            const selected = addr === this.device ? ' selected' : '';
+                            const desc = (data[addr].name || '') + ' ' + data[addr].modelId + ' ' + addr;
+                            $('#node-input-device').append(`<option value="${addr}"${selected}>${desc}</option>`);
+                        }
+                    });
+                    $('#node-input-device').trigger('change');
+                });
+            });
+        },
+        oneditsave() {
+            this.events = [];
+            ['attReport', 'devChange', 'devStatus', 'devIncoming', 'devLeaving'].forEach(event => {
+                if ($('#node-input-event-' + event).is(':checked')) {
+                    this.events.push(event);
+                }
+            });
+        }
+    });
+</script>
+
+<script type="text/x-red" data-template-name="zigbee-event">
+    <div class="form-row">
+        <label for="node-input-shepherd"><i class="icon-global"></i> shepherd</label>
+        <input type="text" id="node-input-shepherd">
+    </div>
+    <div class="form-row">
+        <label for="event"><i class="icon-global"></i> events</label>
+        <style>
+            #event {
+                display: inline-block;
+                width: 70%
+            }
+            #event label {
+                width: 110px;
+                display: inline-block;
+                padding-right: 8px;
+                white-space: nowrap;
+            }
+            #event label input {
+
+                width: 20px;
+                padding: 0;
+                margin: 0;
+            }
+        </style>
+        <div id="event" style="width: 70%">
+            <label for="node-input-event-attReport"><input type="checkbox" id="node-input-event-attReport"/>attReport</label><br>
+            <label for="node-input-event-devChange"><input type="checkbox" id="node-input-event-devChange"/>devChange</label>
+            <label for="node-input-event-devStatus"><input type="checkbox" id="node-input-event-devStatus"/>devStatus</label><br>
+            <label for="node-input-event-devIncoming"><input type="checkbox" id="node-input-event-devIncoming"/>devIncoming</label>
+            <label for="node-input-event-devLeaving"><input type="checkbox" id="node-input-event-devLeaving"/>devLeaving</label>
+        </div>
+    </div>
+    <div class="form-row">
+        <label for="node-input-device"><i class="icon-global"></i> device</label>
+        <select id="node-input-device" style="width: 70%">
+        </select>
+    </div>
+</script>
+
+
+
+<script type="text/x-red" data-help-name="zigbee-event">
+
+</script>

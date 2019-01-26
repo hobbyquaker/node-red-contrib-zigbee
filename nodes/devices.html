@@ -1,0 +1,173 @@
+<script type="text/javascript">
+    RED.nodes.registerType('zigbee-devices', {
+
+        category: 'zigbee',
+        defaults: {
+            shepherd: {value: '', type: 'zigbee-shepherd', required: true}
+        },
+        inputs: 1,
+        outputs: 2,
+        outputLabels: ['joinTimeLeft', 'deviceList'],
+        icon: 'bee.png',
+        color: '#DEBD5C',
+        paletteLabel: 'devices',
+        align: 'right',
+        label() {
+            return this.name || 'devices';
+        },
+        labelStyle() {
+            return this.name ? 'node_label_italic' : '';
+        },
+        oneditprepare() {
+            $('ol#devices').editableList({
+                addItem(row, index, data) {
+                    $(row).html(`<span class="device-address">${data.ieeeAddr}<br>${data.type}</span><span class="device-model">${data.manufName}<br>${data.modelId}</span><input class="device-name" data-addr="${data.ieeeAddr}" value="${data.name}"><input type="button" class="device-remove" data-addr="${data.ieeeAddr}" value="x">`);
+                },
+                addButton: false
+            });
+
+            $('ol#devices').on('click', '.device-remove', function () {
+                $.getJSON('zigbee-shepherd/remove?id=' + $('#node-input-shepherd').val() + '&addr=' + $(this).data('addr'));
+            });
+
+            let refreshTimer;
+
+            function refreshDevices(id) {
+                clearTimeout(refreshTimer);
+                $.getJSON('zigbee-shepherd/devices?id=' + id, data => {
+                    const known = [];
+                    Object.keys(data).forEach(addr => {
+                        known.push(addr);
+                        if ($('.device-name[data-addr="' + addr + '"]').length === 0) {
+                            if (data[addr].type !== 'Coordinator') {
+                                $('ol#devices').editableList('addItem', data[addr]);
+                            }
+                        }
+                    });
+                    $('ol#devices li .device-name').each(function () {
+                        const addr = $(this).data('addr');
+                        if (!known.includes(addr)) {
+                            $(this).parent().parent().remove();
+                        }
+                    });
+                    refreshTimer = setTimeout(() => {
+                        refreshDevices(id);
+                    }, 2000);
+                });
+            }
+
+            $('#node-input-shepherd').on('change', () => {
+                const id = $('#node-input-shepherd').val();
+                refreshDevices(id);
+            });
+
+            $('#join-permit').click(() => {
+                const id = $('#node-input-shepherd').val();
+                $.getJSON('zigbee-shepherd/join?id=' + id + '&time=240&type=' + $('#join-type').val(), () => {});
+                clearInterval(this.joinTimeLeftInterval);
+                this.joinTimeLeftInterval = setInterval(() => {
+                    const id = $('#node-input-shepherd').val();
+                    $.getJSON('zigbee-shepherd/join-time-left?id=' + id, data => {
+                        if (data.joinTimeLeft) {
+                            let time = data.joinTimeLeft - 1;
+                            time = time < 0 ? 0 : time;
+                            $('#join-time').html(time + 's');
+                        } else {
+                            clearInterval(this.joinTimeLeftInterval);
+                            $('#join-time').html('');
+                        }
+                    });
+                }, 1000);
+            });
+
+            $('#join-stop').click(() => {
+                const id = $('#node-input-shepherd').val();
+                $.getJSON('zigbee-shepherd/join?id=' + id + '&time=0');
+                clearInterval(this.joinTimeLeftInterval);
+                $('#join-time').html('');
+            });
+        },
+        oneditsave() {
+            const id = $('#node-input-shepherd').val();
+            $.getJSON('zigbee-shepherd/join?id=' + id + '&time=0');
+            clearInterval(this.joinTimeLeftInterval);
+            $('#join-time').html('');
+            const names = {};
+            $('ol#devices .device-name').each(function () {
+                names[$(this).data('addr')] = $(this).val();
+            });
+            $.post('zigbee-shepherd/names?id=' + id, names);
+        },
+        oneditcancel() {
+            const id = $('#node-input-shepherd').val();
+            $.getJSON('zigbee-shepherd/join?id=' + id + '&time=0');
+            clearInterval(this.joinTimeLeftInterval);
+            $('#join-time').html('');
+        }
+    });
+</script>
+
+<script type="text/x-red" data-template-name="zigbee-devices">
+    <div class="form-row">
+        <label for="node-input-shepherd"><i class="icon-global"></i> shepherd</label>
+        <input type="text" id="node-input-shepherd">
+    </div>
+
+    <div class="form-row"><h4>join</h4></div>
+    <style>
+        #join-permit, #join-stop {
+            width: 80px;
+            display: inline-block;
+        }
+    </style>
+    <div class="form-row">
+        <input id="join-permit" type="button" value="permit">
+        <input id="join-stop" type="button" value="stop">
+        <select id="join-type">
+            <option value="all">Coordinator and Routers</option>
+            <option value="coord">Coordinator only</option>
+        </select>
+        <span id="join-time"></span>
+    </div>
+
+
+    <div class="form-row"><h4>devices</h4></div>
+    <style>
+        .device-address, .device-type, .device-model {
+            display: inline-block !important;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            font-size: 9px;
+            line-height: 12px;
+            padding: 2px;
+        }
+        .device-address {
+            width: 110px;
+        }
+        .device-model {
+            width: 110px;
+        }
+        input.device-name {
+            width: calc(100% - 260px) !important;
+            display: inline-block !important;
+            font-size: 10px;
+        }
+        input.device-remove {
+            margin-left: 4px;
+            width: 20px !important;
+            display: inline-block !important;
+            font-size: 10px;
+        }
+    </style>
+
+    <div class="form-row">
+        <ol id="devices"></ol>
+    </div>
+</script>
+
+
+
+<script type="text/x-red" data-help-name="zigbee-devices">
+
+</script>

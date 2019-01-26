@@ -1,18 +1,18 @@
 <script type="text/javascript">
-    RED.nodes.registerType('zigbee-attreport', {
+    RED.nodes.registerType('zigbee-command', {
 
         category: 'zigbee',
         defaults: {
             shepherd: {value: '', type: 'zigbee-shepherd', required: true}
         },
-        inputs: 0,
+        inputs: 1,
         outputs: 1,
         icon: 'bee.png',
         color: '#E2D96E',
-        paletteLabel: 'join',
+        paletteLabel: 'command',
         align: 'left',
         label() {
-            return this.name || 'attReport';
+            return this.name || 'command';
         },
         labelStyle() {
             return this.name ? 'node_label_italic' : '';
@@ -20,7 +20,7 @@
     });
 </script>
 
-<script type="text/x-red" data-template-name="zigbee-attreport">
+<script type="text/x-red" data-template-name="zigbee-command">
     <div class="form-row">
         <label for="node-input-shepherd"><i class="icon-global"></i> shepherd</label>
         <input type="text" id="node-input-shepherd">
@@ -30,6 +30,6 @@
 
 
 
-<script type="text/x-red" data-help-name="zigbee-attreport">
+<script type="text/x-red" data-help-name="zigbee-command">
 
 </script>
