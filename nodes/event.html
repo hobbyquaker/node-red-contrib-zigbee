@@ -27,7 +27,6 @@
             $('#node-input-shepherd').change(() => {
                 const id = $('#node-input-shepherd').val();
                 $.getJSON('zigbee-shepherd/devices?id=' + id, data => {
-                    devices = data;
                     $('#node-input-device').html('<option value="">*</option>');
                     Object.keys(data).forEach(addr => {
                         if (data[addr].type !== 'Coordinator') {

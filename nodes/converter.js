@@ -1,5 +1,4 @@
 const shepherdConverters = require('zigbee-shepherd-converters');
-const extend = require('just-extend');
 
 module.exports = function (RED) {
     RED.httpAdmin.get('/zigbee-shepherd/converters', (req, res) => {
@@ -13,7 +12,6 @@ module.exports = function (RED) {
 
             const shepherdNode = RED.nodes.getNode(config.shepherd);
 
-
             if (!shepherdNode) {
                 this.error('missing shepherd');
                 return;
@@ -26,14 +24,12 @@ module.exports = function (RED) {
 
             shepherdNode.proxy.on('nodeStatus', status => this.status(status));
 
-
             this.on('input', msg => {
-
                 const [name, attr] = (msg.topic || '').split('/');
                 const ieeeAddr = config.device || this.getAddrByName(name);
                 const device = this.devices[ieeeAddr];
 
-                this.trace('topic=' + msg.topic + ' name=' + name + ' ieeeAddr=' + ieeeAddr + ' payload=' + JSON.stringify(msg.payload))
+                this.trace('topic=' + msg.topic + ' name=' + name + ' ieeeAddr=' + ieeeAddr + ' payload=' + JSON.stringify(msg.payload));
 
                 if (!device) {
                     this.error('device unknown ' + config.device + ' ' + name + ' ' + ieeeAddr);
@@ -74,9 +70,6 @@ module.exports = function (RED) {
                     return;
                 }
 
-                // TODO gain understanding of endpoints. Currently just using the first one due to missing knowledge.
-                const endpoint = this.shepherd.find(device.ieeeAddr, device.epList[0]);
-
                 // For each key in the JSON message find the matching converter.
                 Object.keys(payload).forEach(key => {
                     const converter = model.toZigbee.find(c => c.key.includes(key));
@@ -93,9 +86,11 @@ module.exports = function (RED) {
 
                     //console.log('converted', JSON.stringify(converted));
                     // Add job to queue
+
+                    // TODO gain understanding of endpoints. Currently just using the first one due to missing knowledge.
                     shepherdNode.proxy.queue(Object.assign(converted, {ieeeAddr: device.ieeeAddr, ep: device.epList[0]}));
 
-                            /* TODO!
+                    /* TODO clarify!
                               // Devices do not report when they go off, this ensures state (on/off) is always in sync.
                               if (topic.type === 'set' && !error && (key.startsWith('state') || key === 'brightness')) {
                                   const msg = {};
@@ -105,8 +100,7 @@ module.exports = function (RED) {
                               }
                               */
 
-
-                        /*
+                    /*
                         // When there is a transition in the message the state of the device gets out of sync.
                         // Therefore; at the end of the transition, read the new state from the device.
                         if (topic.type === 'set' && converted.zclData.transtime) {
@@ -123,13 +117,10 @@ module.exports = function (RED) {
                             }, time);
                         }
                         */
-
                 });
-
             });
 
             shepherdNode.proxy.on('ind', message => {
-
                 const device = message.endpoints && message.endpoints[0] && message.endpoints[0].device;
 
                 if (message.type === 'attReport' || message.type === 'devChange') {
@@ -153,7 +144,6 @@ module.exports = function (RED) {
                         cid: message.data.cid,
                         data: message.data.data
                     };
-
 
                     let model;
                     // Map device to a model
@@ -225,6 +215,7 @@ module.exports = function (RED) {
                 }
             });
         }
+
         getAddrByName(name) {
             const dev = Object.keys(this.devices).map(addr => this.devices[addr]).filter(dev => dev.name === name);
             return dev && dev.ieeeAddr;

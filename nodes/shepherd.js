@@ -65,18 +65,17 @@ module.exports = function (RED) {
             this.error = shepherdNode.error;
         }
 
-        queue(cmd, timeout, callback) {
-
-            const length = this.commandQueue.length;
+        queue(cmd, timeout) {
+            const {length} = this.commandQueue;
             this.commandQueue = this.commandQueue.filter(q => {
                 const c = q.cmd;
                 const cmdZclDataKeys = Object.keys(cmd.zclData);
                 return (
-                    c.ieeeAddr !== cmd.ieeeAddr
-                    || c.ep !== cmd.ep
-                    || c.cmdType !== cmd.cmdType
-                    || c.cmd !== cmd.cmd
-                    || !Object.keys(c.zclData).every(key => cmdZclDataKeys.includes(key))
+                    c.ieeeAddr !== cmd.ieeeAddr ||
+                    c.ep !== cmd.ep ||
+                    c.cmdType !== cmd.cmdType ||
+                    c.cmd !== cmd.cmd ||
+                    !Object.keys(c.zclData).every(key => cmdZclDataKeys.includes(key))
                 );
             });
 
@@ -89,8 +88,9 @@ module.exports = function (RED) {
                 this.error('maximum commandQueue length exceeded, ignoring command');
             }
         }
+
         shiftQueue() {
-            if ((this.commandQueue.length > 0 ) && !this.cmdPending) {
+            if ((this.commandQueue.length > 0) && !this.cmdPending) {
                 this.cmdPending = true;
                 const {cmd, timeout} = this.commandQueue.shift();
                 const endpoint = this.shepherd.find(cmd.ieeeAddr, cmd.ep);
@@ -109,13 +109,15 @@ module.exports = function (RED) {
                             }, pause);
                             this.trace('elapsed', elapsed, 'ms -> wait', pause, 'ms');
                             if (typeof cmd.callback === 'function') {
-                                cmd.callback(err, res)
+                                cmd.callback(err, res);
                             }
                         });
                         setTimeout(() => {
                             if (typeof cmd.callback === 'function') {
-                                cmd.callback(err, res)
+                                cmd.callback(new Error('timeout'));
+                                delete cmd.callback;
                             }
+
                             this.cmdPending = false;
                             this.shiftQueue();
                         }, timeout || this.queueMaxWait);
@@ -133,8 +135,6 @@ module.exports = function (RED) {
     class ZigbeeShepherd {
         constructor(config) {
             RED.nodes.createNode(this, config);
-
-
 
             this.namesPath = path.join(RED.settings.userDir, 'zigbee', this.id, 'names.json');
 
@@ -197,7 +197,6 @@ module.exports = function (RED) {
                 this.shepherd.on(event, listeners[event]);
             });
 
-
             this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'dot', text: 'starting'});
             this.debug('starting');
             this.shepherd.start(error => {
@@ -227,18 +226,21 @@ module.exports = function (RED) {
                 });
             });
         }
+
         readyHandler() {
             this.log('ready');
             this.list();
             this.proxy.emit('ready');
             this.proxy.emit('nodeStatus', {fill: 'green', shape: 'dot', text: 'connected'});
         }
+
         errorHandler(error) {
             this.error(error);
             this.proxy.emit('error', error);
         }
+
         indHandler(msg) {
-            this.proxy.emit('ind', msg)
+            this.proxy.emit('ind', msg);
             if (msg.type === 'devIncoming' || msg.type === 'devLeaving') {
                 this.debug(msg.type + ' ' + msg.data);
                 this.list();
@@ -274,8 +276,10 @@ module.exports = function (RED) {
                     delete this.devices[addr];
                 }
             });
-            this.save();
-            this.proxy.emit('devices', this.devices);
+            if (change) {
+                this.save();
+                this.proxy.emit('devices', this.devices);
+            }
         }
 
         remove(addr) {

@@ -13,28 +13,21 @@ module.exports = function (RED) {
             let nodeStatus;
             shepherdNode.proxy.on('nodeStatus', status => {
                 nodeStatus = status;
-                this.status(status)
+                this.status(status);
             });
 
             this.shepherd = shepherdNode.shepherd;
 
             this.on('input', msg => {
-
-                if (endpoint) {
-                    shepherdNode.proxy.queue(msg.payload, (err, res) => {
-                        if (err) {
-                            this.error(err);
-                            this.status({fill: 'red', shape: 'dot', text: err})
-                        } else {
-                            this.send({topic: msg.topic, payload: res});
-                            this.status(nodeStatus);
-                        }
-                    });
-                } else {
-                    this.error('ep unknown');
-                    this.status({fill: 'red', shape: 'dot', text: 'ep unknown'})
-
-                }
+                shepherdNode.proxy.queue(msg.payload, (err, res) => {
+                    if (err) {
+                        this.error(err);
+                        this.status({fill: 'red', shape: 'dot', text: err});
+                    } else {
+                        this.send({topic: msg.topic, payload: res});
+                        this.status(nodeStatus);
+                    }
+                });
             });
         }
     }

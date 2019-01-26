@@ -14,7 +14,7 @@ module.exports = function (RED) {
 
             shepherdNode.proxy.on('nodeStatus', status => {
                 nodeStatus = status;
-                this.status(status)
+                this.status(status);
             });
 
             this.shepherd = shepherdNode.shepherd;
@@ -34,10 +34,9 @@ module.exports = function (RED) {
                 if (joinTimeLeft) {
                     this.status({fill: 'blue', shape: 'ring', text: joinTimeLeft + 's'});
                 } else {
-                    this.status(status);
+                    this.status(nodeStatus);
                 }
             });
-
         }
     }
 
