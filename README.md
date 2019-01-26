@@ -78,27 +78,14 @@ This Node utilizes [Koenkk's zigbee-shepherd-converters](https://github.com/Koen
 offers payload formats as known from zigbee2mqtt. In fact most of this nodes code is taken 1:1 from zigbee2mqtt.
 
 
-#### attReport
+#### event
 
-This Node outputs attReport events as received from zigbee-shepherd. 
+This Node outputs events as received from zigbee-shepherd. 
 
-#### devChange
+#### command
 
-This Node outputs devChange events as received from zigbee-shepherd. 
-
-#### devStatus
-
-This Node outputs devStatus events as received from zigbee-shepherd. 
-
-#### functional
-
-Send a "functional" command to a device endpoint. Payload has to be an object containing the properties `ieeeAddress`, 
-`ep`, `cId`, `cmd` and `zclData`. See https://github.com/zigbeer/zigbee-shepherd/wiki#API_functional
-
-#### foundation
-
-Send a "foundation" command to a device endpoint. Payload has to be an object containing the properties `ieeeAddress`, 
-`ep`, `cId`, `cmd` and `zclData`. See https://github.com/zigbeer/zigbee-shepherd/wiki#API_foundation
+Send a "functional" or "foundation" command to a device endpoint. Payload has to be an object containing the properties 
+`cmdType`, `ieeeAddress`, `ep`, `cId`, `cmd` and `zclData`. See https://github.com/zigbeer/zigbee-shepherd/wiki#API_functional
 
 
 
