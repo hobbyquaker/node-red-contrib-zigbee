@@ -116,20 +116,19 @@ module.exports = function (RED) {
                             setTimeout(() => {
                                 this.cmdPending = false;
                                 this.shiftQueue();
-                            }, this.queuePause)
+                            }, this.queuePause);
                         } else {
-
-                            let timer = setTimeout(() => {
-                                this.debug('timeout! ' + timeout + ' ' + this.queueMaxWait)
+                            const timer = setTimeout(() => {
+                                this.debug('timeout! ' + timeout + ' ' + this.queueMaxWait);
                                 if (typeof cmd.callback === 'function') {
                                     cmd.callback(new Error('timeout'));
                                     delete cmd.callback;
                                 }
+
                                 if (!cmd.disBlockQueue) {
                                     this.cmdPending = false;
                                     this.shiftQueue();
                                 }
-
                             }, timeout || this.queueMaxWait);
 
                             endpoint[cmd.cmdType](cmd.cid, cmd.cmd, cmd.zclData, cmd.cfg, (err, res) => {
@@ -152,7 +151,7 @@ module.exports = function (RED) {
                                 setTimeout(() => {
                                     this.cmdPending = false;
                                     this.shiftQueue();
-                                }, this.queuePause)
+                                }, this.queuePause);
                             }
                         }
 
