@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const {EventEmitter} = require('events');
+
+const mkdirp = require('mkdirp');
 const Shepherd = require('zigbee-shepherd');
 
 const devices = {};
@@ -56,6 +58,7 @@ module.exports = function (RED) {
 
             this.queueMaxWait = 5000;
             this.queueMaxLength = 50;
+            this.queuePause = 100;
             this.commandQueue = [];
 
             this.trace = shepherdNode.trace;
@@ -94,33 +97,65 @@ module.exports = function (RED) {
                 this.cmdPending = true;
                 const {cmd, timeout} = this.commandQueue.shift();
                 const endpoint = this.shepherd.find(cmd.ieeeAddr, cmd.ep);
+
+                if (!endpoint) {
+                    this.error('endpoint not found ' + cmd.ieeeAddr + ' ' + cmd.ep);
+                    return;
+                }
+
                 this.debug(JSON.stringify(cmd));
                 const start = (new Date()).getTime();
+
+                cmd.cmdType = cmd.cmdType || 'foundation';
 
                 switch (cmd.cmdType) {
                     case 'foundation':
                     case 'functional':
-                        endpoint[cmd.cmdType](cmd.cid, cmd.cmd, cmd.zclData, cmd.cfg, (err, res) => {
-                            const elapsed = (new Date()).getTime() - start;
-                            const pause = elapsed > 200 ? 0 : (200 - elapsed);
+                        if (cmd.cfg && cmd.cfg.disDefaultRsp) {
+                            endpoint[cmd.cmdType](cmd.cid, cmd.cmd, cmd.zclData, cmd.cfg);
                             setTimeout(() => {
                                 this.cmdPending = false;
                                 this.shiftQueue();
-                            }, pause);
-                            this.trace('elapsed', elapsed, 'ms -> wait', pause, 'ms');
-                            if (typeof cmd.callback === 'function') {
-                                cmd.callback(err, res);
-                            }
-                        });
-                        setTimeout(() => {
-                            if (typeof cmd.callback === 'function') {
-                                cmd.callback(new Error('timeout'));
-                                delete cmd.callback;
-                            }
+                            }, this.queuePause)
+                        } else {
 
-                            this.cmdPending = false;
-                            this.shiftQueue();
-                        }, timeout || this.queueMaxWait);
+                            let timer = setTimeout(() => {
+                                this.debug('timeout! ' + timeout + ' ' + this.queueMaxWait)
+                                if (typeof cmd.callback === 'function') {
+                                    cmd.callback(new Error('timeout'));
+                                    delete cmd.callback;
+                                }
+                                if (!cmd.disBlockQueue) {
+                                    this.cmdPending = false;
+                                    this.shiftQueue();
+                                }
+
+                            }, timeout || this.queueMaxWait);
+
+                            endpoint[cmd.cmdType](cmd.cid, cmd.cmd, cmd.zclData, cmd.cfg, (err, res) => {
+                                clearTimeout(timer);
+                                if (!cmd.disBlockQueue) {
+                                    const elapsed = (new Date()).getTime() - start;
+                                    const pause = elapsed > this.queuePause ? 0 : (this.queuePause - elapsed);
+                                    setTimeout(() => {
+                                        this.cmdPending = false;
+                                        this.shiftQueue();
+                                    }, pause);
+                                    this.debug('elapsed ' + elapsed + ' ms -> wait ' + pause + 'ms');
+                                }
+
+                                if (typeof cmd.callback === 'function') {
+                                    cmd.callback(err, res);
+                                }
+                            });
+                            if (cmd.disBlockQueue) {
+                                setTimeout(() => {
+                                    this.cmdPending = false;
+                                    this.shiftQueue();
+                                }, this.queuePause)
+                            }
+                        }
+
                         break;
 
                     default:
@@ -136,18 +171,22 @@ module.exports = function (RED) {
         constructor(config) {
             RED.nodes.createNode(this, config);
 
-            this.namesPath = path.join(RED.settings.userDir, 'zigbee', this.id, 'names.json');
+            this.persistPath = path.join(RED.settings.userDir, 'zigbee', this.id);
+            mkdirp(this.persistPath);
+
+            this.namesPath = path.join(this.persistPath, 'names.json');
+            this.dbPath = path.join(this.persistPath, 'dev.db');
 
             shepherdNodes[this.id] = this;
-
-            if (!devices[this.id]) {
-                devices[this.id] = {};
-            }
 
             try {
                 devices[this.id] = JSON.parse(fs.readFileSync(this.namesPath).toString());
             } catch (error) {
                 this.error(error);
+            }
+
+            if (!devices[this.id]) {
+                devices[this.id] = {};
             }
 
             this.devices = devices[this.id];
@@ -173,7 +212,7 @@ module.exports = function (RED) {
                     precfgkey,
                     channelList: config.channelList
                 },
-                dbPath: path.join(RED.settings.userDir, 'zigbee', this.id, 'dev.db')
+                dbPath: this.dbPath
             };
 
             if (!shepherdInstances[this.id]) {
@@ -201,7 +240,7 @@ module.exports = function (RED) {
             this.debug('starting');
             this.shepherd.start(error => {
                 if (error) {
-                    this.proxy.emit('nodeStatus', {fill: 'red', shape: 'ring', text: error});
+                    this.proxy.emit('nodeStatus', {fill: 'red', shape: 'ring', text: error.message});
                     this.error(error);
                 } else {
                     this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'dot', text: 'connecting'});
@@ -242,11 +281,9 @@ module.exports = function (RED) {
         indHandler(msg) {
             this.proxy.emit('ind', msg);
             if (msg.type === 'devIncoming' || msg.type === 'devLeaving') {
-                this.debug(msg.type + ' ' + msg.data);
                 this.list();
-            } else {
-                this.debug('ind ' + msg.type + ' ' + JSON.stringify(msg.data));
             }
+            //this.debug('ind ' + util.inspect(msg, {breakLength: Infinity, depth: 3}));
         }
 
         permitJoiningHandler(joinTimeLeft) {
