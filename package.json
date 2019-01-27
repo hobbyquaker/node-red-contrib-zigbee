@@ -17,8 +17,9 @@
   "description": "Node-RED Nodes for Zigbee Devices",
   "repository": "https://github.com/hobbyquaker/node-red-contrib-zigbee",
   "dependencies": {
+    "mkdirp": "^0.5.1",
     "zigbee-shepherd": "git+https://github.com/Koenkk/zigbee-shepherd.git#ce52ac4131e2a505af6197b4a26d2b5360e4eb80",
-    "zigbee-shepherd-converters": "^7.0.22"
+    "zigbee-shepherd-converters": "^7.0.25"
   },
   "scripts": {
     "test": "camo-purge; xo",
