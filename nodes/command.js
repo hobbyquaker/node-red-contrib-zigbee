@@ -19,15 +19,18 @@ module.exports = function (RED) {
             this.shepherd = shepherdNode.shepherd;
 
             this.on('input', msg => {
-                shepherdNode.proxy.queue(msg.payload, (err, res) => {
-                    if (err) {
-                        this.error(err);
-                        this.status({fill: 'red', shape: 'dot', text: err});
-                    } else {
-                        this.send({topic: msg.topic, payload: res});
-                        this.status(nodeStatus);
+                const cmd = Object.assign({}, msg.payload, {
+                    callback: (err, res) => {
+                        if (err) {
+                            this.error(err);
+                            this.status({fill: 'red', shape: 'dot', text: err});
+                        } else {
+                            this.send({topic: msg.topic, payload: res});
+                            this.status(nodeStatus);
+                        }
                     }
                 });
+                shepherdNode.proxy.queue(cmd);
             });
         }
     }
