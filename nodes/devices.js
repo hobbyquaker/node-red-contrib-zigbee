@@ -25,6 +25,10 @@ module.exports = function (RED) {
                 this.shepherd.permitJoin(time);
             });
 
+            this.shepherd.on('devices', () => {
+                this.send([null, {payload: shepherdNode.devices}]);
+            });
+
             this.shepherd.on('ready', () => {
                 this.send([null, {payload: shepherdNode.devices}]);
             });
