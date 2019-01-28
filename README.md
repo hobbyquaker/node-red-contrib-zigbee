@@ -34,12 +34,11 @@ zigbee-shepherd.
 - [x] event node: devLeaving 
 - [x] command node: functional cmd 
 - [x] command node: foundation cmd 
-- [ ] command node: read/write
-- [ ] command node: bind/unbind
+- [ ] ~~command node: read/write~~
+- [x] bind/unbind node
 - [ ] command node: report
 - [ ] converter node: configurable topics with placeholders for incoming and outgoing msgs
 - [ ] converter node: clarify endpoint usage (currently always using the first ep)
-- [ ] groups support tbc: configurable in device node gui?
 - [ ] documentation
 
 
