@@ -14,10 +14,6 @@ module.exports = function (RED) {
 
             this.shepherd = shepherdNode.proxy;
             this.devices = shepherdNode.devices;
-
-            this.shepherd.on('ind', message => {
-
-            });
         }
     }
 

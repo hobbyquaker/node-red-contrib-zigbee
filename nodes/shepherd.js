@@ -335,6 +335,7 @@ module.exports = function (RED) {
             } else {
                 this.debug('list: no change');
             }
+
             this.proxy.emit('devices', this.devices);
         }
 
@@ -363,11 +364,13 @@ module.exports = function (RED) {
                 this.error('source endpoint ' + deviceSrc + ' ' + epSrc + ' unkown');
                 return;
             }
+
             const endpointDest = Number(groupDest) || this.shepherd.find(deviceDest, epDest);
             if (!endpointDest) {
                 this.error('destination endpoint ' + deviceDest + ' ' + epDest + ' unkown');
                 return;
             }
+
             endpointSrc.bind(cluster, endpointDest, err => {
                 if (err) {
                     this.error(err.message);
@@ -376,6 +379,7 @@ module.exports = function (RED) {
                 }
             });
         }
+
         unbind(deviceSrc, epSrc, deviceDest, epDest, groupDest, cluster) {
             console.log('unbind', deviceSrc, epSrc, deviceDest, epDest, groupDest, cluster);
             const endpointSrc = this.shepherd.find(deviceSrc, epSrc);
@@ -383,11 +387,13 @@ module.exports = function (RED) {
                 this.error('source endpoint ' + deviceSrc + ' ' + epSrc + ' unkown');
                 return;
             }
+
             const endpointDest = Number(groupDest) || this.shepherd.find(deviceDest, epDest);
             if (!endpointDest) {
                 this.error('destination endpoint ' + deviceDest + ' ' + epDest + ' unkown');
                 return;
             }
+
             endpointSrc.unbind(cluster, endpointDest, err => {
                 if (err) {
                     this.error(err.message);
