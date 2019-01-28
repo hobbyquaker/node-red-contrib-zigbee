@@ -1,0 +1,145 @@
+<script type="text/javascript">
+    RED.nodes.registerType('zigbee-bind', {
+
+        category: 'zigbee',
+        defaults: {
+            shepherd: {value: '', type: 'zigbee-shepherd', required: true},
+        },
+        inputs: 0,
+        outputs: 0,
+        icon: 'bee.png',
+        color: '#E2D96E',
+        paletteLabel: 'bind',
+        align: 'left',
+        label() {
+            return this.name || 'bind';
+        },
+        labelStyle() {
+            return this.name ? 'node_label_italic' : '';
+        },
+        oneditprepare() {
+
+            $('#node-input-shepherd').change(() => {
+                const id = $('#node-input-shepherd').val();
+                $.getJSON('zigbee-shepherd/devices?id=' + id, data => {
+                    $('#node-input-device-src').html('');
+                    $('#node-input-device-dest').html('');
+                    Object.keys(data).forEach(addr => {
+                        const desc = (data[addr].name || '') + ' ' + data[addr].modelId + ' ' + addr;
+                        $('#node-input-device-src').append(`<option value="${addr}">${desc}</option>`);
+                        $('#node-input-device-dest').append(`<option value="${addr}">${desc}</option>`);
+                    });
+                });
+            });
+
+            $('#node-input-dest-type').change(() => {
+                console.log('type', $('#node-input-dest-type').val());
+                if ($('#node-input-dest-type').val() === 'endpoint') {
+                    $('.group').hide();
+                    $('.endpoint').show();
+                } else {
+                    $('.endpoint').hide();
+                    $('.group').show();
+                }
+            });
+
+            function queryString(params) {
+                let arr = [];
+                Object.keys(params).forEach(key => {
+                    arr.push(key + '=' + params[key]);
+                });
+                return arr.join('&');
+            }
+
+            $('#bind').click(() => {
+                const queryParams = {
+                    id: $('#node-input-shepherd').val(),
+                    deviceSrc: $('#node-input-device-src').val(),
+                    deviceDest: $('#node-input-device-dest').val(),
+                    epSrc: $('#node-input-endpoint-src').val(),
+                    epDest: $('#node-input-endpoint-dest').val(),
+                    groupDest: $('#node-input-group-dest').val(),
+                    cId: $('#node-input-cluster').val(),
+                };
+
+                $.getJSON('zigbee-shepherd/bind?' + queryString(queryParams), data => {
+
+                });
+            });
+
+            $('#unbind').click(() => {
+                const queryParams = {
+                    id: $('#node-input-shepherd').val(),
+                    deviceSrc: $('#node-input-device-src').val(),
+                    deviceDest: $('#node-input-device-dest').val(),
+                    epSrc: $('#node-input-endpoint-src').val(),
+                    epDest: $('#node-input-endpoint-dest').val(),
+                    groupDest: $('#node-input-group-dest').val(),
+                    cId: $('#node-input-cluster').val(),
+                };
+                $.getJSON('zigbee-shepherd/unbind?' + queryString(queryParams), data => {
+
+                });
+            });
+
+
+        }
+    });
+</script>
+
+<script type="text/x-red" data-template-name="zigbee-bind">
+    <div class="form-row">
+        <label for="node-input-shepherd"><i class="icon-global"></i> shepherd</label>
+        <input type="text" id="node-input-shepherd">
+    </div>
+    <div class="form-row">
+        <label for="node-input-device-src"><i class="icon-global"></i> src device</label>
+        <select id="node-input-device-src" style="width: 70%">
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-endpoint-src"><i class="icon-global"></i> src ep</label>
+        <input type="text" id="node-input-endpoint-src">
+    </div>
+    <div class="form-row">
+        <label for="node-input-dest-type"><i class="icon-global"></i> dest type</label>
+        <select id="node-input-dest-type">
+            <option value="endpoint">endpoint</option>
+            <option value="group">group</option>
+        </select>
+    </div>
+    <div class="form-row endpoint">
+        <label for="node-input-device-dest"><i class="icon-global"></i> dest device</label>
+        <select id="node-input-device-dest" style="width: 70%">
+        </select>
+    </div>
+    <div class="form-row endpoint">
+        <label for="node-input-endpoint-dest"><i class="icon-global"></i> dest ep</label>
+        <input type="text" id="node-input-endpoint-dest">
+    </div>
+    <div class="form-row group" style="display:none">
+        <label for="node-input-group-dest"><i class="icon-global"></i> dest group</label>
+        <input type="text" id="node-input-group-dest">
+    </div>
+    <div class="form-row">
+        <label for="node-input-cluster"><i class="icon-global"></i> cluster</label>
+        <input type="text" id="node-input-cluster">
+    </div>
+    <style>
+        #bind, #unbind {
+            width: 80px;
+            display: inline-block;
+        }
+    </style>
+    <div class="form-row">
+        <input id="bind" type="button" value="bind">
+        <input id="unbind" type="button" value="unbind">
+    </div>
+
+</script>
+
+
+
+<script type="text/x-red" data-help-name="zigbee-bind">
+
+</script>

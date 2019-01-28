@@ -41,6 +41,22 @@ module.exports = function (RED) {
         res.status(200).send('');
     });
 
+    RED.httpAdmin.get('/zigbee-shepherd/bind', (req, res) => {
+        if (shepherdNodes[req.query.id]) {
+            shepherdNodes[req.query.id].bind(req.query.deviceSrc, parseInt(req.query.epSrc, 10), req.query.deviceDest, parseInt(req.query.epDest, 10), req.query.groupDest, req.query.cId);
+        }
+
+        res.status(200).send('');
+    });
+
+    RED.httpAdmin.get('/zigbee-shepherd/unbind', (req, res) => {
+        if (shepherdNodes[req.query.id]) {
+            shepherdNodes[req.query.id].unbind(req.query.deviceSrc, parseInt(req.query.epSrc, 10), req.query.deviceDest, parseInt(req.query.epDest, 10), req.query.groupDest, req.query.cId);
+        }
+
+        res.status(200).send('');
+    });
+
     RED.httpAdmin.get('/zigbee-shepherd/join-time-left', (req, res) => {
         if (shepherdNodes[req.query.id]) {
             res.status(200).send(JSON.stringify({joinTimeLeft: shepherdNodes[req.query.id].joinTimeLeft}));
@@ -280,6 +296,7 @@ module.exports = function (RED) {
         indHandler(msg) {
             this.proxy.emit('ind', msg);
             if (msg.type === 'devIncoming' || msg.type === 'devLeaving') {
+                this.debug(msg.type + ' ' + msg.data);
                 this.list();
             }
             //this.debug('ind ' + util.inspect(msg, {breakLength: Infinity, depth: 3}));
@@ -314,8 +331,11 @@ module.exports = function (RED) {
             });
             if (change) {
                 this.save();
-                this.proxy.emit('devices', this.devices);
+                this.debug('list: changed!');
+            } else {
+                this.debug('list: no change');
             }
+            this.proxy.emit('devices', this.devices);
         }
 
         remove(addr) {
@@ -332,8 +352,49 @@ module.exports = function (RED) {
             if (time) {
                 this.shepherd.permitJoin(time, type);
             } else {
-                this.shepherd.permitJoin(0);
+                this.shepherd.permitJoin(1, type);
             }
+        }
+
+        bind(deviceSrc, epSrc, deviceDest, epDest, groupDest, cluster) {
+            console.log('bind', deviceSrc, epSrc, deviceDest, epDest, groupDest, cluster);
+            const endpointSrc = this.shepherd.find(deviceSrc, epSrc);
+            if (!endpointSrc) {
+                this.error('source endpoint ' + deviceSrc + ' ' + epSrc + ' unkown');
+                return;
+            }
+            const endpointDest = Number(groupDest) || this.shepherd.find(deviceDest, epDest);
+            if (!endpointDest) {
+                this.error('destination endpoint ' + deviceDest + ' ' + epDest + ' unkown');
+                return;
+            }
+            endpointSrc.bind(cluster, endpointDest, err => {
+                if (err) {
+                    this.error(err.message);
+                } else {
+                    this.log('bind successful');
+                }
+            });
+        }
+        unbind(deviceSrc, epSrc, deviceDest, epDest, groupDest, cluster) {
+            console.log('unbind', deviceSrc, epSrc, deviceDest, epDest, groupDest, cluster);
+            const endpointSrc = this.shepherd.find(deviceSrc, epSrc);
+            if (!endpointSrc) {
+                this.error('source endpoint ' + deviceSrc + ' ' + epSrc + ' unkown');
+                return;
+            }
+            const endpointDest = Number(groupDest) || this.shepherd.find(deviceDest, epDest);
+            if (!endpointDest) {
+                this.error('destination endpoint ' + deviceDest + ' ' + epDest + ' unkown');
+                return;
+            }
+            endpointSrc.unbind(cluster, endpointDest, err => {
+                if (err) {
+                    this.error(err.message);
+                } else {
+                    this.log('unbind successful');
+                }
+            });
         }
     }
 

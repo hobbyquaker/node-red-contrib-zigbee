@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-zigbee",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "keywords": [
     "node-red",
     "zigbee",
@@ -31,7 +31,8 @@
       "zigbee-devices": "nodes/devices.js",
       "zigbee-converter": "nodes/converter.js",
       "zigbee-event": "nodes/event.js",
-      "zigbee-command": "nodes/command.js"
+      "zigbee-command": "nodes/command.js",
+      "zigbee-bind": "nodes/bind.js"
     }
   },
   "devDependencies": {
