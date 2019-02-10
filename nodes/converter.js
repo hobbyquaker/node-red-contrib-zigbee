@@ -53,7 +53,7 @@ module.exports = function (RED) {
                     payload = {state: msg.payload};
                 }
 
-                this.trace('payload', payload);
+                this.debug('payload ' + JSON.stringify(payload));
 
                 let model;
                 // Map device to a model
@@ -81,6 +81,7 @@ module.exports = function (RED) {
                     // Converter didn't return a result, skip
                     const converted = converter.convert(key, payload[key], payload, 'set');
                     if (!converted) {
+                        this.warn('no conversion for ' + key);
                         return;
                     }
 
