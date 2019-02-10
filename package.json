@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-zigbee",
-  "version": "0.0.7",
+  "version": "0.1.0",
   "keywords": [
     "node-red",
     "zigbee",
@@ -18,6 +18,7 @@
   "repository": "https://github.com/hobbyquaker/node-red-contrib-zigbee",
   "dependencies": {
     "mkdirp": "^0.5.1",
+    "obj-ease": "^1.0.1",
     "zigbee-shepherd": "git+https://github.com/Koenkk/zigbee-shepherd.git#ce52ac4131e2a505af6197b4a26d2b5360e4eb80",
     "zigbee-shepherd-converters": "^7.0.25"
   },
@@ -30,6 +31,7 @@
       "zigbee-shepherd": "nodes/shepherd.js",
       "zigbee-devices": "nodes/devices.js",
       "zigbee-converter": "nodes/converter.js",
+      "zigbee-hue": "nodes/hue.js",
       "zigbee-event": "nodes/event.js",
       "zigbee-command": "nodes/command.js",
       "zigbee-bind": "nodes/bind.js"
