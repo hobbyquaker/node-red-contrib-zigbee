@@ -112,10 +112,17 @@ module.exports = function (RED) {
             if ((this.commandQueue.length > 0) && !this.cmdPending) {
                 this.cmdPending = true;
                 const {cmd, timeout} = this.commandQueue.shift();
+
                 const endpoint = this.shepherd.find(cmd.ieeeAddr, cmd.ep);
 
                 if (!endpoint) {
                     this.error('endpoint not found ' + cmd.ieeeAddr + ' ' + cmd.ep);
+                    if (typeof cmd.callback === 'function') {
+                        cmd.callback(new Error('endpoint not found'));
+                    }
+
+                    this.cmdPending = false;
+                    this.shiftQueue();
                     return;
                 }
 
