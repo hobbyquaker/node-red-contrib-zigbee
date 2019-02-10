@@ -36,9 +36,35 @@ zigbee-shepherd.
 - [x] command node: foundation cmd 
 - [ ] ~~command node: read/write~~
 - [x] bind/unbind node
-- [ ] command node: report
+- [ ] group node
+- [ ] scenes node
+- [ ] TBD: command node: report
 - [ ] converter node: configurable topics with placeholders for incoming and outgoing msgs
 - [ ] converter node: clarify endpoint usage (currently always using the first ep)
+- [ ] hue node (mimic the hue bridge api)
+  - [ ] map devices to hue light number (tbd: configurable or automatically?)
+  - [x] 1.1 Get all lights
+  - [ ] 1.2 TBD: Get new lights
+  - [ ] 1.3 TBD: Search for new lights
+  - [x] 1.4 Get light attributes and state
+  - [ ] 1.5 TBD: Set light attributes (rename)
+  - [x] 1.6 Set light state
+  - [ ] 1.6 Set light state ct_inc
+  - [ ] 1.6 Set light state hue_inc
+  - [ ] 1.6 Set light state sat_inc
+  - [ ] 1.6 Set light state convert xy values
+  - [ ] 1.6 Set light state response
+  - [ ] 1.7 TBD: Delete lights
+  - [ ] TBD: Groups API
+  - [ ] TBD: Schedules API
+  - [ ] TBD: Sensors API
+  - [ ] TBD: Rules API
+  - [ ] TBD: Configratuon API
+  - [ ] TBD: Info API
+  - [ ] TBD: Resourcelinks API
+  - [ ] TBD: Capabilities API
+  - [ ] TBD: announce bridge, try to make hue apps work ?
+- [ ] TBD aqara node (mimic the aqara bridge api)
 - [ ] documentation
 
 
@@ -59,9 +85,9 @@ an eye on Node-RED's log output.
 
 #### shepherd
 
-Config node that holds the configuration of zigbee-shepherd, you can configure your serial port and the zigbee network
-setting with it. You should change the precfgkey for security reasons before pairing the first devices. I suggest to use 
-a password manager (like e.g. KeyPass) to create and store a random key (has to be 16 Byte - so 32 chars 0-9A-F). 
+Config node that holds the serial port and ZigBee network configuration of zigbee-shepherd. You should change the 
+precfgkey for security reasons before pairing the first devices. I suggest to use a password manager (like e.g. KeyPass) 
+to create and store a random key (has to be 16 Byte in uppercase hex representation (32 chars 0-9A-F). 
 
 
 #### devices
@@ -77,14 +103,21 @@ This Node utilizes [Koenkk's zigbee-shepherd-converters](https://github.com/Koen
 offers payload formats as known from zigbee2mqtt. In fact most of this nodes code is taken 1:1 from zigbee2mqtt.
 
 
+#### hue
+
+This node mimics the Philips Hue bridge API for ZigBee Light Link devices.
+
+
 #### event
 
 This Node outputs events as received from zigbee-shepherd. 
 
+
 #### command
 
 Send a "functional" or "foundation" command to a device endpoint. Payload has to be an object containing the properties 
-`cmdType`, `ieeeAddress`, `ep`, `cId`, `cmd` and `zclData`. See https://github.com/zigbeer/zigbee-shepherd/wiki#API_functional
+`cmdType`, `ieeeAddress`, `ep`, `cId`, `cmd` and `zclData`. See 
+https://github.com/zigbeer/zigbee-shepherd/wiki#API_functional
 
 
 
