@@ -194,7 +194,11 @@ module.exports = function (RED) {
             RED.nodes.createNode(this, config);
 
             this.persistPath = path.join(RED.settings.userDir, 'zigbee', this.id);
-            mkdirp(this.persistPath);
+            this.log('persistPath ' + this.persistPath);
+            if (!fs.existsSync(this.persistPath)) {
+                this.log('mkdirp ' + this.persistPath);
+                mkdirp.sync(this.persistPath);
+            }
 
             this.namesPath = path.join(this.persistPath, 'names.json');
             this.dbPath = path.join(this.persistPath, 'dev.db');
@@ -204,7 +208,7 @@ module.exports = function (RED) {
             try {
                 devices[this.id] = JSON.parse(fs.readFileSync(this.namesPath).toString());
             } catch (error) {
-                this.error(error);
+                this.warn(error);
             }
 
             if (!devices[this.id]) {
@@ -259,11 +263,24 @@ module.exports = function (RED) {
             });
 
             this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'dot', text: 'starting'});
-            this.debug('starting');
+            this.debug('starting ' + config.path + ' ' + JSON.stringify(shepherdOptions));
             this.shepherd.start(error => {
                 if (error) {
-                    this.proxy.emit('nodeStatus', {fill: 'red', shape: 'ring', text: error.message});
-                    this.error(error);
+                    this.proxy.emit('nodeStatus', {fill: 'red', shape: 'ring', text: error.message + ', retrying'});
+                    this.error(error.message + ', retrying');
+                    this.shepherd.controller._znp.close((() => null));
+
+                    setTimeout(() => {
+                        this.shepherd.start(error => {
+                            if (error) {
+                                this.proxy.emit('nodeStatus', {fill: 'red', shape: 'dot', text: error.message});
+                                this.error(error.message);
+                            } else {
+                                this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'dot', text: 'connecting'});
+                                this.debug('started');
+                            }
+                        });
+                    }, 60000);
                 } else {
                     this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'dot', text: 'connecting'});
                     this.debug('started');
