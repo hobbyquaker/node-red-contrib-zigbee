@@ -101,7 +101,6 @@ module.exports = function (RED) {
             this.lightsInternal = {};
 
             this.proxy.on('ready', () => {
-
                 this.devices = shepherdNode.devices;
                 let currentIndex = 1;
 
@@ -145,7 +144,6 @@ module.exports = function (RED) {
             });
 
             this.proxy.on('ind', msg => {
-
                 let ieeeAddr;
                 let index;
 
@@ -156,16 +154,17 @@ module.exports = function (RED) {
                         break;
                     case 'devChange':
                     case 'devStatus':
-                        ieeeAddr = msg.endpoints && msg.endpoints[0] && msg.endpoints[0].device && msg.endpoints[0].device.ieeeAddr
+                        ieeeAddr = msg.endpoints && msg.endpoints[0] && msg.endpoints[0].device && msg.endpoints[0].device.ieeeAddr;
                         index = this.getLightIndex(ieeeAddr);
                         if (!index) {
                             return;
                         }
+
                         console.log(msg.type, index);
                         const ziee = msg.endpoints[0].clusters;
 
                         const state = {
-                            on: Boolean(ziee.genOnOff.attrs.onOff),
+                            on: Boolean(ziee.genOnOff.attrs.onOff)
                         };
 
                         if (msg.type === 'devStatus') {
@@ -177,23 +176,29 @@ module.exports = function (RED) {
                         if (ziee.genLevelCtrl) {
                             state.bri = ziee.genLevelCtrl.attrs.currentLevel;
                         }
+
                         if (ziee.lightingColorCtrl) {
                             const attrs = ziee.lightingColorCtrl.attrs;
                             if (typeof attrs.colorTemperature !== 'undefined') {
                                 state.ct = attrs.colorTemperature;
                             }
+
                             if (typeof attrs.enhancedCurrentHue !== 'undefined') {
-                                state.hue = attrs.enhancedCurrentHue
+                                state.hue = attrs.enhancedCurrentHue;
                             }
+
                             if (typeof attrs.currentSaturation !== 'undefined') {
-                                state.sat = attrs.currentSaturation
+                                state.sat = attrs.currentSaturation;
                             }
+
                             if (typeof attrs.currentX !== 'undefined') {
                                 state.xy = [attrs.currentX, attrs.currentY];
                             }
+
                             if (typeof attrs.currentSaturation !== 'undefined') {
-                                state.sat = attrs.currentSaturation
+                                state.sat = attrs.currentSaturation;
                             }
+
                             if (typeof attrs.colorMode !== 'undefined') {
                                 switch (attrs.colorMode) {
                                     case 0:
@@ -206,12 +211,10 @@ module.exports = function (RED) {
                                         state.colormode = 'ct';
                                         break;
                                     default:
-
-
                                 }
-
                             }
                         }
+
                         this.updateLightState(index, state);
                         break;
 
@@ -220,14 +223,16 @@ module.exports = function (RED) {
                         if (!index) {
                             return;
                         }
+
                         console.log('devInterview', index);
                         break;
                     case 'attReport':
-                        ieeeAddr = msg.endpoints && msg.endpoints[0] && msg.endpoints[0].device && msg.endpoints[0].device.ieeeAddr
+                        ieeeAddr = msg.endpoints && msg.endpoints[0] && msg.endpoints[0].device && msg.endpoints[0].device.ieeeAddr;
                         index = this.getLightIndex(ieeeAddr);
                         if (!index) {
                             return;
                         }
+
                         console.log('attReport', msg);
                         break;
                 }
@@ -244,7 +249,7 @@ module.exports = function (RED) {
                     if (id) {
                         this.send([Object.assign(RED.util.cloneMessage(msg), {payload: this.lights[index]}), null]);
                     } else {
-                        this.send([Object.assign(RED.util.cloneMessage(msg), {payload: this.apiError(3, {resource: '/lights/' + index})}), null])
+                        this.send([Object.assign(RED.util.cloneMessage(msg), {payload: this.apiError(3, {resource: '/lights/' + index})}), null]);
                     }
                 } else if (match = msg.topic.match(/lights\/([^\/]+)\/state$/)) {
                     const [, index] = match;
@@ -258,15 +263,14 @@ module.exports = function (RED) {
                 case 3:
                     return [
                         {
-                            'error': {
-                                'type': 3,
-                                'address': data.resource,
-                                'description': 'resource, ' + data.resource + ', not available'
+                            error: {
+                                type: 3,
+                                address: data.resource,
+                                description: 'resource, ' + data.resource + ', not available'
                             }
                         }
                     ];
                 default:
-
             }
         }
 
@@ -276,29 +280,30 @@ module.exports = function (RED) {
          */
         getLightIndex(search) {
             let found = null;
-            
+
             if (search.startsWith('0x')) {
                 Object.keys(this.lightsInternal).forEach(index => {
                     if (this.lightsInternal[index] && (this.lightsInternal[index].ieeeAddr === search)) {
                         found = index;
                     }
-                });                
+                });
             } else if (this.lights[search]) {
                 found = search;
             } else {
                 Object.keys(this.lights).forEach(index => {
                     if (search === this.lights[index].name) {
                         found = index;
-                    } 
+                    }
                 });
             }
-            
+
             return found;
         }
 
         updateLight(lightIndex, data) {
             Object.assign(this.lights[lightIndex], data);
         }
+
         updateLightState(lightIndex, data) {
             if (oe.extend(this.lights[lightIndex].state, data)) {
                 this.send([null, {topic: '/lights/' + (this.lights[lightIndex].name || lightIndex), payload: this.lights[lightIndex].state}]);
@@ -311,13 +316,11 @@ module.exports = function (RED) {
                 if (err.message.includes('status code: 233')) {
                     this.updateLight(lightIndex, {reachable: false});
                 }
-            } else {
-                if (msg.payload.transitiontime) {
-               //     if (msg.payload.transitiontime > getStateTimeout) {
-               //         getStateTimeout = msg.payload.transitiontime;
-               //         getStateClusters['genOnOff'] = ['onOff'];
-               //     }
-                }
+            } else if (msg.payload.transitiontime) {
+                //     if (msg.payload.transitiontime > getStateTimeout) {
+                //         getStateTimeout = msg.payload.transitiontime;
+                //         getStateClusters['genOnOff'] = ['onOff'];
+                //     }
             }
         }
 
@@ -349,8 +352,8 @@ module.exports = function (RED) {
 
             const cmds = [];
 
-            let getStateTimeout = 0;
-            let getStateClusters = {};
+            const getStateTimeout = 0;
+            const getStateClusters = {};
 
             if (typeof msg.payload.on !== 'undefined' && (msg.payload.on === false || typeof msg.payload.bri === 'undefined')) {
                 cmds.push({
@@ -589,9 +592,6 @@ module.exports = function (RED) {
                 this.proxy.queue(cmd);
             });
         }
-
-
-
     }
 
     RED.nodes.registerType('zigbee-hue', ZigbeeHue);
