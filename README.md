@@ -72,7 +72,7 @@ zigbee-shepherd.
 
 ## Hardware Prerequisites
 
-see https://koenkk.github.io/zigbee2mqtt/getting_started/what_do_i_need.html
+see https://www.zigbee2mqtt.io/getting_started/what_do_i_need.html
 Ready to use firmware images are available here: https://github.com/Koenkk/Z-Stack-firmware/tree/master/coordinator
 
 ## Getting started
