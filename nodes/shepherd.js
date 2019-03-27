@@ -316,7 +316,7 @@ module.exports = function (RED) {
 
         errorHandler(error) {
             this.error(error);
-            this.proxy.emit('error', error);
+            //this.proxy.emit('error', error);
         }
 
         indHandler(msg) {
