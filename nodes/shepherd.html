@@ -27,7 +27,8 @@
             path: {value: '/dev/ttyACM0', required: true},
             baudRate: {value: 115200, required: true},
             rtscts: {value: true},
-            channelList: {value: [11]}
+            channelList: {value: [11]},
+            led: {value: 'disabled'}
         },
         label() {
             return this.name || 'zigbee shepherd';
@@ -143,6 +144,13 @@
     <div class="form-row">
         <label for="node-config-input-precfgkey"><i class="icon-bookmark"></i> precfgkey</label>
         <input type="text" id="node-config-input-precfgkey">
+    </div>
+    <div class="form-row">
+        <label for="node-config-input-led"><i class="icon-bookmark"></i> CC2531 LED</label>
+        <select id="node-config-input-led">
+            <option value="disabled">disabled</option>
+            <option value="enabled">enabled</option>
+        </select>
     </div>
     <div class="form-row">
         Changing the configuration of an already existing Shepherd needs a Node-RED restart after deployment.

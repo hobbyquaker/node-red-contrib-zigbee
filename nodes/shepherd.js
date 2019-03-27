@@ -202,6 +202,7 @@ module.exports = function (RED) {
 
             this.namesPath = path.join(this.persistPath, 'names.json');
             this.dbPath = path.join(this.persistPath, 'dev.db');
+            this.led = config.led;
 
             shepherdNodes[this.id] = this;
 
@@ -310,6 +311,7 @@ module.exports = function (RED) {
             this.list();
             this.proxy.emit('ready');
             this.proxy.emit('nodeStatus', {fill: 'green', shape: 'dot', text: 'connected'});
+            this.shepherd.controller.request('UTIL', 'ledControl', {ledid: 3, mode: this.led !== 'enabled' ? 0 : 1});
         }
 
         errorHandler(error) {
