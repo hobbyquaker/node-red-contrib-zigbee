@@ -329,8 +329,12 @@ module.exports = function (RED) {
         }
 
         permitJoiningHandler(joinTimeLeft) {
+            if (joinTimeLeft < 0) {
+                this.join(1);
+            }
             this.proxy.emit('permitJoining', joinTimeLeft);
             this.joinTimeLeft = joinTimeLeft;
+
         }
 
         save() {
