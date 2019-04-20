@@ -19,8 +19,8 @@
   "dependencies": {
     "mkdirp": "^0.5.1",
     "obj-ease": "^1.0.1",
-    "zigbee-shepherd": "git+https://github.com/Koenkk/zigbee-shepherd.git#ce52ac4131e2a505af6197b4a26d2b5360e4eb80",
-    "zigbee-shepherd-converters": "^8.0.2"
+    "zigbee-shepherd": "git+https://github.com/Koenkk/zigbee-shepherd.git#a8b5828200140adf4de83457508576f6879f7ec1",
+    "zigbee-shepherd-converters": "^8.1.3"
   },
   "scripts": {
     "test": "camo-purge; xo",
