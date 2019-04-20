@@ -159,8 +159,12 @@ module.exports = function (RED) {
                         // Find a converter for this message.
                         const {cid, cmdId} = message.data;
                         const converters = model.fromZigbee.filter(c => {
-                            if (cid) {
-                                return c.cid === cid && c.type === message.type;
+                            if (c.cid === cid) {
+                                if (c.type instanceof Array) {
+                                    return c.type.includes(message.type);
+                                } else {
+                                    return c.type === message.type;
+                                }
                             }
 
                             if (cmdId) {
