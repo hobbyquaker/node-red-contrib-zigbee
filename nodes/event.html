@@ -5,7 +5,9 @@
         defaults: {
             shepherd: {value: '', type: 'zigbee-shepherd', required: true},
             device: {value: ''},
-            events: {value: ['attReport', 'devChange']}
+            events: {value: ['attReport']},
+            topic: {value: 'zigbee/${ieeeAddr}/attReport/${epId}/${cid}/${attribute}'},
+            payload: {value: 'json'}
         },
         inputs: 0,
         outputs: 1,
@@ -55,6 +57,7 @@
         <label for="node-input-shepherd"><i class="icon-global"></i> shepherd</label>
         <input type="text" id="node-input-shepherd">
     </div>
+
     <div class="form-row">
         <label for="event"><i class="icon-global"></i> events</label>
         <style>
@@ -83,11 +86,26 @@
             <label for="node-input-event-devLeaving"><input type="checkbox" id="node-input-event-devLeaving"/>devLeaving</label>
         </div>
     </div>
+
     <div class="form-row">
         <label for="node-input-device"><i class="icon-global"></i> device</label>
         <select id="node-input-device" style="width: 70%">
         </select>
     </div>
+
+    <div class="form-row">
+        <label for="node-input-topic"><i class="icon-global"></i> topic</label>
+        <input type="text" id="node-input-topic">
+    </div>
+
+     <div class="form-row">
+        <label for="node-input-payload"><i class="icon-global"></i> payload</label>
+        <select id="node-input-payload" style="width: 70%">
+            <option value="plain">plain, one msg per attribute</option>
+            <option value="json">json, all attributes in one msg</option>
+        </select>
+    </div>
+
 </script>
 
 
