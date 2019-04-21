@@ -1,0 +1,6 @@
+{
+    "lumi.sensor_switch.aq2": 60,
+    "lumi.sensor_magnet.aq2": 60,
+    "lumi.weather": 60,
+    "lumi.router": 1
+}

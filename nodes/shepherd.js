@@ -5,6 +5,8 @@ const {EventEmitter} = require('events');
 const mkdirp = require('mkdirp');
 const Shepherd = require('zigbee-shepherd');
 
+const interval = require('../interval.json');
+
 const devices = {};
 const shepherdNodes = {};
 const shepherdInstances = {};
@@ -290,8 +292,13 @@ module.exports = function (RED) {
                 }
             });
 
+            const checkOverdueInterval = setInterval(() => {
+                this.checkOverdue();
+            }, 60000);
+
             this.on('close', done => {
                 this.debug('stopping');
+                clearInterval(checkOverdueInterval);
                 this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'ring', text: 'closing'});
                 this.shepherd.stop(() => {
                     Object.keys(listeners).forEach(event => {
@@ -311,6 +318,10 @@ module.exports = function (RED) {
         readyHandler() {
             this.log('ready');
             this.list();
+            const now = (new Date()).getTime();
+            Object.keys(this.devices).forEach(ieeeAddr => {
+                this.devices[ieeeAddr].ts = now;
+            });
             this.proxy.emit('ready');
             this.proxy.emit('nodeStatus', {fill: 'green', shape: 'dot', text: 'connected'});
             this.shepherd.controller.request('UTIL', 'ledControl', {ledid: 3, mode: this.led === 'enabled' ? 1 : 0});
@@ -322,12 +333,28 @@ module.exports = function (RED) {
         }
 
         indHandler(msg) {
-            this.proxy.emit('ind', msg);
+            const now = (new Date()).getTime();
+            let ieeeAddr;
+
             if (msg.type === 'devIncoming' || msg.type === 'devLeaving') {
+                ieeeAddr = msg.data;
                 this.debug(msg.type + ' ' + msg.data);
                 this.list();
+            } else {
+                const firstEp = (msg && msg.endpoints && msg.endpoints[0]) || {};
+                ieeeAddr = firstEp.device && firstEp.device.ieeeAddr;
             }
-            //this.debug('ind ' + util.inspect(msg, {breakLength: Infinity, depth: 3}));
+
+            if (this.devices[ieeeAddr]) {
+                this.devices[ieeeAddr].ts = now;
+                if (this.devices[ieeeAddr].overdue !== false) {
+                    this.debug('overdue false ' + ieeeAddr + ' ' + this.devices[ieeeAddr].name);
+                    this.devices[ieeeAddr].overdue = false;
+                    this.proxy.emit('devices', this.devices);
+                }
+            }
+
+            this.proxy.emit('ind', msg);
         }
 
         permitJoiningHandler(joinTimeLeft) {
@@ -433,6 +460,23 @@ module.exports = function (RED) {
                     this.log('unbind successful');
                 }
             });
+        }
+
+        checkOverdue() {
+            const now = (new Date()).getTime();
+            let change = false;
+            Object.keys(this.devices).forEach(ieeeAddr => {
+                 const elapsed = Math.round((now - this.devices[ieeeAddr]) / 60000);
+                 const timeout = interval[this.devices[ieeeAddr].modelId];
+                 if (timeout && (elapsed > timeout) && (this.devices[ieeeAddr].overdue !== true)) {
+                     change = true;
+                     this.debug('overdue true ' + ieeeAddr + ' ' + this.devices[ieeeAddr].name);
+                     this.devices[ieeeAddr].overdue = true;
+                 }
+            });
+            if (change) {
+                this.proxy.emit('devices', this.devices);
+            }
         }
     }
 
