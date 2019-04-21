@@ -69,6 +69,8 @@ module.exports = function (RED) {
         constructor(shepherdNode) {
             super();
 
+            this.setMaxListeners(1000);
+
             this.shepherdNode = shepherdNode;
             this.shepherd = shepherdNode.shepherd;
 
