@@ -313,7 +313,7 @@ module.exports = function (RED) {
             this.list();
             this.proxy.emit('ready');
             this.proxy.emit('nodeStatus', {fill: 'green', shape: 'dot', text: 'connected'});
-            this.shepherd.controller.request('UTIL', 'ledControl', {ledid: 3, mode: this.led !== 'enabled' ? 0 : 1});
+            this.shepherd.controller.request('UTIL', 'ledControl', {ledid: 3, mode: this.led === 'enabled' ? 1 : 0});
         }
 
         errorHandler(error) {
@@ -334,9 +334,9 @@ module.exports = function (RED) {
             if (joinTimeLeft < 0) {
                 this.join(1);
             }
+
             this.proxy.emit('permitJoining', joinTimeLeft);
             this.joinTimeLeft = joinTimeLeft;
-
         }
 
         save() {

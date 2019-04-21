@@ -178,7 +178,7 @@ module.exports = function (RED) {
                         }
 
                         if (ziee.lightingColorCtrl) {
-                            const attrs = ziee.lightingColorCtrl.attrs;
+                            const {attrs} = ziee.lightingColorCtrl;
                             if (typeof attrs.colorTemperature !== 'undefined') {
                                 state.ct = attrs.colorTemperature;
                             }
