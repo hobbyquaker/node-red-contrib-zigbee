@@ -25,18 +25,31 @@ module.exports = function (RED) {
             shepherdNode.proxy.on('nodeStatus', status => this.status(status));
 
             this.on('input', msg => {
-                const [name, attr] = (msg.topic || '').split('/');
-                const ieeeAddr = config.device || this.getAddrByName(name);
-                const device = this.devices[ieeeAddr];
+                const topic = msg.topic.split('/');
+                const settopic = config.settopic.split('/');
+                const topicAttrs = {};
+                for (let i = 0; i < topic.length; i++) {
+                    const match = settopic[i].match(/\${[^}]+}/);
+                    if (match) {
+                        topicAttrs[match[1]] = topic[i];
+                    } else if (topic[i] !== settopic[i]) {
+                        this.debug('topic mismatch ' + msg.topic + ' ' + config.settopic);
+                        return;
+                    }
+                }
 
-                this.trace('topic=' + msg.topic + ' name=' + name + ' ieeeAddr=' + ieeeAddr + ' payload=' + JSON.stringify(msg.payload));
+                const ieeeAddr = config.device || topicAttrs.ieeeAddr || (topicAttrs.name && this.getAddrByName(topicAttrs.name));
+                const device = this.devices[ieeeAddr];
+                const name = topicAttrs.name || (device && device.name);
+                const attribute = config.attribute || topicAttrs.attribute;
+
+                this.debug('topic=' + msg.topic + ' name=' + name + ' ieeeAddr=' + ieeeAddr + ' attribute=' + attribute + ' payload=' + JSON.stringify(msg.payload));
 
                 if (!device) {
-                    this.error('device unknown ' + config.device + ' ' + name + ' ' + ieeeAddr);
+                    this.error('device unknown ' + name + ' ' + ieeeAddr);
                     return;
                 }
 
-                const attribute = config.attribute || attr;
                 let payload;
 
                 if (attribute) {
@@ -135,7 +148,7 @@ module.exports = function (RED) {
                     }
 
                     const out = {
-                        topic: (this.devices[device.ieeeAddr] && this.devices[device.ieeeAddr].name) || device.ieeeAddr,
+                        topic: null,
                         payload: null,
                         name: (this.devices[device.ieeeAddr] && this.devices[device.ieeeAddr].name),
                         type: device.type,
@@ -145,6 +158,8 @@ module.exports = function (RED) {
                         cid: message.data.cid,
                         data: message.data.data
                     };
+
+                    out.topic = this.topicReplace(config.topic, out);
 
                     let model;
                     // Map device to a model
@@ -160,11 +175,11 @@ module.exports = function (RED) {
                         const {cid, cmdId} = message.data;
                         const converters = model.fromZigbee.filter(c => {
                             if (c.cid === cid) {
-                                if (c.type instanceof Array) {
+                                if (Array.isArray(c.type)) {
                                     return c.type.includes(message.type);
-                                } else {
-                                    return c.type === message.type;
                                 }
+
+                                return c.type === message.type;
                             }
 
                             if (cmdId) {
@@ -195,12 +210,12 @@ module.exports = function (RED) {
                                         });
                                     } else {
                                         Object.assign(out.payload, convertedPayload);
+                                        if (Object.keys(out.payload).length > 0) {
+                                            this.send(out);
+                                        }
                                     }
                                 }
                             });
-                            if (config.payload === 'json' && Object.keys(out.payload).length > 0) {
-                                this.send(out);
-                            }
                         } else {
                             if (cid) {
                                 this.warn(
@@ -224,6 +239,29 @@ module.exports = function (RED) {
         getAddrByName(name) {
             const dev = Object.keys(this.devices).map(addr => this.devices[addr]).filter(dev => dev.name === name);
             return dev && dev.ieeeAddr;
+        }
+
+        topicReplace(topic, msg) {
+            if (!topic || typeof msg !== 'object') {
+                return topic;
+            }
+
+            const msgLower = {};
+            Object.keys(msg).forEach(k => {
+                msgLower[k.toLowerCase()] = msg[k];
+            });
+
+            const match = topic.match(/\${[^}]+}/g);
+            if (match) {
+                match.forEach(v => {
+                    const key = v.substr(2, v.length - 3);
+                    const rx = new RegExp('\\${' + key + '}', 'g');
+                    const rkey = key.toLowerCase();
+                    topic = topic.replace(rx, msgLower[rkey] || '');
+                });
+            }
+
+            return topic;
         }
     }
 

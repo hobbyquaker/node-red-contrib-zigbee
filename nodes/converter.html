@@ -5,9 +5,11 @@
         defaults: {
             shepherd: {value: '', type: 'zigbee-shepherd', required: true},
             name: {value: ''},
+            topic: {value: 'zigbee/${ieeeAddr}'},
+            settopic: {value: 'zigbee/${ieeeAddr}/set'},
             device: {value: ''},
             attribute: {value: ''},
-            payload: {value: 'plain'}
+            payload: {value: 'json'}
         },
         inputs: 1,
         outputs: 1,
@@ -79,6 +81,16 @@
         <label for="node-input-name"><i class="icon-global"></i> name</label>
         <input type="text" id="node-input-name">
     </div>
+
+    <div class="form-row">
+        <label for="node-input-topic"><i class="icon-global"></i> topic</label>
+        <input type="text" id="node-input-topic">
+    </div>
+    <div class="form-row">
+        <label for="node-input-settopic"><i class="icon-global"></i> set topic</label>
+        <input type="text" id="node-input-settopic">
+    </div>
+
     <div class="form-row">
         <label for="node-input-device"><i class="icon-global"></i> device</label>
         <select id="node-input-device" style="width: 70%">

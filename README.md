@@ -40,7 +40,7 @@ zigbee-shepherd.
 - [ ] group node
 - [ ] scenes node
 - [ ] TBD: command node: report
-- [ ] converter node: configurable topics with placeholders for incoming and outgoing msgs
+- [x] converter node: configurable topics with placeholders for incoming and outgoing msgs
 - [ ] converter node: clarify endpoint usage (currently always using the first ep)
 - [ ] hue node (mimic the hue bridge api)
   - [ ] map devices to hue light number (tbd: configurable or automatically?)
