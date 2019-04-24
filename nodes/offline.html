@@ -1,0 +1,67 @@
+<script type="text/javascript">
+    RED.nodes.registerType('zigbee-offline', {
+
+        category: 'zigbee',
+        defaults: {
+            shepherd: {value: '', type: 'zigbee-shepherd', required: true},
+            device: {value: ''},
+            topic: {value: 'zigbee/status/${name}/offline'}
+        },
+        inputs: 0,
+        outputs: 1,
+        icon: 'bee.png',
+        color: '#E2D96E',
+        paletteLabel: 'offline',
+        align: 'left',
+        label() {
+            return this.name || 'offline';
+        },
+        labelStyle() {
+            return this.name ? 'node_label_italic' : '';
+        },
+        oneditprepare() {
+            $('#node-input-shepherd').change(() => {
+                const id = $('#node-input-shepherd').val();
+                $.getJSON('zigbee-shepherd/devices?id=' + id, data => {
+                    $('#node-input-device').html('<option value="">*</option>');
+                    Object.keys(data).forEach(addr => {
+                        if (data[addr].type !== 'Coordinator') {
+                            const selected = addr === this.device ? ' selected' : '';
+                            const desc = (data[addr].name || '') + ' ' + data[addr].modelId + ' ' + addr;
+                            $('#node-input-device').append(`<option value="${addr}"${selected}>${desc}</option>`);
+                        }
+                    });
+                    $('#node-input-device').trigger('change');
+                });
+            });
+        },
+        oneditsave() {
+
+        }
+    });
+</script>
+
+<script type="text/x-red" data-template-name="zigbee-offline">
+    <div class="form-row">
+        <label for="node-input-shepherd"><i class="icon-global"></i> shepherd</label>
+        <input type="text" id="node-input-shepherd">
+    </div>
+
+
+    <div class="form-row">
+        <label for="node-input-device"><i class="icon-global"></i> device</label>
+        <select id="node-input-device" style="width: 70%">
+        </select>
+    </div>
+
+    <div class="form-row">
+        <label for="node-input-topic"><i class="icon-global"></i> topic</label>
+        <input type="text" id="node-input-topic">
+    </div>
+</script>
+
+
+
+<script type="text/x-red" data-help-name="zigbee-offline">
+
+</script>

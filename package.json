@@ -31,6 +31,7 @@
       "zigbee-shepherd": "nodes/shepherd.js",
       "zigbee-devices": "nodes/devices.js",
       "zigbee-converter": "nodes/converter.js",
+      "zigbee-offline": "nodes/offline.js",
       "zigbee-hue": "nodes/hue.js",
       "zigbee-event": "nodes/event.js",
       "zigbee-command": "nodes/command.js",
