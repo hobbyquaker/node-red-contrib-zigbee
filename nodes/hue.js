@@ -139,8 +139,8 @@ module.exports = function (RED) {
                     }
                 });
 
-                console.log(this.lightsInternal);
-                console.log('lights', this.lights);
+                //console.log(this.lightsInternal);
+                //console.log('lights', this.lights);
             });
 
             this.proxy.on('ind', msg => {
