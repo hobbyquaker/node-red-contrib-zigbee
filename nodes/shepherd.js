@@ -16,6 +16,46 @@ module.exports = function (RED) {
         res.status(200).send(JSON.stringify(devices[req.query.id] || {}));
     });
 
+    RED.httpAdmin.get('/zigbee-shepherd/graphviz', (req, res) => {
+        if (shepherdNodes[req.query.id]) {
+            shepherdNodes[req.query.id].shepherd.lqiScan(shepherdNodes[req.query.id].shepherd.controller._coord.ieeeAddr)
+                .then(topology => {
+                    let text = 'digraph G {\nnode[shape=record];\n';
+                    Object.keys(shepherdNodes[req.query.id].devices).forEach(ieeeAddr => {
+                        console.log(ieeeAddr);
+                        const device = shepherdNodes[req.query.id].devices[ieeeAddr];
+                        const labels = [];
+                        labels.push(ieeeAddr);
+                        labels.push(device.name);
+                        labels.push(device.manufName);
+                        labels.push(device.modelId);
+                        labels.push(device.powerSource);
+                        labels.push('overdue=' + device.overdue + ' status=' + device.status)
+                        let devStyle;
+
+                        if (device.type == 'Coordinator') {
+                            devStyle = 'style="bold"';
+                        } else if (device.type == 'Router') {
+                            devStyle = 'style="rounded"';
+                        } else {
+                            devStyle = 'style="rounded, dashed"';
+                        }
+                        text += `  "${device.ieeeAddr}" [${devStyle}, label="{${labels.join('|')}}"];\n`;
+
+
+                        topology.filter((e) => e.ieeeAddr === device.ieeeAddr).forEach((e) => {
+                            const lineStyle = (e.lqi==0) ? `style="dashed", ` : ``;
+                            text += `  "${device.ieeeAddr}" -> "${e.parent}" [`+lineStyle+`label="${e.lqi}"]\n`;
+                        });
+                    });
+                    text += '}';
+                    res.status(200).send(text.replace(/\0/g, ''));
+                });
+        } else {
+            res.status(500).send('');
+        }
+    });
+
     RED.httpAdmin.post('/zigbee-shepherd/names', (req, res) => {
         if (devices[req.query.id]) {
             Object.keys(req.body).forEach(addr => {
@@ -321,6 +361,7 @@ module.exports = function (RED) {
             const now = (new Date()).getTime();
             Object.keys(this.devices).forEach(ieeeAddr => {
                 this.devices[ieeeAddr].ts = now;
+                delete this.devices[ieeeAddr].overdue;
             });
             this.proxy.emit('ready');
             this.proxy.emit('nodeStatus', {fill: 'green', shape: 'dot', text: 'connected'});

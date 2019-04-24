@@ -26,7 +26,7 @@ zigbee-shepherd.
 - [x] device node: pairing, removing
 - [x] device node: friendly names
 - [x] device node: output device list after devIncoming/devLeaving events
-- [ ] device node: network map
+- [x] device node: network map
 - [x] converter node 
 - [x] event node: attReport 
 - [x] event node: devStatus 
