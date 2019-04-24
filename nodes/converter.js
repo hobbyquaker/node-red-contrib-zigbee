@@ -204,7 +204,8 @@ module.exports = function (RED) {
                                             if (config.attribute === '' || config.attribute === key) {
                                                 this.send(Object.assign({}, out, {
                                                     topic: out.topic + '/' + key,
-                                                    payload: convertedPayload[key]
+                                                    payload: convertedPayload[key],
+                                                    retain: !['click'].includes(key)
                                                 }));
                                             }
                                         });
