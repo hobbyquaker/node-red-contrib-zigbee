@@ -43,6 +43,7 @@ module.exports = function (RED) {
                         const topicAttrs = {
                             name: this.devices[ieeeAddr] && this.devices[ieeeAddr].name,
                             ieeeAddr,
+                            event,
                             epId,
                             cid,
                             profId,
@@ -69,6 +70,7 @@ module.exports = function (RED) {
                     const topicAttrs = {
                         name: this.devices[ieeeAddr] && this.devices[ieeeAddr].name,
                         ieeeAddr,
+                        event,
                         epId,
                         cid,
                         profId,

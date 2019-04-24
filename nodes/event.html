@@ -6,7 +6,7 @@
             shepherd: {value: '', type: 'zigbee-shepherd', required: true},
             device: {value: ''},
             events: {value: ['attReport']},
-            topic: {value: 'zigbee/${ieeeAddr}/attReport/${epId}/${cid}/${attribute}'},
+            topic: {value: 'zigbee/${ieeeAddr}/${event}/${epId}/${cid}/${attribute}'},
             payload: {value: 'json'}
         },
         inputs: 0,
