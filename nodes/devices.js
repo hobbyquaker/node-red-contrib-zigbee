@@ -13,6 +13,7 @@ module.exports = function (RED) {
 
             this.proxy = shepherdNode.proxy;
 
+            let nodeStatus;
 
             this.shepherd = shepherdNode.shepherd;
 
@@ -23,6 +24,7 @@ module.exports = function (RED) {
             });
 
             const nodeStatusHandler = status => {
+                nodeStatus = status;
                 this.status(status);
             };
 
