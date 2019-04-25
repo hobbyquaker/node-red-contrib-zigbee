@@ -22,7 +22,6 @@ module.exports = function (RED) {
             this.shepherd = shepherdNode.shepherd;
             this.devices = shepherdNode.devices;
 
-            shepherdNode.proxy.on('nodeStatus', status => this.status(status));
 
             this.on('input', msg => {
                 const topic = msg.topic.split('/');
@@ -134,7 +133,7 @@ module.exports = function (RED) {
                 });
             });
 
-            shepherdNode.proxy.on('ind', message => {
+            const indHandler = message => {
                 const device = message.endpoints && message.endpoints[0] && message.endpoints[0].device;
 
                 if (message.type === 'attReport' || message.type === 'devChange') {
@@ -234,6 +233,20 @@ module.exports = function (RED) {
                         }
                     }
                 }
+            };
+
+            const nodeStatusHandler = status => {
+                this.status(status);
+            };
+
+            shepherdNode.proxy.on('nodeStatus', nodeStatusHandler);
+            shepherdNode.proxy.on('ind', indHandler);
+            shepherdNode.proxy.on('nodeStatus', nodeStatusHandler);
+
+            this.on('close', () => {
+                shepherdNode.proxy.removeListener('nodeStatus', nodeStatusHandler);
+                shepherdNode.proxy.removeListener('ind', indHandler);
+                shepherdNode.proxy.removeListener('nodeStatus', nodeStatusHandler);
             });
         }
 

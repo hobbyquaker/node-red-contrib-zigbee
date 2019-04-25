@@ -30,22 +30,22 @@ module.exports = function (RED) {
                         labels.push(device.manufName);
                         labels.push(device.modelId);
                         labels.push(device.powerSource);
-                        labels.push('overdue=' + device.overdue + ' status=' + device.status)
+                        labels.push('overdue=' + device.overdue + ' status=' + device.status);
                         let devStyle;
 
-                        if (device.type == 'Coordinator') {
+                        if (device.type === 'Coordinator') {
                             devStyle = 'style="bold"';
-                        } else if (device.type == 'Router') {
+                        } else if (device.type === 'Router') {
                             devStyle = 'style="rounded"';
                         } else {
                             devStyle = 'style="rounded, dashed"';
                         }
+
                         text += `  "${device.ieeeAddr}" [${devStyle}, label="{${labels.join('|')}}"];\n`;
 
-
-                        topology.filter((e) => e.ieeeAddr === device.ieeeAddr).forEach((e) => {
-                            const lineStyle = (e.lqi==0) ? `style="dashed", ` : ``;
-                            text += `  "${device.ieeeAddr}" -> "${e.parent}" [`+lineStyle+`label="${e.lqi}"]\n`;
+                        topology.filter(e => e.ieeeAddr === device.ieeeAddr).forEach(e => {
+                            const lineStyle = (e.lqi === 0) ? 'style="dashed", ' : '';
+                            text += `  "${device.ieeeAddr}" -> "${e.parent}" [` + lineStyle + `label="${e.lqi}"]\n`;
                         });
                     });
                     text += '}';
@@ -297,6 +297,7 @@ module.exports = function (RED) {
             //this.shepherd = new Shepherd(config.path, shepherdOptions);
 
             const listeners = {
+                devices: () => this.devicesHandler(),
                 ready: () => this.readyHandler(),
                 error: error => this.errorHandler(error),
                 ind: msg => this.indHandler(msg),
@@ -407,6 +408,10 @@ module.exports = function (RED) {
             this.joinTimeLeft = joinTimeLeft;
         }
 
+        devicesHandler() {
+            this.proxy.emit('devices');
+        }
+
         save() {
             fs.writeFile(this.namesPath, JSON.stringify(this.devices, null, '  '), () => {});
         }
@@ -507,13 +512,13 @@ module.exports = function (RED) {
             const now = (new Date()).getTime();
             let change = false;
             Object.keys(this.devices).forEach(ieeeAddr => {
-                 const elapsed = Math.round((now - this.devices[ieeeAddr]) / 60000);
-                 const timeout = interval[this.devices[ieeeAddr].modelId];
-                 if (timeout && (elapsed > timeout) && (this.devices[ieeeAddr].overdue !== true)) {
-                     change = true;
-                     this.debug('overdue true ' + ieeeAddr + ' ' + this.devices[ieeeAddr].name);
-                     this.devices[ieeeAddr].overdue = true;
-                 }
+                const elapsed = Math.round((now - this.devices[ieeeAddr]) / 60000);
+                const timeout = interval[this.devices[ieeeAddr].modelId];
+                if (timeout && (elapsed > timeout) && (this.devices[ieeeAddr].overdue !== true)) {
+                    change = true;
+                    this.debug('overdue true ' + ieeeAddr + ' ' + this.devices[ieeeAddr].name);
+                    this.devices[ieeeAddr].overdue = true;
+                }
             });
             if (change) {
                 this.proxy.emit('devices', this.devices);

@@ -10,12 +10,9 @@ module.exports = function (RED) {
                 return;
             }
 
-            let nodeStatus;
 
-            shepherdNode.proxy.on('nodeStatus', status => {
-                nodeStatus = status;
-                this.status(status);
-            });
+            this.proxy = shepherdNode.proxy;
+
 
             this.shepherd = shepherdNode.shepherd;
 
@@ -25,21 +22,37 @@ module.exports = function (RED) {
                 this.shepherd.permitJoin(time);
             });
 
-            this.shepherd.on('devices', () => {
-                this.send([null, {payload: shepherdNode.devices}]);
-            });
+            const nodeStatusHandler = status => {
+                this.status(status);
+            };
 
-            this.shepherd.on('ready', () => {
+            const devicesHandler = () => {
                 this.send([null, {payload: shepherdNode.devices}]);
-            });
+            };
 
-            this.shepherd.on('permitJoining', joinTimeLeft => {
+            const readyHandler = () => {
+                this.send([null, {payload: shepherdNode.devices}]);
+            };
+
+            const permitJoiningHandler = joinTimeLeft => {
                 this.send([{payload: joinTimeLeft}, null]);
                 if (joinTimeLeft) {
                     this.status({fill: 'blue', shape: 'ring', text: joinTimeLeft + 's'});
                 } else {
                     this.status(nodeStatus);
                 }
+            };
+
+            this.proxy.on('nodeStatus', nodeStatusHandler);
+            this.proxy.on('devices', devicesHandler);
+            this.proxy.on('ready', readyHandler);
+            this.proxy.on('permitJoining', permitJoiningHandler);
+
+            this.on('close', () => {
+                this.proxy.removeListener('nodeStatus', nodeStatusHandler);
+                this.proxy.removeListener('devices', devicesHandler);
+                this.proxy.removeListener('ready', readyHandler);
+                this.proxy.removeListener('permitJoining', permitJoiningHandler);
             });
         }
     }

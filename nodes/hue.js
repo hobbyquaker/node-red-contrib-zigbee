@@ -100,7 +100,7 @@ module.exports = function (RED) {
             this.lights = {};
             this.lightsInternal = {};
 
-            this.proxy.on('ready', () => {
+            const readyHandler = () => {
                 this.devices = shepherdNode.devices;
                 let currentIndex = 1;
 
@@ -141,9 +141,9 @@ module.exports = function (RED) {
 
                 //console.log(this.lightsInternal);
                 //console.log('lights', this.lights);
-            });
+            };
 
-            this.proxy.on('ind', msg => {
+            const indHandler = msg => {
                 let ieeeAddr;
                 let index;
 
@@ -236,6 +236,14 @@ module.exports = function (RED) {
                         console.log('attReport', msg);
                         break;
                 }
+            };
+
+            this.proxy.on('ready', readyHandler);
+            this.proxy.on('ind', indHandler);
+
+            this.on('close', () => {
+                this.proxy.removeListener('ready', readyHandler);
+                this.proxy.removeListener('ind', indHandler);
             });
 
             this.on('input', msg => {

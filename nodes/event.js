@@ -10,12 +10,14 @@ module.exports = function (RED) {
                 return;
             }
 
-            shepherdNode.proxy.on('nodeStatus', status => this.status(status));
-
             this.shepherd = shepherdNode.proxy;
             this.devices = shepherdNode.devices;
 
-            this.shepherd.on('ind', message => {
+            const nodeStatusHandler = status => {
+                this.status(status);
+            };
+
+            const indHandler = message => {
                 console.log(message);
                 const event = message.type;
 
@@ -93,6 +95,14 @@ module.exports = function (RED) {
                         }
                     }
                 }
+            };
+
+            shepherdNode.proxy.on('nodeStatus', nodeStatusHandler);
+            shepherdNode.proxy.on('ind', indHandler);
+
+            this.on('close', () => {
+                shepherdNode.proxy.removeListener('nodeStatus', nodeStatusHandler);
+                shepherdNode.proxy.removeListener('ind', indHandler);
             });
         }
 
