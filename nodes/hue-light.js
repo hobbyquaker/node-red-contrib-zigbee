@@ -2,7 +2,7 @@ const oe = require('obj-ease');
 
 module.exports = function (RED) {
 
-    class ZigbeeHue {
+    class ZigbeeHueLight {
         constructor(config) {
             RED.nodes.createNode(this, config);
 
@@ -132,39 +132,11 @@ module.exports = function (RED) {
 
             this.on('input', msg => {
                 console.log('input!');
-                let match;
-                if (msg.topic.match(/lights$/)) {
-                    this.send(Object.assign(RED.util.cloneMessage(msg), {payload: this.lights}));
-                } else if (match = msg.topic.match(/lights\/([^\/]+)$/)) {
-                    const [, index] = match;
-                    const id = shepherdNode.getLightIndex(index);
-                    if (id) {
-                        this.send(Object.assign(RED.util.cloneMessage(msg), {payload: this.lights[index]}));
-                    } else {
-                        this.send(Object.assign(RED.util.cloneMessage(msg), {payload: this.apiError(3, {resource: '/lights/' + index})}));
-                    }
-                } else if (match = msg.topic.match(/lights\/([^\/]+)\/state$/)) {
-                    const [, index] = match;
-                    this.putLightsState(msg);
-                }
+
             });
         }
 
-        apiError(id, data) {
-            switch (id) {
-                case 3:
-                    return [
-                        {
-                            error: {
-                                type: 3,
-                                address: data.resource,
-                                description: 'resource, ' + data.resource + ', not available'
-                            }
-                        }
-                    ];
-                default:
-            }
-        }
+
 
 
 
@@ -174,7 +146,7 @@ module.exports = function (RED) {
 
         updateLightState(lightIndex, data) {
             if (oe.extend(this.lights[lightIndex].state, data)) {
-                this.send([null, {topic: '/lights/' + (this.lights[lightIndex].name || lightIndex), payload: this.lights[lightIndex].state}]);
+                this.send({topic: '/lights/' + (this.lights[lightIndex].name || lightIndex), payload: this.lights[lightIndex].state});
             }
         }
 
@@ -486,5 +458,5 @@ module.exports = function (RED) {
         }
     }
 
-    RED.nodes.registerType('zigbee-hue', ZigbeeHue);
+    RED.nodes.registerType('zigbee-hue-light', ZigbeeHueLight);
 };

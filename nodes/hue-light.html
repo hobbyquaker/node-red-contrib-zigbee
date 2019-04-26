@@ -1,19 +1,22 @@
 <script type="text/javascript">
-    RED.nodes.registerType('zigbee-hue', {
+    RED.nodes.registerType('zigbee-hue-light', {
 
         category: 'zigbee',
         defaults: {
-            shepherd: {value: '', type: 'zigbee-shepherd', required: true}
+            shepherd: {value: '', type: 'zigbee-shepherd', required: true},
+            topic: {value: 'hue/status/lights/${name}', require: true},
+            settopic: {value: 'hue/set/lights/${name}', require: true},
+            payload: {value: 'json'}
         },
         inputs: 1,
         outputs: 1,
         outputLabels: ['response', 'light state changes'],
         icon: 'bee.png',
         color: '#E2D96E',
-        paletteLabel: 'hue api',
+        paletteLabel: 'hue light',
         align: 'left',
         label() {
-            return this.name || 'hue api';
+            return this.name || 'hue light';
         },
         labelStyle() {
             return this.name ? 'node_label_italic' : '';
@@ -30,10 +33,25 @@
     });
 </script>
 
-<script type="text/x-red" data-template-name="zigbee-hue">
+<script type="text/x-red" data-template-name="zigbee-hue-light">
     <div class="form-row">
         <label for="node-input-shepherd"><i class="icon-global"></i> shepherd</label>
         <input type="text" id="node-input-shepherd">
+    </div>
+    <div class="form-row">
+        <label for="node-input-topic"><i class="icon-global"></i> topic</label>
+        <input type="text" id="node-input-topic">
+    </div>
+    <div class="form-row">
+        <label for="node-input-settopic"><i class="icon-global"></i> set topic</label>
+        <input type="text" id="node-input-settopic">
+    </div>
+    <div class="form-row">
+        <label for="node-input-payload"><i class="icon-global"></i> payload</label>
+        <select id="node-input-payload" style="width: 70%">
+            <option value="plain">plain, one msg per attribute</option>
+            <option value="json">json, all attributes in one msg</option>
+        </select>
     </div>
     <div class="form-row">
         <style>
@@ -48,6 +66,6 @@
 
 
 
-<script type="text/x-red" data-help-name="zigbee-hue">
+<script type="text/x-red" data-help-name="zigbee-hue-light">
 
 </script>

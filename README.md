@@ -104,9 +104,14 @@ This Node utilizes [Koenkk's zigbee-shepherd-converters](https://github.com/Koen
 offers payload formats as known from zigbee2mqtt. In fact most of this nodes code is taken 1:1 from zigbee2mqtt.
 
 
-#### hue
+#### hue api
 
 This node mimics the Philips Hue bridge API for ZigBee Light Link devices.
+
+
+### hue light
+
+This node aims to be a drop-in replacement for https://github.com/hobbyquaker/hue2mqtt.js
 
 
 #### event
