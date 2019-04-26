@@ -8,10 +8,91 @@ const Shepherd = require('zigbee-shepherd');
 const interval = require('../interval.json');
 
 const devices = {};
+const lights = {};
 const shepherdNodes = {};
 const shepherdInstances = {};
 
+const zllDevice = {
+    0x0000: 'On/off light',
+    0x0010: 'On/off plug-in unit',
+    0x0100: 'Dimmable light',
+    0x0110: 'Dimmable plug-in unit',
+    0x0200: 'Color light',
+    0x0210: 'Extended color light',
+    0x0220: 'Color temperature light'
+};
+
+const uniqueidSuffix = {
+    OSRAM: '03',
+    Philips: '0b'
+};
+
+const emptyStates = {
+    'On/off light': {
+        on: false,
+        reachable: false
+    },
+    'On/off plug-in unit': {
+        on: false,
+        reachable: false
+    },
+    'Dimmable light': {
+        on: false,
+        bri: 0,
+        alert: 'none',
+        reachable: false
+    },
+    'Dimmable plug-in unit': {
+        on: false,
+        bri: 0,
+        alert: 'none',
+        reachable: false
+    },
+    'Color light': {
+        on: false,
+        bri: 0,
+        hue: 0,
+        sat: 0,
+        effect: 'none',
+        xy: [
+            0,
+            0
+        ],
+        alert: 'none',
+        colormode: 'xy',
+        reachable: false
+    },
+    'Extended color light': {
+        on: false,
+        bri: 0,
+        hue: 0,
+        sat: 0,
+        effect: 'none',
+        xy: [
+            0,
+            0
+        ],
+        ct: 370,
+        alert: 'none',
+        colormode: 'ct',
+        reachable: false
+    },
+    'Color temperature light': {
+        on: false,
+        bri: 0,
+        ct: 370,
+        alert: 'none',
+        colormode: 'ct',
+        reachable: false
+    }
+};
+
 module.exports = function (RED) {
+
+    RED.httpAdmin.get('/zigbee-shepherd/hue', (req, res) => {
+        res.status(200).send(JSON.stringify(lights[req.query.id] || {}));
+    });
+
     RED.httpAdmin.get('/zigbee-shepherd/devices', (req, res) => {
         res.status(200).send(JSON.stringify(devices[req.query.id] || {}));
     });
@@ -259,8 +340,13 @@ module.exports = function (RED) {
             if (!devices[this.id]) {
                 devices[this.id] = {};
             }
+            if (!lights[this.id]) {
+                lights[this.id] = {};
+            }
 
             this.devices = devices[this.id];
+            this.lights = lights[this.id];
+            this.lightsInternal = {};
 
             let precfgkey;
             if (this.credentials.precfgkey) {
@@ -364,9 +450,74 @@ module.exports = function (RED) {
                 this.devices[ieeeAddr].ts = now;
                 delete this.devices[ieeeAddr].overdue;
             });
+
+            let currentIndex = 1;
+
+            Object.keys(this.devices).forEach(ieeeAddr => {
+                const dev = this.devices[ieeeAddr];
+                const epFirst = this.shepherd.find(ieeeAddr, dev.epList[0]);
+                const desc = epFirst.getSimpleDesc();
+                const type = zllDevice[desc.devId];
+                if (type && dev.modelId !== 'lumi.router') {
+                    this.lightsInternal[currentIndex] = {ieeeAddr};
+
+                    const uniqueid = ieeeAddr.replace('0x', '').replace(/([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/, '$1:$2:$3:$4:$5:$6:$7:$8') + '-' + (uniqueidSuffix[dev.manufName] || '00');
+
+                    this.lights[String(currentIndex)] = {
+                        state: emptyStates[type] || {on: false, reachable: false},
+                        type,
+                        name: dev.name,
+                        modelid: dev.modelId,
+                        manufacturername: dev.manufName,
+                        uniqueid,
+                        // TODO clarify: can we retrieve the sw version from the shepherd?
+                        swversion: '',
+                        // Todo clarify: what is pointsymbol's purpose?
+                        pointsymbol: {
+                            1: 'none',
+                            2: 'none',
+                            3: 'none',
+                            4: 'none',
+                            5: 'none',
+                            6: 'none',
+                            7: 'none',
+                            8: 'none'
+                        }
+                    };
+                    currentIndex += 1;
+                }
+            });
+            
             this.proxy.emit('ready');
             this.proxy.emit('nodeStatus', {fill: 'green', shape: 'dot', text: 'connected'});
             this.shepherd.controller.request('UTIL', 'ledControl', {ledid: 3, mode: this.led === 'enabled' ? 1 : 0});
+        }
+
+        /**
+         * @param {string} search id, ieeeAddr or name
+         * @returns {null|string}
+         */
+        getLightIndex(search) {
+            console.log('getLightIndex', search)
+            let found = null;
+
+            if (search.startsWith('0x')) {
+                Object.keys(this.lightsInternal).forEach(index => {
+                    if (this.lightsInternal[index] && (this.lightsInternal[index].ieeeAddr === search)) {
+                        found = index;
+                    }
+                });
+            } else if (this.lights[search]) {
+                found = search;
+            } else {
+                Object.keys(this.lights).forEach(index => {
+                    if (search === this.lights[index].name) {
+                        found = index;
+                    }
+                });
+            }
+
+            return found;
         }
 
         errorHandler(error) {

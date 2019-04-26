@@ -1,80 +1,6 @@
 const oe = require('obj-ease');
 
 module.exports = function (RED) {
-    const zllDevice = {
-        0x0000: 'On/off light',
-        0x0010: 'On/off plug-in unit',
-        0x0100: 'Dimmable light',
-        0x0110: 'Dimmable plug-in unit',
-        0x0200: 'Color light',
-        0x0210: 'Extended color light',
-        0x0220: 'Color temperature light'
-    };
-
-    const uniqueidSuffix = {
-        OSRAM: '03',
-        Philips: '0b'
-    };
-
-    const emptyStates = {
-        'On/off light': {
-            on: false,
-            reachable: false
-        },
-        'On/off plug-in unit': {
-            on: false,
-            reachable: false
-        },
-        'Dimmable light': {
-            on: false,
-            bri: 0,
-            alert: 'none',
-            reachable: false
-        },
-        'Dimmable plug-in unit': {
-            on: false,
-            bri: 0,
-            alert: 'none',
-            reachable: false
-        },
-        'Color light': {
-            on: false,
-            bri: 0,
-            hue: 0,
-            sat: 0,
-            effect: 'none',
-            xy: [
-                0,
-                0
-            ],
-            alert: 'none',
-            colormode: 'xy',
-            reachable: false
-        },
-        'Extended color light': {
-            on: false,
-            bri: 0,
-            hue: 0,
-            sat: 0,
-            effect: 'none',
-            xy: [
-                0,
-                0
-            ],
-            ct: 370,
-            alert: 'none',
-            colormode: 'ct',
-            reachable: false
-        },
-        'Color temperature light': {
-            on: false,
-            bri: 0,
-            ct: 370,
-            alert: 'none',
-            colormode: 'ct',
-            reachable: false
-        }
-    };
 
     class ZigbeeHue {
         constructor(config) {
@@ -87,9 +13,10 @@ module.exports = function (RED) {
                 return;
             }
 
+            this.shepherdNode = shepherdNode;
+            this.devices = shepherdNode.devices;
             this.shepherd = shepherdNode.shepherd;
             this.proxy = shepherdNode.proxy;
-            this.devices = {};
 
             let nodeStatus;
             shepherdNode.proxy.on('nodeStatus', status => {
@@ -97,51 +24,10 @@ module.exports = function (RED) {
                 this.status(status);
             });
 
-            this.lights = {};
-            this.lightsInternal = {};
+            this.lights = shepherdNode.lights;
 
-            const readyHandler = () => {
-                this.devices = shepherdNode.devices;
-                let currentIndex = 1;
+            this.lightsInternal = shepherdNode.lightsInternal;
 
-                Object.keys(shepherdNode.devices).forEach(ieeeAddr => {
-                    const dev = shepherdNode.devices[ieeeAddr];
-                    const epFirst = this.shepherd.find(ieeeAddr, dev.epList[0]);
-                    const desc = epFirst.getSimpleDesc();
-                    const type = zllDevice[desc.devId];
-                    if (type) {
-                        this.lightsInternal[currentIndex] = {ieeeAddr};
-
-                        const uniqueid = ieeeAddr.replace('0x', '').replace(/([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/, '$1:$2:$3:$4:$5:$6:$7:$8') + '-' + (uniqueidSuffix[dev.manufName] || '00');
-
-                        this.lights[String(currentIndex)] = {
-                            state: emptyStates[type] || {on: false, reachable: false},
-                            type,
-                            name: dev.name,
-                            modelid: dev.modelId,
-                            manufacturername: dev.manufName,
-                            uniqueid,
-                            // TODO clarify: can we retrieve the sw version from the shepherd?
-                            swversion: '',
-                            // Todo clarify: what is pointsymbol's purpose?
-                            pointsymbol: {
-                                1: 'none',
-                                2: 'none',
-                                3: 'none',
-                                4: 'none',
-                                5: 'none',
-                                6: 'none',
-                                7: 'none',
-                                8: 'none'
-                            }
-                        };
-                        currentIndex += 1;
-                    }
-                });
-
-                //console.log(this.lightsInternal);
-                //console.log('lights', this.lights);
-            };
 
             const indHandler = msg => {
                 let ieeeAddr;
@@ -149,13 +35,13 @@ module.exports = function (RED) {
 
                 switch (msg.type) {
                     case 'devIncoming':
-                        console.log('devIncoming', this.getLightIndex(msg.data));
+                        console.log('devIncoming', shepherdNode.getLightIndex(msg.data));
                         console.log(msg);
                         break;
                     case 'devChange':
                     case 'devStatus':
                         ieeeAddr = msg.endpoints && msg.endpoints[0] && msg.endpoints[0].device && msg.endpoints[0].device.ieeeAddr;
-                        index = this.getLightIndex(ieeeAddr);
+                        index = shepherdNode.getLightIndex(ieeeAddr);
                         if (!index) {
                             return;
                         }
@@ -219,7 +105,7 @@ module.exports = function (RED) {
                         break;
 
                     case 'devInterview':
-                        index = this.getLightIndex(msg.data);
+                        index = shepherdNode.getLightIndex(msg.data);
                         if (!index) {
                             return;
                         }
@@ -228,7 +114,7 @@ module.exports = function (RED) {
                         break;
                     case 'attReport':
                         ieeeAddr = msg.endpoints && msg.endpoints[0] && msg.endpoints[0].device && msg.endpoints[0].device.ieeeAddr;
-                        index = this.getLightIndex(ieeeAddr);
+                        index = shepherdNode.getLightIndex(ieeeAddr);
                         if (!index) {
                             return;
                         }
@@ -238,11 +124,9 @@ module.exports = function (RED) {
                 }
             };
 
-            this.proxy.on('ready', readyHandler);
             this.proxy.on('ind', indHandler);
 
             this.on('close', () => {
-                this.proxy.removeListener('ready', readyHandler);
                 this.proxy.removeListener('ind', indHandler);
             });
 
@@ -253,7 +137,7 @@ module.exports = function (RED) {
                     this.send([Object.assign(RED.util.cloneMessage(msg), {payload: this.lights}), null]);
                 } else if (match = msg.topic.match(/lights\/([^\/]+)$/)) {
                     const [, index] = match;
-                    const id = this.getLightIndex(index);
+                    const id = shepherdNode.getLightIndex(index);
                     if (id) {
                         this.send([Object.assign(RED.util.cloneMessage(msg), {payload: this.lights[index]}), null]);
                     } else {
@@ -282,31 +166,7 @@ module.exports = function (RED) {
             }
         }
 
-        /**
-         * @param {string} search id, ieeeAddr or name
-         * @returns {null|string}
-         */
-        getLightIndex(search) {
-            let found = null;
 
-            if (search.startsWith('0x')) {
-                Object.keys(this.lightsInternal).forEach(index => {
-                    if (this.lightsInternal[index] && (this.lightsInternal[index].ieeeAddr === search)) {
-                        found = index;
-                    }
-                });
-            } else if (this.lights[search]) {
-                found = search;
-            } else {
-                Object.keys(this.lights).forEach(index => {
-                    if (search === this.lights[index].name) {
-                        found = index;
-                    }
-                });
-            }
-
-            return found;
-        }
 
         updateLight(lightIndex, data) {
             Object.assign(this.lights[lightIndex], data);
@@ -355,6 +215,8 @@ module.exports = function (RED) {
             // xy_inc [] 0.5 0.5
 
             const lightIndex = msg.topic.match(/lights\/(\d+)\/state/)[1];
+
+            console.log(lightIndex, this.lightsInternal)
 
             const dev = this.devices[this.lightsInternal[lightIndex].ieeeAddr];
 
@@ -599,6 +461,28 @@ module.exports = function (RED) {
             cmds.forEach(cmd => {
                 this.proxy.queue(cmd);
             });
+        }
+        topicReplace(topic, msg) {
+            if (!topic || typeof msg !== 'object') {
+                return topic;
+            }
+
+            const msgLower = {};
+            Object.keys(msg).forEach(k => {
+                msgLower[k.toLowerCase()] = msg[k];
+            });
+
+            const match = topic.match(/\${[^}]+}/g);
+            if (match) {
+                match.forEach(v => {
+                    const key = v.substr(2, v.length - 3);
+                    const rx = new RegExp('\\${' + key + '}', 'g');
+                    const rkey = key.toLowerCase();
+                    topic = topic.replace(rx, msgLower[rkey] || '');
+                });
+            }
+
+            return topic;
         }
     }
 
