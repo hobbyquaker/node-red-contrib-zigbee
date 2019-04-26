@@ -39,32 +39,34 @@ module.exports = function (RED) {
                 if (!lastState[lightIndex]) {
                     lastState[lightIndex] = {xy: []};
                 }
+                
+                const newState = shepherdNode.lights[lightIndex].state;
 
-                if (lastState[lightIndex].reachable !== shepherdNode.lights[lightIndex].state.reachable) {
+                if (lastState[lightIndex].reachable !== newState.reachable) {
                     change = true;
                     if (config.payload !== 'json') {
-                        this.send({topic: topic + '/reachable', payload: shepherdNode.lights[lightIndex].state.reachable, retain: true});
+                        this.send({topic: topic + '/reachable', payload: newState.reachable, retain: true});
                     }
 
-                    lastState[lightIndex].reachable = shepherdNode.lights[lightIndex].state.reachable;
+                    lastState[lightIndex].reachable = newState.reachable;
                 }
 
-                Object.keys(shepherdNode.lights[lightIndex].state).forEach(attr => {
+                Object.keys(newState).forEach(attr => {
                     if (
-                        (attr !== 'xy' && (shepherdNode.lights[lightIndex].state[attr] !== lastState[lightIndex][attr])) ||
+                        (attr !== 'xy' && (newState[attr] !== lastState[lightIndex][attr])) ||
                         (
                             attr === 'xy' && (
-                                shepherdNode.lights[lightIndex].state.xy[0] !== lastState[lightIndex].xy[0] ||
-                                shepherdNode.lights[lightIndex].state.xy[1] !== lastState[lightIndex].xy[1]
+                                newState.xy[0] !== lastState[lightIndex].xy[0] ||
+                                newState.xy[1] !== lastState[lightIndex].xy[1]
                             )
                         )
                     ) {
                         change = true;
                         if (config.payload !== 'json') {
-                            this.send({topic: topic + '/' + attr, payload: shepherdNode.lights[lightIndex].state[attr], retain: true});
+                            this.send({topic: topic + '/' + attr, payload: newState[attr], retain: true});
                         }
 
-                        lastState[lightIndex][attr] = shepherdNode.lights[lightIndex].state[attr];
+                        lastState[lightIndex][attr] = newState[attr];
                     }
                 });
 
@@ -72,8 +74,8 @@ module.exports = function (RED) {
                     this.send({
                         topic,
                         payload: {
-                            val: shepherdNode.lights[lightIndex].state.on ? shepherdNode.lights[lightIndex].state.bri : 0,
-                            hue_state: shepherdNode.lights[lightIndex].state
+                            val: newState.on ? newState.bri : 0,
+                            hue_state: newState
                         },
                         name: shepherdNode.lights[lightIndex].name,
                         index: lightIndex,
