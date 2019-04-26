@@ -18,7 +18,7 @@ module.exports = function (RED) {
             };
 
             const indHandler = message => {
-                console.log(message);
+                //console.log(message);
                 const event = message.type;
 
                 let ieeeAddr;
