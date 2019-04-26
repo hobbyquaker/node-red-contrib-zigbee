@@ -23,8 +23,8 @@ module.exports = function (RED) {
             this.devices = shepherdNode.devices;
 
             this.on('input', msg => {
-                const topic = msg.topic.split('/');
-                const settopic = config.settopic.split('/');
+                const topic = (msg.topic || '').split('/');
+                const settopic = (config.settopic || '').split('/');
                 const topicAttrs = {};
                 for (let i = 0; i < topic.length; i++) {
                     const match = settopic[i].match(/\${[^}]+}/);
