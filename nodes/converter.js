@@ -27,7 +27,7 @@ module.exports = function (RED) {
                 const settopic = (config.settopic || '').split('/');
                 const topicAttrs = {};
                 for (let i = 0; i < topic.length; i++) {
-                    const match = settopic[i].match(/\${[^}]+}/);
+                    const match = settopic[i].match(/\${([^}]+)}/);
                     if (match) {
                         topicAttrs[match[1]] = topic[i];
                     } else if (topic[i] !== settopic[i]) {
