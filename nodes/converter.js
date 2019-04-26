@@ -22,7 +22,6 @@ module.exports = function (RED) {
             this.shepherd = shepherdNode.shepherd;
             this.devices = shepherdNode.devices;
 
-
             this.on('input', msg => {
                 const topic = msg.topic.split('/');
                 const settopic = config.settopic.split('/');

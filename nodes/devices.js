@@ -10,7 +10,6 @@ module.exports = function (RED) {
                 return;
             }
 
-
             this.proxy = shepherdNode.proxy;
 
             let nodeStatus;
