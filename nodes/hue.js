@@ -24,7 +24,6 @@ module.exports = function (RED) {
             this.lightsInternal = shepherdNode.lightsInternal;
 
             this.on('input', msg => {
-                console.log('input!');
                 let match;
                 if (msg.topic.match(/lights$/)) {
                     this.send(Object.assign(RED.util.cloneMessage(msg), {payload: this.lights}));

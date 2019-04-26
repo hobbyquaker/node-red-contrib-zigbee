@@ -40,7 +40,7 @@ module.exports = function (RED) {
         }
 
         checkState() {
-            console.log('offline: checkState!');
+            /console.log('offline: checkState!');
             Object.keys(this.shepherdNode.devices).forEach(ieeeAddr => {
                 const {overdue} = this.shepherdNode.devices[ieeeAddr];
                 const offline = this.shepherdNode.devices[ieeeAddr].status === 'offline';
@@ -61,7 +61,7 @@ module.exports = function (RED) {
                         ieeeAddr,
                         name: this.shepherdNode.devices[ieeeAddr].name
                     };
-                    console.log('offline', msg.name, msg.payload);
+                    //console.log('offline', msg.name, msg.payload);
                     msg.topic = this.topicReplace(this.topic, msg);
                     this.send(msg);
                 }

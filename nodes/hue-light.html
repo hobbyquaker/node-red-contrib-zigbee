@@ -23,7 +23,6 @@
         },
         oneditprepare() {
             $.getJSON('zigbee-shepherd/hue?id=' + $('#node-input-shepherd').val(), data => {
-                console.log(data);
                 Object.keys(data).forEach(index => {
                     const light = data[index];
                     $('#lights').append(`<tr><td style="text-align: right;">${index}</td><td>${light.name}</td><td>${light.manufacturername}</td><td>${light.modelid}</td><td>${light.type}</td></tr>`);

@@ -498,7 +498,6 @@ module.exports = function (RED) {
          * @returns {null|string}
          */
         getLightIndex(search) {
-            console.log('getLightIndex', search);
             let found = null;
 
             if (search.startsWith('0x')) {
@@ -691,7 +690,6 @@ module.exports = function (RED) {
                         return;
                     }
 
-                    console.log('indLightHandler', msg.type, index);
                     const ziee = msg.endpoints[0].clusters;
 
                     const state = {
@@ -755,7 +753,6 @@ module.exports = function (RED) {
                         return;
                     }
 
-                    console.log('indLightHandler devInterview', index);
                     break;
                 case 'attReport':
                     ieeeAddr = msg.endpoints && msg.endpoints[0] && msg.endpoints[0].device && msg.endpoints[0].device.ieeeAddr;
@@ -764,7 +761,6 @@ module.exports = function (RED) {
                         return;
                     }
 
-                    console.log('indLightHandler attReport', index);
                     break;
             }
         }
@@ -782,7 +778,7 @@ module.exports = function (RED) {
         }
 
         putLightsState(msg, callback) {
-            console.log('putLightsState', msg);
+            //console.log('putLightsState', msg);
             // xy > ct > hs
             // on bool
             // bri uint8 1-254
