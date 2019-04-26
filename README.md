@@ -109,9 +109,14 @@ offers payload formats as known from zigbee2mqtt. In fact most of this nodes cod
 This node mimics the Philips Hue bridge API for ZigBee Light Link devices.
 
 
-### hue light
+#### hue light
 
 This node aims to be a drop-in replacement for https://github.com/hobbyquaker/hue2mqtt.js
+
+
+#### offline
+
+This node outputs the online/offline status of the devices.
 
 
 #### event
