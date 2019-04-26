@@ -39,7 +39,7 @@ module.exports = function (RED) {
                 if (!lastState[lightIndex]) {
                     lastState[lightIndex] = {xy: []};
                 }
-                
+
                 const newState = shepherdNode.lights[lightIndex].state;
 
                 if (lastState[lightIndex].reachable !== newState.reachable) {

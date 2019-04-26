@@ -750,7 +750,7 @@ module.exports = function (RED) {
                 case 'devInterview':
                     index = this.getLightIndex(msg.data);
                     if (!index) {
-                        return;
+
                     }
 
                     break;
@@ -758,7 +758,7 @@ module.exports = function (RED) {
                     ieeeAddr = msg.endpoints && msg.endpoints[0] && msg.endpoints[0].device && msg.endpoints[0].device.ieeeAddr;
                     index = this.getLightIndex(ieeeAddr);
                     if (!index) {
-                        return;
+
                     }
 
                     break;
