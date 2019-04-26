@@ -94,7 +94,46 @@ module.exports = function (RED) {
             });
 
             this.on('input', msg => {
-                console.log('input!');
+                const topic = (msg.topic || '').split('/');
+                const settopic = config.settopic.split('/');
+                const topicAttrs = {};
+                for (let i = 0; i < topic.length; i++) {
+                    const match = settopic[i].match(/\${([^}]+)}/);
+                    if (match) {
+                        topicAttrs[match[1]] = topic[i];
+                    } else if (topic[i] !== settopic[i]) {
+                        this.debug('topic mismatch ' + msg.topic + ' ' + config.settopic);
+                        return;
+                    }
+                }
+
+                const search = topicAttrs.name || topicAttrs.index || topicAttrs.ieeeAddr;
+
+                const index = shepherdNode.getLightIndex(search);
+
+                if (!index) {
+                    this.warn('unknown light ' + JSON.stringify(topicAttrs));
+                    return;
+                }
+
+                let cmd = {};
+                if (topicAttrs.attribute) {
+                    cmd[topicAttrs.attribute] = msg.payload;
+                } else if (typeof msg.payload === 'object') {
+                    cmd = msg.payload;
+                } else if (typeof msg.payload === 'boolean') {
+                    cmd.on = msg.payload;
+                } else {
+                    const bri = parseInt(msg.payload, 10) || 0;
+                    cmd.bri = bri;
+                    if (bri) {
+                        cmd.on = true;
+                    } else {
+                        cmd.on = false;
+                    }
+                }
+
+                shepherdNode.putLightsState({topic: 'lights/' + index + '/state', payload: cmd});
             });
         }
 
