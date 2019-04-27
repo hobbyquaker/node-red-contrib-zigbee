@@ -125,25 +125,23 @@ module.exports = function (RED) {
                     } else if (!isNaN(msg.payload)) {
                         msg.payload = Number(msg.payload);
                     }
+
                     cmd[topicAttrs.attribute] = msg.payload;
                 } else if (typeof msg.payload === 'object') {
                     cmd = msg.payload;
                 } else if (typeof msg.payload === 'boolean') {
                     cmd.on = msg.payload;
-
+                } else if (msg.payload === 'true') {
+                    cmd.on = true;
+                } else if (msg.payload === 'false') {
+                    cmd.on = false;
                 } else {
-                    if (msg.payload === 'true') {
+                    const bri = parseInt(msg.payload, 10) || 0;
+                    cmd.bri = bri;
+                    if (bri) {
                         cmd.on = true;
-                    } else if (msg.payload === 'false') {
-                        cmd.on = false;
                     } else {
-                        const bri = parseInt(msg.payload, 10) || 0;
-                        cmd.bri = bri;
-                        if (bri) {
-                            cmd.on = true;
-                        } else {
-                            cmd.on = false;
-                        }
+                        cmd.on = false;
                     }
                 }
 
