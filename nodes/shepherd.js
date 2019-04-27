@@ -805,21 +805,42 @@ module.exports = function (RED) {
             const getStateClusters = {};
 
             if (typeof msg.payload.on !== 'undefined' && (msg.payload.on === false || typeof msg.payload.bri === 'undefined')) {
-                cmds.push({
-                    ieeeAddr: dev.ieeeAddr,
-                    ep: dev.epList[0],
-                    cmdType: 'functional',
-                    cid: 'genOnOff',
-                    cmd: msg.payload.on ? 'on' : 'off',
-                    zclData: {},
-                    cfg: {
-                        disDefaultRsp: 0
-                    },
-                    disBlockQueue: true,
-                    callback: (err, res) => {
-                        this.handleCommandCallback(err, res, lightIndex, msg, ['on']);
-                    }
-                });
+                if (msg.payload.transitiontime) {
+                    cmds.push({
+                        ieeeAddr: dev.ieeeAddr,
+                        ep: dev.epList[0],
+                        cmdType: 'functional',
+                        cid: 'genLevelCtrl',
+                        cmd: 'moveToLevelWithOnOff',
+                        zclData: {
+                            level: msg.payload.on ? 254 : 0,
+                            transtime: msg.payload.transitiontime || 0
+                        },
+                        cfg: {
+                            disDefaultRsp: 0
+                        },
+                        disBlockQueue: true,
+                        callback: (err, res) => {
+                            this.handleCommandCallback(err, res, lightIndex, msg, ['on', 'bri']);
+                        }
+                    });
+                } else {
+                    cmds.push({
+                        ieeeAddr: dev.ieeeAddr,
+                        ep: dev.epList[0],
+                        cmdType: 'functional',
+                        cid: 'genOnOff',
+                        cmd: msg.payload.on ? 'on' : 'off',
+                        zclData: {},
+                        cfg: {
+                            disDefaultRsp: 0
+                        },
+                        disBlockQueue: true,
+                        callback: (err, res) => {
+                            this.handleCommandCallback(err, res, lightIndex, msg, ['on']);
+                        }
+                    });
+                }
             }
 
             if (typeof msg.payload.bri !== 'undefined') {
