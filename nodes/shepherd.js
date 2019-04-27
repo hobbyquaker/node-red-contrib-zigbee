@@ -821,7 +821,7 @@ module.exports = function (RED) {
                         },
                         disBlockQueue: true,
                         callback: (err, res) => {
-                            this.handleCommandCallback(err, res, lightIndex, msg, ['on', 'bri']);
+                            this.handlePutLightStateCallback(err, res, lightIndex, msg, ['on', 'bri']);
                         }
                     });
                 } else {
@@ -837,7 +837,7 @@ module.exports = function (RED) {
                         },
                         disBlockQueue: true,
                         callback: (err, res) => {
-                            this.handleCommandCallback(err, res, lightIndex, msg, ['on']);
+                            this.handlePutLightStateCallback(err, res, lightIndex, msg, ['on']);
                         }
                     });
                 }
@@ -860,7 +860,7 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handleCommandCallback(err, res, lightIndex, msg, ['on', 'bri']);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, ['on', 'bri']);
                     }
                 });
             } else if (typeof msg.payload.bri_inc !== 'undefined') {
@@ -882,7 +882,7 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handleCommandCallback(err, res, lightIndex, msg, []);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, []);
                     }
                 });
             }
@@ -905,7 +905,7 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handleCommandCallback(err, res, lightIndex, msg, ['xy']);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, ['xy']);
                     }
                 });
             } else if (typeof msg.payload.xy_inc !== 'undefined') {
@@ -926,7 +926,7 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handleCommandCallback(err, res, lightIndex, msg, []);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, []);
                     }
                 });
             } else if (typeof msg.payload.ct !== 'undefined') {
@@ -945,7 +945,7 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handleCommandCallback(err, res, lightIndex, msg, ['ct']);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, ['ct']);
                     }
                 });
             } else if (typeof msg.payload.ct_inc !== 'undefined') {
@@ -967,7 +967,7 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handleCommandCallback(err, res, lightIndex, msg, ['hue', 'sat']);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, ['hue', 'sat']);
                     }
                 });
             } else if (typeof msg.payload.hue === 'undefined') {
@@ -987,7 +987,7 @@ module.exports = function (RED) {
                         },
                         disBlockQueue: true,
                         callback: (err, res) => {
-                            this.handleCommandCallback(err, res, lightIndex, msg, ['on']);
+                            this.handlePutLightStateCallback(err, res, lightIndex, msg, ['on']);
                         }
                     });
                 } else if (typeof msg.payload.hue_inc !== 'undefined' && typeof msg.payload.sat_inc !== 'undefined') {
@@ -1013,7 +1013,7 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handleCommandCallback(err, res, lightIndex, msg, ['hue']);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, ['hue']);
                     }
                 });
             }
@@ -1049,7 +1049,7 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handleCommandCallback(err, res, lightIndex, msg, []);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, []);
                     }
                 });
             }
@@ -1063,7 +1063,7 @@ module.exports = function (RED) {
             });
         }
 
-        handleCommandCallback(err, res, lightIndex, msg, attributes) {
+        handlePutLightStateCallback(err, res, lightIndex, msg, attributes) {
             if (err) {
                 this.error('putLightState ' + err.message);
                 if (err.message.includes('status code: 233')) {
