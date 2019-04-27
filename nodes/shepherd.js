@@ -195,6 +195,7 @@ module.exports = function (RED) {
 
             this.shepherdNode = shepherdNode;
             this.shepherd = shepherdNode.shepherd;
+            this.devices = shepherdNode.devices;
 
             this.queueMaxWait = 5000;
             this.queueMaxLength = 50;
