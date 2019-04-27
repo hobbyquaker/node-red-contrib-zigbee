@@ -1065,16 +1065,58 @@ module.exports = function (RED) {
 
         handleCommandCallback(err, res, lightIndex, msg, attributes) {
             if (err) {
-                this.error(err.message);
+                this.error('putLightState ' + err.message);
                 if (err.message.includes('status code: 233')) {
                     this.updateLight(lightIndex, {reachable: false});
+                } else {
+                    this.readLightState(lightIndex, attributes);
                 }
             } else if (msg.payload.transitiontime) {
-                //     if (msg.payload.transitiontime > getStateTimeout) {
-                //         getStateTimeout = msg.payload.transitiontime;
-                //         getStateClusters['genOnOff'] = ['onOff'];
-                //     }
+                setTimeout(() => {
+                    this.readLightState(lightIndex, attributes);
+                }, (msg.payload.transitiontime * 100) + 1000);
             }
+        }
+
+        readLightState(lightIndex, attributes) {
+            console.log('readLightState', lightIndex, attributes)
+            const dev = this.devices[this.lightsInternal[lightIndex].ieeeAddr];
+            const cmds = [];
+            if (attributes.includes('on')) {
+                cmds.push({
+                    "ieeeAddr": dev.ieeeAddr,
+                    "ep": dev.epList[0],
+                    "cmdType": "foundation",
+                    "cmd": "read",
+                    "cid": "genOnOff",
+                    "zclData":
+                        [{"attrId":0}]
+                    ,
+                    "cfg": {
+                        "disDefaultRsp": 0
+                    },
+                    disBlockQueue: true,
+                });
+            }
+            if (attributes.includes('bri')) {
+                cmds.push({
+                    "ieeeAddr": dev.ieeeAddr,
+                    "ep": dev.epList[0],
+                    "cmdType": "foundation",
+                    "cmd": "read",
+                    "cid": "genLevelCtrl",
+                    "zclData":
+                        [{"attrId":0}]
+                    ,
+                    "cfg": {
+                        "disDefaultRsp": 0
+                    },
+                    disBlockQueue: true,
+                });
+            }
+            cmds.forEach(cmd => {
+                this.proxy.queue(cmd);
+            });
         }
     }
 
