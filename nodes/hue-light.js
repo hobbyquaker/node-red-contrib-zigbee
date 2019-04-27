@@ -118,20 +118,40 @@ module.exports = function (RED) {
 
                 let cmd = {};
                 if (topicAttrs.attribute) {
+                    if (msg.payload === 'false') {
+                        msg.payload = false;
+                    } else if (msg.payload === 'true') {
+                        msg.payload = true;
+                    } else if (!isNaN(msg.payload)) {
+                        msg.payload = Number(msg.payload);
+                    }
                     cmd[topicAttrs.attribute] = msg.payload;
                 } else if (typeof msg.payload === 'object') {
                     cmd = msg.payload;
                 } else if (typeof msg.payload === 'boolean') {
                     cmd.on = msg.payload;
+
                 } else {
-                    const bri = parseInt(msg.payload, 10) || 0;
-                    cmd.bri = bri;
-                    if (bri) {
+                    if (msg.payload === 'true') {
                         cmd.on = true;
-                    } else {
+                    } else if (msg.payload === 'false') {
                         cmd.on = false;
+                    } else {
+                        const bri = parseInt(msg.payload, 10) || 0;
+                        cmd.bri = bri;
+                        if (bri) {
+                            cmd.on = true;
+                        } else {
+                            cmd.on = false;
+                        }
                     }
                 }
+
+                if (typeof cmd.transistiontime === 'undefined') {
+                    cmd.transitiontime = 4;
+                }
+
+                console.log(topic, msg.payload, cmd);
 
                 shepherdNode.putLightsState({topic: 'lights/' + index + '/state', payload: cmd});
             });
