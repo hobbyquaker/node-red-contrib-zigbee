@@ -147,10 +147,6 @@ module.exports = function (RED) {
                     }
                 }
 
-                if (typeof cmd.transistiontime === 'undefined') {
-                    cmd.transitiontime = 4;
-                }
-
                 console.log(topic, msg.payload, cmd);
 
                 shepherdNode.putLightsState({topic: 'lights/' + index + '/state', payload: cmd});
