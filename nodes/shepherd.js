@@ -201,11 +201,25 @@ module.exports = function (RED) {
             this.queuePause = 100;
             this.commandQueue = [];
 
-            this.trace = shepherdNode.trace;
-            this.debug = shepherdNode.debug;
-            this.log = shepherdNode.log;
-            this.warn = shepherdNode.warn;
-            this.error = shepherdNode.error;
+            this.trace = msg => {
+                shepherdNode.trace(msg);
+            };
+
+            this.debug = msg => {
+                shepherdNode.debug(msg);
+            };
+
+            this.log = msg => {
+                shepherdNode.log(msg);
+            };
+
+            this.warn = msg => {
+                shepherdNode.warn(msg);
+            };
+
+            this.error = msg => {
+                shepherdNode.error(msg);
+            };
         }
 
         queue(cmd, timeout) {
@@ -250,7 +264,6 @@ module.exports = function (RED) {
                     return;
                 }
 
-                this.debug(JSON.stringify(cmd));
                 const start = (new Date()).getTime();
 
                 cmd.cmdType = cmd.cmdType || 'foundation';
@@ -266,10 +279,11 @@ module.exports = function (RED) {
                             }, this.queuePause);
                         } else {
                             const timer = setTimeout(() => {
-                                this.debug('timeout! ' + timeout + ' ' + this.queueMaxWait);
+                                this.warn('timeout ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.cmd);
                                 if (typeof cmd.callback === 'function') {
-                                    cmd.callback(new Error('timeout'));
+                                    const {callback} = cmd;
                                     delete cmd.callback;
+                                    callback(new Error('timeout'));
                                 }
 
                                 if (!cmd.disBlockQueue) {
@@ -278,6 +292,7 @@ module.exports = function (RED) {
                                 }
                             }, timeout || this.queueMaxWait);
 
+                            this.debug(cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.cmd + ' ' + JSON.stringify(cmd.zclData) + ' ' + JSON.stringify(cmd.cfg));
                             endpoint[cmd.cmdType](cmd.cid, cmd.cmd, cmd.zclData, cmd.cfg, (err, res) => {
                                 clearTimeout(timer);
                                 if (!cmd.disBlockQueue) {
@@ -287,7 +302,13 @@ module.exports = function (RED) {
                                         this.cmdPending = false;
                                         this.shiftQueue();
                                     }, pause);
-                                    this.debug('elapsed ' + elapsed + ' ms -> wait ' + pause + 'ms');
+                                    this.debug('blockQueue elapsed ' + elapsed + 'ms, wait ' + pause + 'ms');
+                                }
+
+                                if (err) {
+                                    this.error(err.message);
+                                } else {
+                                    this.debug('defaultRsp ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.cmd + ' ' + JSON.stringify(res));
                                 }
 
                                 if (typeof cmd.callback === 'function') {
@@ -395,7 +416,7 @@ module.exports = function (RED) {
             });
 
             this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'dot', text: 'starting'});
-            this.debug('starting ' + config.path + ' ' + JSON.stringify(shepherdOptions));
+            this.log('connecting ' + config.path + ' ' + JSON.stringify(shepherdOptions.sp));
             this.shepherd.start(error => {
                 if (error) {
                     this.proxy.emit('nodeStatus', {fill: 'red', shape: 'ring', text: error.message + ', retrying'});
@@ -415,7 +436,7 @@ module.exports = function (RED) {
                     }, 60000);
                 } else {
                     this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'dot', text: 'connecting'});
-                    this.debug('started');
+                    this.log('started panId: ' + shepherdOptions.net.panId + ' channels: ' + shepherdOptions.net.channelList.join(', '));
                 }
             });
 
@@ -530,18 +551,23 @@ module.exports = function (RED) {
 
             if (msg.type === 'devIncoming' || msg.type === 'devLeaving') {
                 ieeeAddr = msg.data;
-                this.debug(msg.type + ' ' + msg.data);
+                this.info(msg.type + ' ' + msg.data);
                 this.list();
             } else {
                 const firstEp = (msg && msg.endpoints && msg.endpoints[0]) || {};
                 ieeeAddr = firstEp.device && firstEp.device.ieeeAddr;
+                this.debug(msg.type + ' ' + ieeeAddr + ' ' + this.devices[ieeeAddr].name + ' ' + JSON.stringify(msg.data));
             }
 
             if (this.devices[ieeeAddr]) {
                 this.devices[ieeeAddr].ts = now;
                 if (this.devices[ieeeAddr].overdue !== false) {
-                    this.debug('overdue false ' + ieeeAddr + ' ' + this.devices[ieeeAddr].name);
-                    this.devices[ieeeAddr].overdue = false;
+                    const timeout = interval[this.devices[ieeeAddr].modelId];
+                    if (timeout) {
+                        this.debug('overdue false ' + ieeeAddr + ' ' + this.devices[ieeeAddr].name);
+                        this.devices[ieeeAddr].overdue = false;
+                    }
+
                     this.proxy.emit('devices', this.devices);
                 }
             }
@@ -587,19 +613,20 @@ module.exports = function (RED) {
             });
             if (change) {
                 this.save();
-                this.debug('list: changed!');
+                this.debug('device list changed');
             } else {
-                this.debug('list: no change');
+                this.debug('device list unchanged');
             }
 
             this.proxy.emit('devices', this.devices);
         }
 
         remove(addr) {
-            this.log('remove ' + addr);
             this.shepherd.remove(addr, {reJoin: true, rmChildren: false}, error => {
                 if (error) {
                     this.error('remove ' + addr + ' ' + error);
+                } else {
+                    this.log('removed ' + addr);
                 }
             });
         }
@@ -614,16 +641,15 @@ module.exports = function (RED) {
         }
 
         bind(deviceSrc, epSrc, deviceDest, epDest, groupDest, cluster) {
-            console.log('bind', deviceSrc, epSrc, deviceDest, epDest, groupDest, cluster);
             const endpointSrc = this.shepherd.find(deviceSrc, epSrc);
             if (!endpointSrc) {
-                this.error('source endpoint ' + deviceSrc + ' ' + epSrc + ' unkown');
+                this.error('bind source endpoint ' + deviceSrc + ' ' + epSrc + ' unknown');
                 return;
             }
 
             const endpointDest = Number(groupDest) || this.shepherd.find(deviceDest, epDest);
             if (!endpointDest) {
-                this.error('destination endpoint ' + deviceDest + ' ' + epDest + ' unkown');
+                this.error('bind destination endpoint ' + deviceDest + ' ' + epDest + ' unknown');
                 return;
             }
 
@@ -631,22 +657,22 @@ module.exports = function (RED) {
                 if (err) {
                     this.error(err.message);
                 } else {
-                    this.log('bind successful');
+                    this.log('bind ' + deviceSrc + ' from ' + deviceDest + ' successful');
                 }
             });
         }
 
         unbind(deviceSrc, epSrc, deviceDest, epDest, groupDest, cluster) {
-            console.log('unbind', deviceSrc, epSrc, deviceDest, epDest, groupDest, cluster);
+            //console.log('unbind', deviceSrc, epSrc, deviceDest, epDest, groupDest, cluster);
             const endpointSrc = this.shepherd.find(deviceSrc, epSrc);
             if (!endpointSrc) {
-                this.error('source endpoint ' + deviceSrc + ' ' + epSrc + ' unkown');
+                this.error('unbind source endpoint ' + deviceSrc + ' ' + epSrc + ' unknown');
                 return;
             }
 
             const endpointDest = Number(groupDest) || this.shepherd.find(deviceDest, epDest);
             if (!endpointDest) {
-                this.error('destination endpoint ' + deviceDest + ' ' + epDest + ' unkown');
+                this.error('unbind destination endpoint ' + deviceDest + ' ' + epDest + ' unknown');
                 return;
             }
 
@@ -654,7 +680,7 @@ module.exports = function (RED) {
                 if (err) {
                     this.error(err.message);
                 } else {
-                    this.log('unbind successful');
+                    this.log('unbind ' + deviceSrc + ' from ' + deviceDest + ' successful');
                 }
             });
         }
@@ -667,7 +693,7 @@ module.exports = function (RED) {
                 const timeout = interval[this.devices[ieeeAddr].modelId];
                 if (timeout && (elapsed > timeout) && (this.devices[ieeeAddr].overdue !== true)) {
                     change = true;
-                    this.debug('overdue true ' + ieeeAddr + ' ' + this.devices[ieeeAddr].name);
+                    this.info('overdue true ' + ieeeAddr + ' ' + this.devices[ieeeAddr].name);
                     this.devices[ieeeAddr].overdue = true;
                 }
             });
@@ -683,7 +709,7 @@ module.exports = function (RED) {
             switch (msg.type) {
                 case 'devChange':
                 case 'devStatus':
-                case 'readRsp':
+                case 'readRsp': {
                     ieeeAddr = msg.endpoints && msg.endpoints[0] && msg.endpoints[0].device && msg.endpoints[0].device.ieeeAddr;
                     index = this.getLightIndex(ieeeAddr);
                     if (!index) {
@@ -746,22 +772,18 @@ module.exports = function (RED) {
 
                     this.updateLightState(index, state);
                     break;
+                }
 
                 case 'devInterview':
                     index = this.getLightIndex(msg.data);
-                    if (!index) {
-
-                    }
-
                     break;
+
                 case 'attReport':
                     ieeeAddr = msg.endpoints && msg.endpoints[0] && msg.endpoints[0].device && msg.endpoints[0].device.ieeeAddr;
                     index = this.getLightIndex(ieeeAddr);
-                    if (!index) {
-
-                    }
-
                     break;
+
+                default:
             }
         }
 
@@ -777,7 +799,7 @@ module.exports = function (RED) {
             }
         }
 
-        putLightsState(msg, callback) {
+        putLightsState(msg) {
             //console.log('putLightsState', msg);
             // xy > ct > hs
             // on bool
@@ -800,9 +822,6 @@ module.exports = function (RED) {
             const dev = this.devices[this.lightsInternal[lightIndex].ieeeAddr];
 
             const cmds = [];
-
-            const getStateTimeout = 0;
-            const getStateClusters = {};
 
             if (typeof msg.payload.on !== 'undefined' && (msg.payload.on === false || typeof msg.payload.bri === 'undefined')) {
                 if (msg.payload.transitiontime) {
@@ -1018,8 +1037,7 @@ module.exports = function (RED) {
                 });
             }
 
-            if (typeof msg.payload.alert === 'undefined') {
-            } else {
+            if (typeof msg.payload.alert !== 'undefined') {
                 let effectid;
                 let val = msg.payload.alert;
                 switch (val) {
@@ -1065,7 +1083,6 @@ module.exports = function (RED) {
 
         handlePutLightStateCallback(err, res, lightIndex, msg, attributes) {
             if (err) {
-                this.error('putLightState ' + err.message);
                 if (err.message.includes('status code: 233')) {
                     this.updateLight(lightIndex, {reachable: false});
                 } else {
@@ -1079,7 +1096,6 @@ module.exports = function (RED) {
         }
 
         readLightState(lightIndex, attributes) {
-            console.log('readLightState', lightIndex, attributes);
             const dev = this.devices[this.lightsInternal[lightIndex].ieeeAddr];
             const cmds = [];
             if (attributes.includes('on')) {

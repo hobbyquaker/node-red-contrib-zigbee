@@ -14,9 +14,7 @@ module.exports = function (RED) {
             this.shepherd = shepherdNode.shepherd;
             this.proxy = shepherdNode.proxy;
 
-            let nodeStatus;
             shepherdNode.proxy.on('nodeStatus', status => {
-                nodeStatus = status;
                 this.status(status);
             });
 
@@ -25,9 +23,9 @@ module.exports = function (RED) {
 
             this.on('input', msg => {
                 let match;
-                if (msg.topic.match(/lights$/)) {
+                if (msg.topic.endsWith('lights')) {
                     this.send(Object.assign(RED.util.cloneMessage(msg), {payload: this.lights}));
-                } else if (match = msg.topic.match(/lights\/([^\/]+)$/)) {
+                } else if (match = msg.topic.match(/lights\/([^/]+)$/)) { /* eslint-disable-line no-cond-assign */
                     const [, index] = match;
                     const id = shepherdNode.getLightIndex(index);
                     if (id) {
@@ -35,8 +33,7 @@ module.exports = function (RED) {
                     } else {
                         this.send(Object.assign(RED.util.cloneMessage(msg), {payload: this.apiError(3, {resource: '/lights/' + index})}));
                     }
-                } else if (match = msg.topic.match(/lights\/([^\/]+)\/state$/)) {
-                    const [, index] = match;
+                } else if (match = msg.topic.match(/lights\/([^/]+)\/state$/)) { /* eslint-disable-line no-cond-assign */
                     shepherdNode.putLightsState(msg);
                 }
             });

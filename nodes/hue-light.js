@@ -1,5 +1,3 @@
-const oe = require('obj-ease');
-
 module.exports = function (RED) {
     class ZigbeeHueLight {
         constructor(config) {
@@ -17,17 +15,13 @@ module.exports = function (RED) {
             this.shepherd = shepherdNode.shepherd;
             this.proxy = shepherdNode.proxy;
 
-            let nodeStatus;
             shepherdNode.proxy.on('nodeStatus', status => {
-                nodeStatus = status;
                 this.status(status);
             });
 
             const lastState = {};
 
             const updateLightHandler = lightIndex => {
-                //console.log('updateLightHandler', lightIndex, shepherdNode.lights[lightIndex]);
-
                 const topic = this.topicReplace(config.topic, {
                     name: shepherdNode.lights[lightIndex].name,
                     ieeeAddr: shepherdNode.lightsInternal[lightIndex].ieeeAddr,
@@ -75,7 +69,7 @@ module.exports = function (RED) {
                         topic,
                         payload: {
                             val: newState.on ? newState.bri : 0,
-                            hue_state: newState
+                            hue_state: newState /* eslint-disable-line camelcase */
                         },
                         name: shepherdNode.lights[lightIndex].name,
                         index: lightIndex,
@@ -145,7 +139,9 @@ module.exports = function (RED) {
                     }
                 }
 
-                console.log(topic, msg.payload, cmd);
+                if (typeof cmd.transitiontime === 'undefined') {
+                    //cmd.transitiontime = 4;
+                }
 
                 shepherdNode.putLightsState({topic: 'lights/' + index + '/state', payload: cmd});
             });

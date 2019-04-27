@@ -102,7 +102,7 @@ module.exports = function (RED) {
                         ieeeAddr: device.ieeeAddr,
                         // TODO gain understanding of endpoints. Currently just using the first one due to missing knowledge.
                         ep: device.epList[0],
-                        callback: (err, res) => {
+                        callback: err => {
                             /* TODO clarify!
                             // Devices do not report when they go off, this ensures state (on/off) is always in sync.
                             if (topic.type === 'set' && !error && (key.startsWith('state') || key === 'brightness')) {

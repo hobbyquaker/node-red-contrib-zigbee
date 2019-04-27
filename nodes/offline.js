@@ -40,7 +40,6 @@ module.exports = function (RED) {
         }
 
         checkState() {
-            /console.log('offline: checkState!');
             Object.keys(this.shepherdNode.devices).forEach(ieeeAddr => {
                 const {overdue} = this.shepherdNode.devices[ieeeAddr];
                 const offline = this.shepherdNode.devices[ieeeAddr].status === 'offline';
