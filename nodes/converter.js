@@ -89,46 +89,44 @@ module.exports = function (RED) {
                         return;
                     }
 
-                    // Converter didn't return a result, skip
                     const converted = converter.convert(key, payload[key], payload, 'set');
+
+                    // Converter didn't return a result, skip
                     if (!converted) {
                         this.warn('no conversion for ' + key);
                         return;
                     }
 
-                    //console.log('converted', JSON.stringify(converted));
                     // Add job to queue
+                    shepherdNode.proxy.queue(Object.assign(converted, {
+                        ieeeAddr: device.ieeeAddr,
+                        // TODO gain understanding of endpoints. Currently just using the first one due to missing knowledge.
+                        ep: device.epList[0],
+                        callback: (err, res) => {
+                            /* TODO clarify!
+                            // Devices do not report when they go off, this ensures state (on/off) is always in sync.
+                            if (topic.type === 'set' && !error && (key.startsWith('state') || key === 'brightness')) {
+                                const msg = {};
+                                const _key = topic.postfix ? `state_${topic.postfix}` : 'state';
+                                msg[_key] = key === 'brightness' ? 'ON' : payload['state'];
+                                this.publishDeviceState(device, msg, true);
+                            }
+                            */
 
-                    // TODO gain understanding of endpoints. Currently just using the first one due to missing knowledge.
-                    shepherdNode.proxy.queue(Object.assign(converted, {ieeeAddr: device.ieeeAddr, ep: device.epList[0]}));
-
-                    /* TODO clarify!
-                              // Devices do not report when they go off, this ensures state (on/off) is always in sync.
-                              if (topic.type === 'set' && !error && (key.startsWith('state') || key === 'brightness')) {
-                                  const msg = {};
-                                  const _key = topic.postfix ? `state_${topic.postfix}` : 'state';
-                                  msg[_key] = key === 'brightness' ? 'ON' : payload['state'];
-                                  this.publishDeviceState(device, msg, true);
-                              }
-                              */
-
-                    /*
-                        // When there is a transition in the message the state of the device gets out of sync.
-                        // Therefore; at the end of the transition, read the new state from the device.
-                        if (topic.type === 'set' && converted.zclData.transtime) {
-                            const time = converted.zclData.transtime * 100;
-                            const getConverted = converter.convert(key, payload[key], payload, 'get');
-                            setTimeout(() => {
-                                // Add job to queue
-                                this.queue.push((queueCallback) => {
-                                    this.zigbee.publish(
-                                        ieeeAddr, getConverted.cid, getConverted.cmd, getConverted.cmdType,
-                                        getConverted.zclData, getConverted.cfg, endpoint, () => queueCallback()
-                                    );
-                                });
-                            }, time);
+                            // When there is a transition in the message the state of the device gets out of sync.
+                            // Therefore; at the end of the transition, read the new state from the device.
+                            if (err || converted.zclData.transtime) {
+                                const time = ((converted.zclData.transtime || 0) * 100) + 250;
+                                const getConverted = converter.convert(key, payload[key], payload, 'get');
+                                if (getConverted) {
+                                    setTimeout(() => {
+                                        // Add job to queue
+                                        shepherdNode.proxy.queue(Object.assign(getConverted, {ieeeAddr: device.ieeeAddr, ep: device.epList[0]}));
+                                    }, time);
+                                }
+                            }
                         }
-                        */
+                    }));
                 });
             });
 
