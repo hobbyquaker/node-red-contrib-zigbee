@@ -1079,41 +1079,41 @@ module.exports = function (RED) {
         }
 
         readLightState(lightIndex, attributes) {
-            console.log('readLightState', lightIndex, attributes)
+            console.log('readLightState', lightIndex, attributes);
             const dev = this.devices[this.lightsInternal[lightIndex].ieeeAddr];
             const cmds = [];
             if (attributes.includes('on')) {
                 cmds.push({
-                    "ieeeAddr": dev.ieeeAddr,
-                    "ep": dev.epList[0],
-                    "cmdType": "foundation",
-                    "cmd": "read",
-                    "cid": "genOnOff",
-                    "zclData":
-                        [{"attrId":0}]
-                    ,
-                    "cfg": {
-                        "disDefaultRsp": 0
+                    ieeeAddr: dev.ieeeAddr,
+                    ep: dev.epList[0],
+                    cmdType: 'foundation',
+                    cmd: 'read',
+                    cid: 'genOnOff',
+                    zclData:
+                        [{attrId: 0}],
+                    cfg: {
+                        disDefaultRsp: 0
                     },
-                    disBlockQueue: true,
+                    disBlockQueue: true
                 });
             }
+
             if (attributes.includes('bri')) {
                 cmds.push({
-                    "ieeeAddr": dev.ieeeAddr,
-                    "ep": dev.epList[0],
-                    "cmdType": "foundation",
-                    "cmd": "read",
-                    "cid": "genLevelCtrl",
-                    "zclData":
-                        [{"attrId":0}]
-                    ,
-                    "cfg": {
-                        "disDefaultRsp": 0
+                    ieeeAddr: dev.ieeeAddr,
+                    ep: dev.epList[0],
+                    cmdType: 'foundation',
+                    cmd: 'read',
+                    cid: 'genLevelCtrl',
+                    zclData:
+                        [{attrId: 0}],
+                    cfg: {
+                        disDefaultRsp: 0
                     },
-                    disBlockQueue: true,
+                    disBlockQueue: true
                 });
             }
+
             cmds.forEach(cmd => {
                 this.proxy.queue(cmd);
             });
