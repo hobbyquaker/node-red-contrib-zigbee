@@ -146,7 +146,7 @@ module.exports = function (RED) {
                     const out = {
                         topic: null,
                         payload: null,
-                        name: (this.devices[device.ieeeAddr] && this.devices[device.ieeeAddr].name),
+                        name: (this.devices[device.ieeeAddr] && this.devices[device.ieeeAddr].name) || device.ieeeAddr,
                         type: device.type,
                         manufName: device.manufName,
                         modelId: device.modelId,
