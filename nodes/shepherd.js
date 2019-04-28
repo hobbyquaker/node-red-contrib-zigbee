@@ -604,6 +604,16 @@ module.exports = function (RED) {
                     this.devices[dev.ieeeAddr] = {name: ''};
                 }
 
+                if (!dev.epDesc) {
+                    change = true;
+                    dev.epDesc = [];
+                    dev.epList.forEach(epId => {
+                        const ep = this.shepherd.find(dev.ieeeAddr, epId);
+                        const desc = ep.getSimpleDesc();
+                        dev.epDesc.push(desc);
+                    });
+                }
+
                 Object.assign(this.devices[dev.ieeeAddr], dev);
             });
             Object.keys(this.devices).forEach(addr => {
