@@ -1,6 +1,14 @@
 {
     "lumi.sensor_switch.aq2": 60,
+    "lumi.sensor_motion": 60,
+    "lumi.sensor_motion.aq2": 60,
+    "lumi.sensor_magnet": 60,
     "lumi.sensor_magnet.aq2": 60,
+    "lumi.sens": 60,
     "lumi.weather": 60,
+    "lumi.sensor_wleak.aq1": 60,
+    "lumi.vibration.aq1": 60,
+    "lumi.sensor_cube": 60,
+    "lumi.sensor_cube.aqgl01": 60,
     "lumi.router": 1
 }
