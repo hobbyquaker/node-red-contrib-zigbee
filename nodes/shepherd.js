@@ -557,7 +557,7 @@ module.exports = function (RED) {
             } else {
                 const firstEp = (msg && msg.endpoints && msg.endpoints[0]) || {};
                 ieeeAddr = firstEp.device && firstEp.device.ieeeAddr;
-                this.debug(msg.type + ' ' + ieeeAddr + ' ' + this.devices[ieeeAddr].name + ' ' + JSON.stringify(msg.data));
+                this.debug(msg.type + ' ' + ieeeAddr + ' ' + (this.devices[ieeeAddr] && this.devices[ieeeAddr].name) + ' ' + JSON.stringify(msg.data));
             }
 
             if (this.devices[ieeeAddr]) {
