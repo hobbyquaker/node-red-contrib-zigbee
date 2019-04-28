@@ -133,7 +133,7 @@ module.exports = function (RED) {
             const indHandler = message => {
                 const device = message.endpoints && message.endpoints[0] && message.endpoints[0].device;
 
-                if (message.type === 'attReport' || message.type === 'devChange') {
+                if (!['devIncoming', 'devLeaving'].includes(message.type)) {
                     if (!device) {
                         this.warn('unknown device', message);
                         return;
@@ -201,7 +201,7 @@ module.exports = function (RED) {
                                                 this.send(Object.assign({}, out, {
                                                     topic: out.topic + '/' + key,
                                                     payload: convertedPayload[key],
-                                                    retain: !['click'].includes(key)
+                                                    retain: !['click', 'action', 'angle'].includes(key)
                                                 }));
                                             }
                                         });
