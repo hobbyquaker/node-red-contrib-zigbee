@@ -58,7 +58,7 @@ module.exports = function (RED) {
                         payload,
                         retain: true,
                         ieeeAddr,
-                        name: this.shepherdNode.devices[ieeeAddr].name
+                        name: this.shepherdNode.devices[ieeeAddr].name || ieeeAddr
                     };
                     //console.log('offline', msg.name, msg.payload);
                     msg.topic = this.topicReplace(this.topic, msg);
