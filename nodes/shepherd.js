@@ -552,7 +552,7 @@ module.exports = function (RED) {
 
             if (msg.type === 'devIncoming' || msg.type === 'devLeaving') {
                 ieeeAddr = msg.data;
-                this.info(msg.type + ' ' + msg.data);
+                this.log(msg.type + ' ' + msg.data);
                 this.list();
             } else {
                 const firstEp = (msg && msg.endpoints && msg.endpoints[0]) || {};
