@@ -121,6 +121,14 @@ module.exports = function (RED) {
                     }
 
                     cmd[topicAttrs.attribute] = msg.payload;
+                } else if (msg.payload.startsWith('{')) {
+                    try {
+                        msg.payload = JSON.parse(msg.payload);
+                        cmd = msg.payload;
+                    } catch (err) {
+                        this.error('json parse failed ' + err.message + ' ' + msg.payload);
+                        return;
+                    }
                 } else if (typeof msg.payload === 'object') {
                     cmd = msg.payload;
                 } else if (typeof msg.payload === 'boolean') {
