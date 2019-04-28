@@ -730,7 +730,7 @@ module.exports = function (RED) {
                     const ziee = msg.endpoints[0].clusters;
 
                     const state = {
-                        on: Boolean(ziee.genOnOff.attrs.onOff)
+                        on: Boolean(ziee && ziee.genOnOff && ziee.genOnOff.attrs && ziee.genOnOff.attrs.onOff)
                     };
 
                     if (msg.type === 'devStatus') {
