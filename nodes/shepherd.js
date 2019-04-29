@@ -975,6 +975,7 @@ module.exports = function (RED) {
                     cmd: 'enhancedMoveToHue',
                     zclData: {
                         enhancehue: msg.payload.hue,
+                        direction: msg.payload.direction || 0,
                         transtime: msg.payload.transitiontime || 0
                     },
                     cfg: {
