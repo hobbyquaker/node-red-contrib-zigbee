@@ -133,16 +133,11 @@ module.exports = function (RED) {
             const indHandler = message => {
                 const device = message.endpoints && message.endpoints[0] && message.endpoints[0].device;
 
-                if (!this.devices[device.ieeeAddr]) {
+                if (!device || !this.devices[device.ieeeAddr]) {
                     return;
                 }
 
                 if (!['devIncoming', 'devLeaving', 'devInterview'].includes(message.type)) {
-                    if (!device) {
-                        this.warn('unknown device', message);
-                        return;
-                    }
-
                     if (config.device && config.device !== device.ieeeAddr) {
                         return;
                     }
