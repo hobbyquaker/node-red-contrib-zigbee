@@ -218,17 +218,9 @@ module.exports = function (RED) {
                                 }
                             });
                         } else if (cid) {
-                            this.warn(
-                                `No converter available for '${model.model}' with cid '${cid}', ` +
-                                    `type '${message.type}' and data '${JSON.stringify(message.data)}'`
-                            );
-                            this.warn('Please see: https://koenkk.github.io/zigbee2mqtt/how_tos/how_to_support_new_devices.html.');
+                            this.warn(`no converter available for ${model.model} ${cid} ${message.type}`);
                         } else if (cmdId) {
-                            this.warn(
-                                `No converter available for '${model.model}' with cmd '${cmdId}' ` +
-                                    `and data '${JSON.stringify(message.data)}'`
-                            );
-                            this.warn('Please see: https://koenkk.github.io/zigbee2mqtt/how_tos/how_to_support_new_devices.html.');
+                            this.warn(`no converter available for ${model.model} ${cmdId}`);
                         }
                     }
                 }
