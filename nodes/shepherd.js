@@ -493,6 +493,8 @@ module.exports = function (RED) {
                 ieeeAddr = msg.data;
                 this.log(msg.type + ' ' + msg.data);
                 this.list();
+            } else if (msg.type === 'devInterview') {
+                this.log(msg.type + ' ' + msg.data);
             } else {
                 const firstEp = (msg && msg.endpoints && msg.endpoints[0]) || {};
                 ieeeAddr = firstEp.device && firstEp.device.ieeeAddr;
