@@ -490,7 +490,6 @@ module.exports = function (RED) {
             let ieeeAddr;
 
             if (msg.type === 'devIncoming' || msg.type === 'devLeaving') {
-                ieeeAddr = msg.data;
                 this.log(msg.type + ' ' + msg.data);
                 this.list();
             } else if (msg.type === 'devInterview') {
@@ -499,23 +498,24 @@ module.exports = function (RED) {
                 const firstEp = (msg && msg.endpoints && msg.endpoints[0]) || {};
                 ieeeAddr = firstEp.device && firstEp.device.ieeeAddr;
                 this.debug(msg.type + ' ' + ieeeAddr + ' ' + (this.devices[ieeeAddr] && this.devices[ieeeAddr].name) + ' ' + JSON.stringify(msg.data));
-            }
 
-            if (this.devices[ieeeAddr]) {
-                this.devices[ieeeAddr].ts = now;
-                if (this.devices[ieeeAddr].overdue !== false) {
-                    const timeout = interval[this.devices[ieeeAddr].modelId];
-                    if (timeout) {
-                        this.debug('overdue false ' + ieeeAddr + ' ' + this.devices[ieeeAddr].name);
-                        this.devices[ieeeAddr].overdue = false;
+                if (this.devices[ieeeAddr]) {
+                    this.devices[ieeeAddr].ts = now;
+                    if (this.devices[ieeeAddr].overdue !== false) {
+                        const timeout = interval[this.devices[ieeeAddr].modelId];
+                        if (timeout) {
+                            this.debug('overdue false ' + ieeeAddr + ' ' + this.devices[ieeeAddr].name);
+                            this.devices[ieeeAddr].overdue = false;
+                        }
+
+                        this.proxy.emit('devices', this.devices);
                     }
-
-                    this.proxy.emit('devices', this.devices);
                 }
+
+                this.indLightHandler(msg);
             }
 
             this.proxy.emit('ind', msg);
-            this.indLightHandler(msg);
         }
 
         permitJoiningHandler(joinTimeLeft) {
@@ -545,13 +545,13 @@ module.exports = function (RED) {
                     this.devices[dev.ieeeAddr] = {name: ''};
                 }
 
-                if (!dev.epDesc) {
+                if (!this.devices[dev.ieeeAddr].epDesc) {
                     change = true;
-                    dev.epDesc = [];
+                    this.devices[dev.ieeeAddr].epDesc = [];
                     dev.epList.forEach(epId => {
                         const ep = this.shepherd.find(dev.ieeeAddr, epId);
                         const desc = ep.getSimpleDesc();
-                        dev.epDesc.push(desc);
+                        this.devices[dev.ieeeAddr].epDesc.push(desc);
                     });
                 }
 
