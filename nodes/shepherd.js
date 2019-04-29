@@ -255,6 +255,52 @@ module.exports = function (RED) {
 
                         break;
 
+                    case 'report':
+                        const timer = setTimeout(() => {
+                            this.warn('timeout ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.cmd);
+                            if (typeof cmd.callback === 'function') {
+                                const {callback} = cmd;
+                                delete cmd.callback;
+                                callback(new Error('timeout'));
+                            }
+
+                            if (!cmd.disBlockQueue) {
+                                this.cmdPending = false;
+                                this.shiftQueue();
+                            }
+                        }, timeout || this.queueMaxWait);
+
+                        this.debug(cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.attrId + ' ' + cmd.minInt + ' ' + cmd.maxInt + ' ' + cmd.repChange);
+                        endpoint.report(cmd.cid, cmd.attrId, cmd.minInt, cmd.maxInt, cmd.repChange, (err, res) => {
+                            clearTimeout(timer);
+                            if (!cmd.disBlockQueue) {
+                                const elapsed = (new Date()).getTime() - start;
+                                const pause = elapsed > this.queuePause ? 0 : (this.queuePause - elapsed);
+                                setTimeout(() => {
+                                    this.cmdPending = false;
+                                    this.shiftQueue();
+                                }, pause);
+                                this.debug('blockQueue elapsed ' + elapsed + 'ms, wait ' + pause + 'ms');
+                            }
+
+                            if (err) {
+                                this.error(err.message);
+                            } else {
+                                this.debug('defaultRsp ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.attrId + ' ' + JSON.stringify(res));
+                            }
+
+                            if (typeof cmd.callback === 'function') {
+                                cmd.callback(err, res);
+                            }
+                        });
+                        if (cmd.disBlockQueue) {
+                            setTimeout(() => {
+                                this.cmdPending = false;
+                                this.shiftQueue();
+                            }, this.queuePause);
+                        }
+                        break;
+
                     default:
                         this.error('cmdType ' + cmd.cmdType + ' not supported');
                         this.cmdPending = false;
