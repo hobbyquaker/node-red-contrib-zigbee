@@ -404,14 +404,17 @@ module.exports = function (RED) {
 
             let currentIndex = 1;
 
-            this.log(`Currently ${Object.keys(this.devices).length} devices are joined:`);
+            this.log(`Currently ${Object.keys(this.devices).length - 1} devices are joined:`);
             Object.keys(this.devices).forEach(ieeeAddr => {
                 const dev = this.devices[ieeeAddr];
 
-                this.log(`${ieeeAddr} ${dev.name} ${dev.manufName} ${dev.modelId} ${dev.type}`);
+                if (dev.type === 'Coordinator') {
+                    return;
+                }
+
+                this.log(`${ieeeAddr} ${dev.name} (${dev.type} ${dev.manufName} ${dev.modelId})`);
                 this.devices[ieeeAddr].ts = now;
                 delete this.devices[ieeeAddr].overdue;
-
 
                 const epFirst = this.shepherd.find(ieeeAddr, dev.epList[0]);
                 const desc = epFirst.getSimpleDesc();
