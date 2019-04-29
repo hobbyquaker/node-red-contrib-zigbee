@@ -5,10 +5,12 @@ const {EventEmitter} = require('events');
 const oe = require('obj-ease');
 const mkdirp = require('mkdirp');
 const Shepherd = require('zigbee-shepherd');
+const shepherdConverters = require('zigbee-shepherd-converters');
 
 const interval = require('../interval.json');
 
 const devices = {};
+const configured = new Set();
 const lights = {};
 const shepherdNodes = {};
 const shepherdInstances = {};
@@ -397,6 +399,32 @@ module.exports = function (RED) {
             this.log('started panId: ' + shepherdInfo.net.panId + ' channel: ' + shepherdInfo.net.channel + ' (' + this.shepherdOptions.net.channelList.join(', ') + ')');
         }
 
+        configure() {
+            Object.keys(this.devices).forEach(ieeeAddr => {
+                const dev = this.devices[ieeeAddr];
+
+                if (!dev || dev.type === 'Coordinator' || configured.has(ieeeAddr)) {
+                    return;
+                }
+
+                const mappedDevice = shepherdConverters.findByZigbeeModel(dev.modelId);
+
+                if (mappedDevice) {
+                    if (mappedDevice.configure) {
+                        this.debug(`configure ${ieeeAddr} ${dev.name}`);
+                        mappedDevice.configure(ieeeAddr, this.shepherd, this.shepherd.find(this.shepherd.info().net.ieeeAddr, 1), (success, msg) => {
+                            if (success) {
+                                this.info(`successfully configured ${ieeeAddr} ${dev.name}`);
+                                configured.add(ieeeAddr);
+                            } else {
+                                this.error(`configure failed ${ieeeAddr} ${dev.name} ${msg}`);
+                            }
+                        });
+                    }
+                }
+            });
+        }
+
         readyHandler() {
             this.log('ready');
             this.list();
@@ -408,7 +436,7 @@ module.exports = function (RED) {
             Object.keys(this.devices).forEach(ieeeAddr => {
                 const dev = this.devices[ieeeAddr];
 
-                if (dev.type === 'Coordinator') {
+                if (!dev || dev.type === 'Coordinator') {
                     return;
                 }
 
@@ -452,6 +480,8 @@ module.exports = function (RED) {
             this.proxy.emit('ready');
             this.proxy.emit('nodeStatus', {fill: 'green', shape: 'dot', text: 'connected'});
             this.shepherd.controller.request('UTIL', 'ledControl', {ledid: 3, mode: this.led === 'enabled' ? 1 : 0});
+
+            this.configure();
         }
 
         /**
