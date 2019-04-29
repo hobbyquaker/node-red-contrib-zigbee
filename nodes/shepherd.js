@@ -308,7 +308,7 @@ module.exports = function (RED) {
                 panId = parseInt(this.credentials.panId, 16);
             }
 
-            const shepherdOptions = {
+            this.shepherdOptions = {
                 sp: {
                     baudRate: parseInt(config.baudRate, 10) || 115200,
                     rtscts: Boolean(config.rtscts)
@@ -322,14 +322,14 @@ module.exports = function (RED) {
             };
 
             if (!shepherdInstances[this.id]) {
-                shepherdInstances[this.id] = new Shepherd(config.path, shepherdOptions);
+                shepherdInstances[this.id] = new Shepherd(config.path, this.shepherdOptions);
             }
 
             this.shepherd = shepherdInstances[this.id];
 
             this.proxy = new ShepherdProxy(this);
 
-            //this.shepherd = new Shepherd(config.path, shepherdOptions);
+            //this.shepherd = new Shepherd(config.path, this.shepherdOptions);
 
             const listeners = {
                 devices: () => this.devicesHandler(),
@@ -344,7 +344,7 @@ module.exports = function (RED) {
             });
 
             this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'dot', text: 'starting'});
-            this.log('connecting ' + config.path + ' ' + JSON.stringify(shepherdOptions.sp));
+            this.log('connecting ' + config.path + ' ' + JSON.stringify(this.shepherdOptions.sp));
             this.shepherd.start(error => {
                 if (error) {
                     this.proxy.emit('nodeStatus', {fill: 'red', shape: 'ring', text: error.message + ', retrying'});
@@ -358,13 +358,13 @@ module.exports = function (RED) {
                                 this.error(error.message);
                             } else {
                                 this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'dot', text: 'connecting'});
-                                this.debug('started');
+                                this.logStartupInfo();
                             }
                         });
                     }, 60000);
                 } else {
                     this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'dot', text: 'connecting'});
-                    this.log('started panId: ' + shepherdOptions.net.panId + ' channels: ' + shepherdOptions.net.channelList.join(', '));
+                    this.logStartupInfo();
                 }
             });
 
@@ -391,19 +391,28 @@ module.exports = function (RED) {
             });
         }
 
+        logStartupInfo() {
+            const shepherdInfo = this.shepherd.info();
+            this.log('coordinator ' + shepherdInfo.net.ieeeAddr + ' firmware version: ' + shepherdInfo.firmware.version + ' ' + shepherdInfo.firmware.revision);
+            this.log('started panId: ' + shepherdInfo.net.panId + ' channel: ' + shepherdInfo.net.channel + ' (' + this.shepherdOptions.net.channelList.join(', ') + ')');
+        }
+
         readyHandler() {
             this.log('ready');
             this.list();
             const now = (new Date()).getTime();
-            Object.keys(this.devices).forEach(ieeeAddr => {
-                this.devices[ieeeAddr].ts = now;
-                delete this.devices[ieeeAddr].overdue;
-            });
 
             let currentIndex = 1;
 
+            this.log(`Currently ${Object.keys(this.devices).length} devices are joined:`);
             Object.keys(this.devices).forEach(ieeeAddr => {
                 const dev = this.devices[ieeeAddr];
+
+                this.log(`${ieeeAddr} ${dev.name} ${dev.manufName} ${dev.modelId} ${dev.type}`);
+                this.devices[ieeeAddr].ts = now;
+                delete this.devices[ieeeAddr].overdue;
+
+
                 const epFirst = this.shepherd.find(ieeeAddr, dev.epList[0]);
                 const desc = epFirst.getSimpleDesc();
                 const type = zllDevice[desc.devId];
