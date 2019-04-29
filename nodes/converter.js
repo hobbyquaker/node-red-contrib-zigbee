@@ -133,7 +133,7 @@ module.exports = function (RED) {
             const indHandler = message => {
                 const device = message.endpoints && message.endpoints[0] && message.endpoints[0].device;
 
-                if (!['devIncoming', 'devLeaving'].includes(message.type)) {
+                if (!['devIncoming', 'devLeaving', 'devInterview'].includes(message.type)) {
                     if (!device) {
                         this.warn('unknown device', message);
                         return;
@@ -201,7 +201,7 @@ module.exports = function (RED) {
                                                 this.send(Object.assign({}, out, {
                                                     topic: out.topic + '/' + key,
                                                     payload: convertedPayload[key],
-                                                    retain: !['click', 'action', 'angle'].includes(key)
+                                                    retain: !['click', 'action', 'angle', 'occupancy'].includes(key)
                                                 }));
                                             }
                                         });
@@ -213,19 +213,17 @@ module.exports = function (RED) {
                                     }
                                 }
                             });
-                        } else {
-                            if (cid) {
-                                this.warn(
-                                    `No converter available for '${model.model}' with cid '${cid}', ` +
+                        } else if (cid) {
+                            this.warn(
+                                `No converter available for '${model.model}' with cid '${cid}', ` +
                                     `type '${message.type}' and data '${JSON.stringify(message.data)}'`
-                                );
-                            } else if (cmdId) {
-                                this.warn(
-                                    `No converter available for '${model.model}' with cmd '${cmdId}' ` +
+                            );
+                            this.warn('Please see: https://koenkk.github.io/zigbee2mqtt/how_tos/how_to_support_new_devices.html.');
+                        } else if (cmdId) {
+                            this.warn(
+                                `No converter available for '${model.model}' with cmd '${cmdId}' ` +
                                     `and data '${JSON.stringify(message.data)}'`
-                                );
-                            }
-
+                            );
                             this.warn('Please see: https://koenkk.github.io/zigbee2mqtt/how_tos/how_to_support_new_devices.html.');
                         }
                     }
