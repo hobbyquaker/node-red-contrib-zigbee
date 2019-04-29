@@ -255,7 +255,7 @@ module.exports = function (RED) {
 
                         break;
 
-                    case 'report':
+                    case 'report': {
                         const timer = setTimeout(() => {
                             this.warn('timeout ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.cmd);
                             if (typeof cmd.callback === 'function') {
@@ -299,7 +299,9 @@ module.exports = function (RED) {
                                 this.shiftQueue();
                             }, this.queuePause);
                         }
+
                         break;
+                    }
 
                     default:
                         this.error('cmdType ' + cmd.cmdType + ' not supported');
