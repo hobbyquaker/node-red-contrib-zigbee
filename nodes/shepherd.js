@@ -659,6 +659,7 @@ module.exports = function (RED) {
             let index;
 
             switch (msg.type) {
+                case 'attReport':
                 case 'devChange':
                 case 'devStatus':
                 case 'readRsp': {
@@ -725,15 +726,6 @@ module.exports = function (RED) {
                     this.updateLightState(index, state);
                     break;
                 }
-
-                case 'devInterview':
-                    index = this.getLightIndex(msg.data);
-                    break;
-
-                case 'attReport':
-                    ieeeAddr = msg.endpoints && msg.endpoints[0] && msg.endpoints[0].device && msg.endpoints[0].device.ieeeAddr;
-                    index = this.getLightIndex(ieeeAddr);
-                    break;
 
                 default:
             }
