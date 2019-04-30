@@ -462,7 +462,7 @@ module.exports = function (RED) {
                         this.debug(`configure ${ieeeAddr} ${dev.name}`);
                         mappedDevice.configure(ieeeAddr, this.shepherd, this.shepherd.find(this.shepherd.info().net.ieeeAddr, 1), (success, msg) => {
                             if (success) {
-                                this.info(`successfully configured ${ieeeAddr} ${dev.name}`);
+                                this.log(`successfully configured ${ieeeAddr} ${dev.name}`);
                                 configured.add(ieeeAddr);
                             } else {
                                 this.error(`configure failed ${ieeeAddr} ${dev.name} ${msg}`);
