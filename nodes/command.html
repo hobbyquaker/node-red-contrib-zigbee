@@ -352,11 +352,9 @@
 
                 const id = $('#node-input-shepherd').val();
                 $('#response').html('...');
-                $.post('zigbee-shepherd/cmd?id=' + id, {cmd: JSON.stringify(obj)}, res => {
-                    $('#response').html(res);
+                $.post('zigbee-shepherd/cmd?id=' + id, {cmd: JSON.stringify(obj)}, data => {
+                    $('#response').html(JSON.stringify(data));
                 }, 'json');
-
-                console.log(obj);
             });
         },
         oneditsave() {
@@ -478,7 +476,7 @@
 </script>
 
 <script type="text/x-red" data-help-name="zigbee-command">
-    <h4>Execute a command on an endpoint</h4>
+    <b>Execute a command on an endpoint</b>
     <p>See <a href="https://github.com/zigbeer/zigbee-shepherd/wiki#API_foundation" target="_blank">zigbee-shepherd documentation</a></p>
-    <p>All Properties can be overwritten by incoming msg.</p>
+    <p>All properties can be overwritten by incoming msg.</p>
 </script>
