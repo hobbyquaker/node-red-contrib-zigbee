@@ -139,7 +139,10 @@ module.exports = function (RED) {
                     cmd.on = false;
                 } else {
                     const bri = parseInt(msg.payload, 10) || 0;
-                    cmd.bri = bri;
+                    if (!shepherdNode.lightsInternal[index].type.startsWith('On/off')) {
+                        cmd.bri = bri;
+                    }
+
                     if (bri) {
                         cmd.on = true;
                     } else {

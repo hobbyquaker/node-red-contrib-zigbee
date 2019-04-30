@@ -496,7 +496,7 @@ module.exports = function (RED) {
                 const desc = epFirst.getSimpleDesc();
                 const type = zllDevice[desc.devId];
                 if (type && dev.modelId !== 'lumi.router') {
-                    this.lightsInternal[currentIndex] = {ieeeAddr};
+                    this.lightsInternal[currentIndex] = {ieeeAddr, type};
 
                     const uniqueid = ieeeAddr.replace('0x', '').replace(/([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/, '$1:$2:$3:$4:$5:$6:$7:$8') + '-' + (uniqueidSuffix[dev.manufName] || '00');
 
