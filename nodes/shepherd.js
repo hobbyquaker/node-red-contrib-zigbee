@@ -92,20 +92,19 @@ module.exports = function (RED) {
         res.status(200).send('');
     });
 
-    RED.httpAdmin.get('/zigbee-shepherd/bind', (req, res) => {
+    RED.httpAdmin.post('/zigbee-shepherd/cmd', (req, res) => {
         if (shepherdNodes[req.query.id]) {
-            shepherdNodes[req.query.id].bind(req.query.deviceSrc, parseInt(req.query.epSrc, 10), req.query.deviceDest, parseInt(req.query.epDest, 10), req.query.groupDest, req.query.cId);
+            const cmd = JSON.parse(req.query.cmd);
+            cmd.callback = (err, result) => {
+                if (err) {
+                    res.status(500).send(JSON.stringify(err));
+                } else {
+                    res.status(200).send(JSON.stringify(result));
+                }
+            };
+
+            shepherdNodes[req.query.id].proxy.queue(cmd);
         }
-
-        res.status(200).send('');
-    });
-
-    RED.httpAdmin.get('/zigbee-shepherd/unbind', (req, res) => {
-        if (shepherdNodes[req.query.id]) {
-            shepherdNodes[req.query.id].unbind(req.query.deviceSrc, parseInt(req.query.epSrc, 10), req.query.deviceDest, parseInt(req.query.epDest, 10), req.query.groupDest, req.query.cId);
-        }
-
-        res.status(200).send('');
     });
 
     RED.httpAdmin.get('/zigbee-shepherd/join-time-left', (req, res) => {
@@ -254,6 +253,153 @@ module.exports = function (RED) {
                         }
 
                         break;
+                    case 'write': {
+                        const timer = setTimeout(() => {
+                            this.warn('timeout ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.attrId);
+                            if (typeof cmd.callback === 'function') {
+                                const {callback} = cmd;
+                                delete cmd.callback;
+                                callback(new Error('timeout'));
+                            }
+
+                            if (!cmd.disBlockQueue) {
+                                this.cmdPending = false;
+                                this.shiftQueue();
+                            }
+                        }, timeout || this.queueMaxWait);
+
+                        this.debug(cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.attrId + ' ' + JSON.stringify(cmd.data));
+                        endpoint[cmd.cmdType](cmd.cid, cmd.attrId, cmd.data, (err, res) => {
+                            clearTimeout(timer);
+                            if (!cmd.disBlockQueue) {
+                                const elapsed = (new Date()).getTime() - start;
+                                const pause = elapsed > this.queuePause ? 0 : (this.queuePause - elapsed);
+                                setTimeout(() => {
+                                    this.cmdPending = false;
+                                    this.shiftQueue();
+                                }, pause);
+                                this.debug('blockQueue elapsed ' + elapsed + 'ms, wait ' + pause + 'ms');
+                            }
+
+                            if (err) {
+                                this.error(err.message);
+                            } else {
+                                this.debug('defaultRsp ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.attrId + ' ' + JSON.stringify(res));
+                            }
+
+                            if (typeof cmd.callback === 'function') {
+                                cmd.callback(err, res);
+                            }
+                        });
+                        if (cmd.disBlockQueue) {
+                            setTimeout(() => {
+                                this.cmdPending = false;
+                                this.shiftQueue();
+                            }, this.queuePause);
+                        }
+
+                        break;
+                    }
+
+                    case 'read': {
+                        const timer = setTimeout(() => {
+                            this.warn('timeout ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.attrId);
+                            if (typeof cmd.callback === 'function') {
+                                const {callback} = cmd;
+                                delete cmd.callback;
+                                callback(new Error('timeout'));
+                            }
+
+                            if (!cmd.disBlockQueue) {
+                                this.cmdPending = false;
+                                this.shiftQueue();
+                            }
+                        }, timeout || this.queueMaxWait);
+
+                        this.debug(cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.attrId);
+                        endpoint[cmd.cmdType](cmd.cid, cmd.attrId, (err, res) => {
+                            clearTimeout(timer);
+                            if (!cmd.disBlockQueue) {
+                                const elapsed = (new Date()).getTime() - start;
+                                const pause = elapsed > this.queuePause ? 0 : (this.queuePause - elapsed);
+                                setTimeout(() => {
+                                    this.cmdPending = false;
+                                    this.shiftQueue();
+                                }, pause);
+                                this.debug('blockQueue elapsed ' + elapsed + 'ms, wait ' + pause + 'ms');
+                            }
+
+                            if (err) {
+                                this.error(err.message);
+                            } else {
+                                this.debug('defaultRsp ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.attrId + ' ' + JSON.stringify(res));
+                            }
+
+                            if (typeof cmd.callback === 'function') {
+                                cmd.callback(err, res);
+                            }
+                        });
+                        if (cmd.disBlockQueue) {
+                            setTimeout(() => {
+                                this.cmdPending = false;
+                                this.shiftQueue();
+                            }, this.queuePause);
+                        }
+
+                        break;
+                    }
+
+                    case 'bind':
+                    case 'unbind': {
+                        const dstEpOrGrpId = cmd.destination === 'group' ? cmd.dstGroup : this.shepherd.find(cmd.dstIeeeAddr, cmd.dstEp);
+                        const dstDesc = cmd.destination === 'group' ? cmd.dstGroup : (((this.devices[cmd.dstIeeeAddr] && this.devices[cmd.dstIeeeAddr].name) || cmd.dstIeeeAddr) + ' ' + cmd.dstEp);
+
+                        const timer = setTimeout(() => {
+                            this.warn('timeout ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + dstDesc);
+                            if (typeof cmd.callback === 'function') {
+                                const {callback} = cmd;
+                                delete cmd.callback;
+                                callback(new Error('timeout'));
+                            }
+
+                            if (!cmd.disBlockQueue) {
+                                this.cmdPending = false;
+                                this.shiftQueue();
+                            }
+                        }, timeout || this.queueMaxWait);
+
+                        this.debug(cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + dstDesc);
+                        endpoint[cmd.cmdType](cmd.cid, dstEpOrGrpId, (err, res) => {
+                            clearTimeout(timer);
+                            if (!cmd.disBlockQueue) {
+                                const elapsed = (new Date()).getTime() - start;
+                                const pause = elapsed > this.queuePause ? 0 : (this.queuePause - elapsed);
+                                setTimeout(() => {
+                                    this.cmdPending = false;
+                                    this.shiftQueue();
+                                }, pause);
+                                this.debug('blockQueue elapsed ' + elapsed + 'ms, wait ' + pause + 'ms');
+                            }
+
+                            if (err) {
+                                this.error(err.message);
+                            } else {
+                                this.debug('defaultRsp ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + dstDesc + ' ' + JSON.stringify(res));
+                            }
+
+                            if (typeof cmd.callback === 'function') {
+                                cmd.callback(err, res);
+                            }
+                        });
+                        if (cmd.disBlockQueue) {
+                            setTimeout(() => {
+                                this.cmdPending = false;
+                                this.shiftQueue();
+                            }, this.queuePause);
+                        }
+
+                        break;
+                    }
 
                     case 'report': {
                         const timer = setTimeout(() => {
@@ -612,51 +758,6 @@ module.exports = function (RED) {
             }
         }
 
-        bind(deviceSrc, epSrc, deviceDest, epDest, groupDest, cluster) {
-            const endpointSrc = this.shepherd.find(deviceSrc, epSrc);
-            if (!endpointSrc) {
-                this.error('bind source endpoint ' + deviceSrc + ' ' + epSrc + ' unknown');
-                return;
-            }
-
-            const endpointDest = Number(groupDest) || this.shepherd.find(deviceDest, epDest);
-            if (!endpointDest) {
-                this.error('bind destination endpoint ' + deviceDest + ' ' + epDest + ' unknown');
-                return;
-            }
-
-            endpointSrc.bind(cluster, endpointDest, err => {
-                if (err) {
-                    this.error(err.message);
-                } else {
-                    this.log('bind ' + deviceSrc + ' from ' + deviceDest + ' successful');
-                }
-            });
-        }
-
-        unbind(deviceSrc, epSrc, deviceDest, epDest, groupDest, cluster) {
-            //console.log('unbind', deviceSrc, epSrc, deviceDest, epDest, groupDest, cluster);
-            const endpointSrc = this.shepherd.find(deviceSrc, epSrc);
-            if (!endpointSrc) {
-                this.error('unbind source endpoint ' + deviceSrc + ' ' + epSrc + ' unknown');
-                return;
-            }
-
-            const endpointDest = Number(groupDest) || this.shepherd.find(deviceDest, epDest);
-            if (!endpointDest) {
-                this.error('unbind destination endpoint ' + deviceDest + ' ' + epDest + ' unknown');
-                return;
-            }
-
-            endpointSrc.unbind(cluster, endpointDest, err => {
-                if (err) {
-                    this.error(err.message);
-                } else {
-                    this.log('unbind ' + deviceSrc + ' from ' + deviceDest + ' successful');
-                }
-            });
-        }
-
         checkOverdue() {
             const now = (new Date()).getTime();
             let change = false;
@@ -672,10 +773,6 @@ module.exports = function (RED) {
             if (change) {
                 this.proxy.emit('devices', this.devices);
             }
-        }
-
-        ping(ieeeAddr) {
-
         }
 
         initLight(ieeeAddr) {

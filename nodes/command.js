@@ -10,7 +10,7 @@ module.exports = function (RED) {
                 return;
             }
 
-            let nodeStatus;
+            let nodeStatus = {text: ''};
             shepherdNode.proxy.on('nodeStatus', status => {
                 nodeStatus = status;
                 this.status(status);
@@ -19,18 +19,27 @@ module.exports = function (RED) {
             this.shepherd = shepherdNode.shepherd;
 
             this.on('input', msg => {
+                let configZclData;
+
+                try {
+                    if (typeof configZclData !== 'object') {
+                        configZclData = JSON.parse(config.zclData);
+                    }
+                } catch (err) {
+                    configZclData = {};
+                }
 
                 const cmdType = msg.cmdType || config.cmdType;
                 const ieeeAddr = msg.ieeeAddr || ((config.ieeeAddr || '').split(' ')[0]);
-                const ep = msg.ep || config.ep;
+                const ep = parseInt(msg.ep || config.ep, 10);
                 const destination = msg.destination || config.destination;
-                const dstIeeeAddr = msg.dstIeeeAddr || config.dstIeeeAddr;
-                const dstEp = msg.dstEp || config.dstEp;
+                const dstIeeeAddr = msg.dstIeeeAddr || ((config.dstIeeeAddr || '').split(' ')[0]);
+                const dstEp = parseInt(msg.dstEp || config.dstEp, 10);
                 const dstGroup = msg.dstGroup || config.dstGroup;
                 const cid = msg.cid || config.cid;
                 const cmd = msg.cmd || config.cmd;
-                const data = msg.data || config.data;
-                const zclData = msg.zclData || config.zclData;
+                const data = msg.data || (config.dataType === 'num' ? Number(config.data) : String(config.data));
+                const zclData = msg.zclData || configZclData;
                 const attrId = msg.attrId || config.attrId;
                 const minInt = msg.minInt || config.minInt;
                 const maxInt = msg.maxInt || config.maxInt;
@@ -62,6 +71,7 @@ module.exports = function (RED) {
                             ieeeAddr,
                             ep,
                             cid,
+                            attrId,
                             data
                         };
                         break;
@@ -70,7 +80,8 @@ module.exports = function (RED) {
                             cmdType,
                             ieeeAddr,
                             ep,
-                            cid
+                            cid,
+                            attrId
                         };
                         break;
                     case 'bind':
@@ -99,6 +110,7 @@ module.exports = function (RED) {
                         if (repChange) {
                             obj.repChange = repChange;
                         }
+
                         break;
                     default:
                         this.error('unknown command ' + cmdType);
@@ -106,8 +118,8 @@ module.exports = function (RED) {
 
                 obj.callback = (err, res) => {
                     if (err) {
-                        this.error(err);
-                        this.status({fill: 'red', shape: 'dot', text: err});
+                        this.error(err.message);
+                        this.status({fill: 'red', shape: 'dot', text: err.message});
                     } else {
                         this.send({topic: msg.topic, payload: res});
                         this.status(nodeStatus);
