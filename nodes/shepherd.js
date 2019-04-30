@@ -853,7 +853,7 @@ module.exports = function (RED) {
 
             const cmds = [];
 
-            if (typeof msg.payload.on !== 'undefined' && (msg.payload.on === false || typeof msg.payload.bri === 'undefined')) {
+            if (typeof msg.payload.on !== 'undefined' && typeof msg.payload.bri === 'undefined') {
                 if (msg.payload.transitiontime) {
                     cmds.push({
                         ieeeAddr: dev.ieeeAddr,
@@ -899,7 +899,7 @@ module.exports = function (RED) {
                     cmdType: 'functional',
                     cid: 'genLevelCtrl',
                     // Todo: clarify - bri 1 sets off?
-                    cmd: msg.payload.on === true && msg.payload.bri > 1 ? 'moveToLevelWithOnOff' : 'moveToLevel',
+                    cmd: 'moveToLevelWithOnOff',
                     zclData: {
                         level: msg.payload.bri,
                         transtime: msg.payload.transitiontime || 0
