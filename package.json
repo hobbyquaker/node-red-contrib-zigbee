@@ -35,8 +35,7 @@
       "zigbee-hue": "nodes/hue.js",
       "zigbee-hue-light": "nodes/hue-light.js",
       "zigbee-event": "nodes/event.js",
-      "zigbee-command": "nodes/command.js",
-      "zigbee-bind": "nodes/bind.js"
+      "zigbee-command": "nodes/command.js"
     }
   },
   "devDependencies": {
