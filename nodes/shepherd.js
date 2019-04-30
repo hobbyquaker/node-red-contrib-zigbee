@@ -478,8 +478,6 @@ module.exports = function (RED) {
             this.list();
             const now = (new Date()).getTime();
 
-            let currentIndex = 1;
-
             this.log(`Currently ${Object.keys(this.devices).length - 1} devices are joined:`);
             Object.keys(this.devices).forEach(ieeeAddr => {
                 const dev = this.devices[ieeeAddr];
@@ -492,37 +490,7 @@ module.exports = function (RED) {
                 this.devices[ieeeAddr].ts = now;
                 delete this.devices[ieeeAddr].overdue;
 
-                const epFirst = this.shepherd.find(ieeeAddr, dev.epList[0]);
-                const desc = epFirst.getSimpleDesc();
-                const type = zllDevice[desc.devId];
-                if (type && dev.modelId !== 'lumi.router') {
-                    this.lightsInternal[currentIndex] = {ieeeAddr, type};
-
-                    const uniqueid = ieeeAddr.replace('0x', '').replace(/([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/, '$1:$2:$3:$4:$5:$6:$7:$8') + '-' + (uniqueidSuffix[dev.manufName] || '00');
-
-                    this.lights[String(currentIndex)] = {
-                        state: emptyStates[type] || {on: false, reachable: false},
-                        type,
-                        name: dev.name,
-                        modelid: dev.modelId,
-                        manufacturername: dev.manufName,
-                        uniqueid,
-                        // TODO clarify: can we retrieve the sw version from the shepherd?
-                        swversion: '',
-                        // Todo clarify: what is pointsymbol's purpose?
-                        pointsymbol: {
-                            1: 'none',
-                            2: 'none',
-                            3: 'none',
-                            4: 'none',
-                            5: 'none',
-                            6: 'none',
-                            7: 'none',
-                            8: 'none'
-                        }
-                    };
-                    currentIndex += 1;
-                }
+                this.initLight(ieeeAddr);
             });
 
             this.proxy.emit('ready');
@@ -530,32 +498,6 @@ module.exports = function (RED) {
             this.shepherd.controller.request('UTIL', 'ledControl', {ledid: 3, mode: this.led === 'enabled' ? 1 : 0});
 
             this.configure();
-        }
-
-        /**
-         * @param {string} search id, ieeeAddr or name
-         * @returns {null|string}
-         */
-        getLightIndex(search) {
-            let found = null;
-
-            if (search.startsWith('0x')) {
-                Object.keys(this.lightsInternal).forEach(index => {
-                    if (this.lightsInternal[index] && (this.lightsInternal[index].ieeeAddr === search)) {
-                        found = index;
-                    }
-                });
-            } else if (this.lights[search]) {
-                found = search;
-            } else {
-                Object.keys(this.lights).forEach(index => {
-                    if (search === this.lights[index].name) {
-                        found = index;
-                    }
-                });
-            }
-
-            return found;
         }
 
         errorHandler(error) {
@@ -730,6 +672,72 @@ module.exports = function (RED) {
             if (change) {
                 this.proxy.emit('devices', this.devices);
             }
+        }
+
+        ping(ieeeAddr) {
+
+        }
+
+        initLight(ieeeAddr) {
+            this.currentIndex = this.currentIndex || 1;
+            const dev = this.devices[ieeeAddr];
+            const epFirst = this.shepherd.find(ieeeAddr, dev.epList[0]);
+            const desc = epFirst.getSimpleDesc();
+            const type = zllDevice[desc.devId];
+            if (type && dev.modelId !== 'lumi.router') {
+                this.lightsInternal[this.currentIndex] = {ieeeAddr, type};
+
+                const uniqueid = ieeeAddr.replace('0x', '').replace(/([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/, '$1:$2:$3:$4:$5:$6:$7:$8') + '-' + (uniqueidSuffix[dev.manufName] || '00');
+
+                this.lights[String(this.currentIndex)] = {
+                    state: emptyStates[type] || {on: false, reachable: false},
+                    type,
+                    name: dev.name,
+                    modelid: dev.modelId,
+                    manufacturername: dev.manufName,
+                    uniqueid,
+                    // TODO clarify: can we retrieve the sw version from the shepherd?
+                    swversion: '',
+                    // Todo clarify: what is pointsymbol's purpose?
+                    pointsymbol: {
+                        1: 'none',
+                        2: 'none',
+                        3: 'none',
+                        4: 'none',
+                        5: 'none',
+                        6: 'none',
+                        7: 'none',
+                        8: 'none'
+                    }
+                };
+                this.currentIndex += 1;
+            }
+        }
+
+        /**
+         * @param {string} search id, ieeeAddr or name
+         * @returns {null|string}
+         */
+        getLightIndex(search) {
+            let found = null;
+
+            if (search.startsWith('0x')) {
+                Object.keys(this.lightsInternal).forEach(index => {
+                    if (this.lightsInternal[index] && (this.lightsInternal[index].ieeeAddr === search)) {
+                        found = index;
+                    }
+                });
+            } else if (this.lights[search]) {
+                found = search;
+            } else {
+                Object.keys(this.lights).forEach(index => {
+                    if (search === this.lights[index].name) {
+                        found = index;
+                    }
+                });
+            }
+
+            return found;
         }
 
         indLightHandler(msg) {
