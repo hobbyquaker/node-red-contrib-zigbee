@@ -94,7 +94,7 @@ module.exports = function (RED) {
 
     RED.httpAdmin.post('/zigbee-shepherd/cmd', (req, res) => {
         if (shepherdNodes[req.query.id]) {
-            const cmd = JSON.parse(req.query.cmd);
+            const cmd = JSON.parse(req.body.cmd);
             cmd.callback = (err, result) => {
                 if (err) {
                     res.status(500).send(JSON.stringify(err));

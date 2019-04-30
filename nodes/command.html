@@ -39,6 +39,8 @@
             return this.name ? 'node_label_italic' : '';
         },
         oneditprepare() {
+            $('#response').html('');
+
             const clusters = {
                 genBasic: 0,
                 genPowerCfg: 1,
@@ -252,6 +254,110 @@
                 }
             });
             $('#node-input-destination').trigger('change');
+
+            $('#execute').click(() => {
+                let zclData;
+
+                try {
+                    zclData = JSON.parse($('#node-input-zclData'));
+                } catch (err) {
+                    zclData = {};
+                }
+
+                const cmdType = $('#node-input-cmdType').val();
+                const ieeeAddr = ($('#node-input-ieeeAddr').val() || '').split(' ')[0];
+                const ep = Number($('#node-input-ep').val());
+                const destination = $('#node-input-destination').val();
+                const dstIeeeAddr = ($('#node-input-dstIeeeAddr').val() || '').split(' ')[0];
+                const dstEp = Number($('#node-input-dstEp').val());
+                const dstGroup = Number($('#node-input-dstGroup').val());
+                const cid = $('#node-input-cid').val();
+                const cmd = $('#node-input-cmd').val();
+                const data = $('#node-input-dataType').val() === 'num' ? Number($('#node-input-data').val()) : $('#node-input-data').val();
+                const attrId = $('#node-input-attrIdType').val() === 'num' ? Number($('#node-input-attrId').val()) : $('#node-input-attrId').val();
+                const minInt = Number($('#node-input-minInt').val());
+                const maxInt = Number($('#node-input-maxInt').val());
+                const repChange = Number($('#node-input-repChange').val());
+                const manufSpec = Number($('#node-input-manufSpec').val());
+                const disableDefaultRsp = Number($('#node-input-disableDefaultRsp').val());
+
+                let obj;
+
+                switch (cmdType) {
+                    case 'functional':
+                    case 'foundation':
+                        obj = {
+                            cmdType,
+                            ieeeAddr,
+                            ep,
+                            cid,
+                            cmd,
+                            zclData,
+                            cfg: {
+                                manufSpec,
+                                disableDefaultRsp
+                            }
+                        };
+                        break;
+                    case 'write':
+                        obj = {
+                            cmdType,
+                            ieeeAddr,
+                            ep,
+                            cid,
+                            attrId,
+                            data
+                        };
+                        break;
+                    case 'read':
+                        obj = {
+                            cmdType,
+                            ieeeAddr,
+                            ep,
+                            cid,
+                            attrId
+                        };
+                        break;
+                    case 'bind':
+                    case 'unbind':
+                        obj = {
+                            cmdType,
+                            ieeeAddr,
+                            ep,
+                            cid,
+                            destination,
+                            dstIeeeAddr,
+                            dstEp,
+                            dstGroup
+                        };
+                        break;
+                    case 'report':
+                        obj = {
+                            cmdType,
+                            ieeeAddr,
+                            ep,
+                            cid,
+                            attrId,
+                            minInt,
+                            maxInt
+                        };
+                        if (repChange) {
+                            obj.repChange = repChange;
+                        }
+
+                        break;
+                    default:
+                        this.error('unknown command ' + cmdType);
+                }
+
+                const id = $('#node-input-shepherd').val();
+                $('#response').html('...');
+                $.post('zigbee-shepherd/cmd?id=' + id, {cmd: JSON.stringify(obj)}, res => {
+                    $('#response').html(res);
+                }, 'json');
+
+                console.log(obj);
+            });
         },
         oneditsave() {
             if (this.dataType === 'num') {
@@ -361,9 +467,18 @@
         <label for="node-input-disableDefaultRsp"><i class="icon-pencil"></i> disableDefaultRsp</label>
         <input type="number" id="node-input-disableDefaultRsp">
     </div>
+    <div class="form-row">
+        <label for="execute"><i class=""></i> </label>
+        <button id="execute">execute command</button>
+    </div>
+    <div class="form-row">
+        <label for="response"><i class=""></i> response</label>
+        <span id="response"></span>
+    </div>
 </script>
 
 <script type="text/x-red" data-help-name="zigbee-command">
-    <p>See <a href="https://github.com/zigbeer/zigbee-shepherd/wiki#API_foundation" target="_blank">zigbee-shepherd wiki</a></p>
+    <h4>Execute a command on an endpoint</h4>
+    <p>See <a href="https://github.com/zigbeer/zigbee-shepherd/wiki#API_foundation" target="_blank">zigbee-shepherd documentation</a></p>
     <p>All Properties can be overwritten by incoming msg.</p>
 </script>
