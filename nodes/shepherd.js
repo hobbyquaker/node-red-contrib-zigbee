@@ -1214,7 +1214,9 @@ module.exports = function (RED) {
                 if (err.message.includes('status code: 233')) {
                     this.updateLight(lightIndex, {reachable: false});
                 } else {
-                    this.readLightState(lightIndex, attributes);
+                    setTimeout(() => {
+                        this.readLightState(lightIndex, attributes);
+                    }, 1000);
                 }
             } else if (msg.payload.transitiontime) {
                 setTimeout(() => {
