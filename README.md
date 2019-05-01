@@ -9,9 +9,6 @@
 > Control Zigbee Devices (Xiaomi Aqara, Hue, Lightify, Tradfri, ...) with Node-RED via a CC253x Module. No need for
 proprietary bridges anymore, use devices of different vendors in one Zigbee network.
 
-**WORK IN PROGESS** - nevertheless I'm happy if you're willing to test it already, feedback of any kind is highly 
-appreciated, just use the [issue tracker](https://github.com/hobbyquaker/node-red-contrib-zigbee/issues)- As soon as the
-Todo list is worked off and it's considered as stable the version will be bumped to 1.0
 
 ## Credits
 
@@ -77,9 +74,7 @@ This Node outputs events as received from zigbee-shepherd.
 
 #### command
 
-Send a "functional" or "foundation" command to a device endpoint. Payload has to be an object containing the properties 
-`cmdType`, `ieeeAddress`, `ep`, `cId`, `cmd` and `zclData`. See 
-https://github.com/zigbeer/zigbee-shepherd/wiki#API_functional
+Send a command to a device endpoint. See https://github.com/zigbeer/zigbee-shepherd/wiki#API_functional
 
 
 
