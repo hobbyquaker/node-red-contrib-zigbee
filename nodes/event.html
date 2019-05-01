@@ -4,6 +4,7 @@
         category: 'zigbee',
         defaults: {
             shepherd: {value: '', type: 'zigbee-shepherd', required: true},
+            name: {value: ''},
             device: {value: ''},
             events: {value: ['attReport']},
             topic: {value: 'zigbee/${ieeeAddr}/${event}/${epId}/${cid}/${attribute}'},
@@ -43,7 +44,7 @@
         },
         oneditsave() {
             this.events = [];
-            ['attReport', 'devChange', 'devStatus', 'devIncoming', 'devLeaving'].forEach(event => {
+            ['attReport', 'devChange', 'devStatus', 'devIncoming', 'devLeaving', 'statusChange', 'cmd', 'readRsp'].forEach(event => {
                 if ($('#node-input-event-' + event).is(':checked')) {
                     this.events.push(event);
                 }
@@ -56,6 +57,11 @@
     <div class="form-row">
         <label for="node-input-shepherd"><i class="icon-global"></i> shepherd</label>
         <input type="text" id="node-input-shepherd">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="icon-global"></i> name</label>
+        <select id="node-input-name" style="width: 70%">
+        </select>
     </div>
 
     <div class="form-row">
@@ -79,7 +85,10 @@
             }
         </style>
         <div id="event" style="width: 70%">
-            <label for="node-input-event-attReport"><input type="checkbox" id="node-input-event-attReport"/>attReport</label><br>
+            <label for="node-input-event-attReport"><input type="checkbox" id="node-input-event-attReport"/>attReport</label>
+            <label for="node-input-event-statusChange"><input type="checkbox" id="node-input-event-attReport"/>statusChange</label><br>
+            <label for="node-input-event-cmd"><input type="checkbox" id="node-input-event-cmd"/>cmd*</label>
+            <label for="node-input-event-readRsp"><input type="checkbox" id="node-input-event-readRsp"/>readRsp</label><br>
             <label for="node-input-event-devChange"><input type="checkbox" id="node-input-event-devChange"/>devChange</label>
             <label for="node-input-event-devStatus"><input type="checkbox" id="node-input-event-devStatus"/>devStatus</label><br>
             <label for="node-input-event-devIncoming"><input type="checkbox" id="node-input-event-devIncoming"/>devIncoming</label>

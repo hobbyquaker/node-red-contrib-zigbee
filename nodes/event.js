@@ -39,8 +39,35 @@ module.exports = function (RED) {
                     cid = message.data.cid;
                 }
 
-                if (config.payload !== 'json' && message.data.data) {
-                    Object.keys(message.data.data).forEach(attribute => {
+                if (ieeeAddr && (config.events.includes(message.type) || (config.events.includes('cmd') && event.startsWith('cmd')))) {
+                    if (config.payload !== 'json' && message.data.data && Object.keys(message.data.data).length > 0) {
+                        Object.keys(message.data.data).forEach(attribute => {
+                            const topicAttrs = {
+                                name: this.devices[ieeeAddr] && this.devices[ieeeAddr].name,
+                                ieeeAddr,
+                                event,
+                                epId,
+                                cid,
+                                profId,
+                                devId,
+                                attribute,
+                                linkquality: message.linkquality,
+                                groupid: message.groupid
+                            };
+
+                            if (!config.device || (ieeeAddr === config.device)) {
+                                const out = {
+                                    topic: this.topicReplace(config.topic, topicAttrs),
+                                    payload: message.data.data[attribute],
+                                    event,
+                                    groupid: message.groupid,
+                                    device: this.devices[ieeeAddr] || {}
+                                };
+
+                                this.send(out);
+                            }
+                        });
+                    } else {
                         const topicAttrs = {
                             name: this.devices[ieeeAddr] && this.devices[ieeeAddr].name,
                             ieeeAddr,
@@ -49,43 +76,16 @@ module.exports = function (RED) {
                             cid,
                             profId,
                             devId,
-                            attribute,
                             linkquality: message.linkquality,
                             groupid: message.groupid
                         };
 
-                        if (ieeeAddr && config.events.includes(message.type)) {
-                            if (!config.device || (ieeeAddr === config.device)) {
-                                const out = {
-                                    topic: this.topicReplace(config.topic, topicAttrs),
-                                    payload: message.data.data[attribute],
-                                    event,
-                                    device: this.devices[ieeeAddr] || {}
-                                };
-
-                                this.send(out);
-                            }
-                        }
-                    });
-                } else {
-                    const topicAttrs = {
-                        name: this.devices[ieeeAddr] && this.devices[ieeeAddr].name,
-                        ieeeAddr,
-                        event,
-                        epId,
-                        cid,
-                        profId,
-                        devId,
-                        linkquality: message.linkquality,
-                        groupid: message.groupid
-                    };
-
-                    if (ieeeAddr && config.events.includes(message.type)) {
                         if (!config.device || (ieeeAddr === config.device)) {
                             const out = {
                                 topic: this.topicReplace(config.topic, topicAttrs),
                                 payload: (message.data && message.data.data) || message.data,
                                 event,
+                                groupid: message.groupid,
                                 device: this.devices[ieeeAddr] || {}
 
                             };
