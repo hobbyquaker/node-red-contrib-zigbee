@@ -21,7 +21,7 @@
         oneditprepare() {
             $('ol#devices').editableList({
                 addItem(row, index, data) {
-                    $(row).html(`<span class="device-address">${data.ieeeAddr}<br>${data.type}</span><span class="device-model">${data.manufName}<br>${data.modelId}</span><input class="device-name" data-addr="${data.ieeeAddr}" value="${data.name}"><input type="button" class="device-remove" data-addr="${data.ieeeAddr}" value="x">`);
+                    $(row).html(`<span class="device-address">${data.ieeeAddr}<br>${data.type}</span><span class="device-model">${data.manufName}<br>${data.modelId}</span><input class="device-name" data-addr="${data.ieeeAddr}" value="${data.name}"><input type="button" class="device-remove" data-addr="${data.ieeeAddr}" value="x" ${data.type === 'Coordinator' ? 'disabled' : ''}>`);
                 },
                 addButton: false
             });
@@ -41,9 +41,7 @@
                     Object.keys(data).forEach(addr => {
                         known.push(addr);
                         if ($('.device-name[data-addr="' + addr + '"]').length === 0) {
-                            if (data[addr].type !== 'Coordinator') {
-                                $('ol#devices').editableList('addItem', data[addr]);
-                            }
+                            $('ol#devices').editableList('addItem', data[addr]);
                         }
                     });
                     $('ol#devices li .device-name').each(function () {
