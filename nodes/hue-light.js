@@ -121,7 +121,7 @@ module.exports = function (RED) {
                     }
 
                     cmd[topicAttrs.attribute] = msg.payload;
-                } else if (msg.payload.startsWith('{')) {
+                } else if (typeof msg.payload === 'string' && msg.payload.startsWith('{')) {
                     try {
                         msg.payload = JSON.parse(msg.payload);
                         cmd = msg.payload;
