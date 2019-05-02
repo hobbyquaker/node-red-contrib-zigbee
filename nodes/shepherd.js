@@ -890,7 +890,7 @@ module.exports = function (RED) {
                         }
 
                         if (typeof attrs.currentX !== 'undefined') {
-                            state.xy = [attrs.currentX, attrs.currentY];
+                            state.xy = [attrs.currentX / 65535, attrs.currentY / 65535];
                         }
 
                         if (typeof attrs.currentSaturation !== 'undefined') {
@@ -1048,9 +1048,8 @@ module.exports = function (RED) {
                     cid: 'lightingColorCtrl',
                     cmd: 'moveToColor',
                     zclData: {
-                        // Todo convert values
-                        colorx: msg.payload.xy[0],
-                        colory: msg.payload.xy[1],
+                        colorx: msg.payload.xy[0] * 65535,
+                        colory: msg.payload.xy[1] * 65535,
                         transtime: msg.payload.transitiontime || 0
                     },
                     cfg: {
@@ -1069,9 +1068,8 @@ module.exports = function (RED) {
                     cid: 'lightingColorCtrl',
                     cmd: 'stepColor',
                     zclData: {
-                        // Todo convert values
-                        stepx: msg.payload.xy_inc[0],
-                        stepy: msg.payload.xy_inc[1],
+                        stepx: msg.payload.xy_inc[0] * 65535,
+                        stepy: msg.payload.xy_inc[1] * 65535,
                         transtime: msg.payload.transitiontime || 0
                     },
                     cfg: {
