@@ -1048,8 +1048,8 @@ module.exports = function (RED) {
                     cid: 'lightingColorCtrl',
                     cmd: 'moveToColor',
                     zclData: {
-                        colorx: msg.payload.xy[0] * 65535,
-                        colory: msg.payload.xy[1] * 65535,
+                        colorx: Math.round(msg.payload.xy[0] * 65535),
+                        colory: Math.round(msg.payload.xy[1] * 65535),
                         transtime: msg.payload.transitiontime || 0
                     },
                     cfg: {
@@ -1068,8 +1068,8 @@ module.exports = function (RED) {
                     cid: 'lightingColorCtrl',
                     cmd: 'stepColor',
                     zclData: {
-                        stepx: msg.payload.xy_inc[0] * 65535,
-                        stepy: msg.payload.xy_inc[1] * 65535,
+                        stepx: Math.round(msg.payload.xy_inc[0] * 65535),
+                        stepy: Math.round(msg.payload.xy_inc[1] * 65535),
                         transtime: msg.payload.transitiontime || 0
                     },
                     cfg: {
