@@ -200,8 +200,16 @@ module.exports = function (RED) {
                 switch (cmd.cmdType) {
                     case 'foundation':
                     case 'functional':
+                        this.debug(cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.cmd + ' ' + JSON.stringify(cmd.zclData) + ' ' + JSON.stringify(Object.assign({disBlockQueue: cmd.disBlockQueue}, cmd.cfg)));
+
                         if (cmd.cfg && cmd.cfg.disDefaultRsp) {
-                            endpoint[cmd.cmdType](cmd.cid, cmd.cmd, cmd.zclData, cmd.cfg);
+                            endpoint[cmd.cmdType](cmd.cid, cmd.cmd, cmd.zclData, cmd.cfg, (err, res) => {
+                                if (err) {
+                                    this.error(err.message);
+                                } else {
+                                    this.debug('defaultRsp ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.cmd + ' ' + JSON.stringify(res));
+                                }
+                            });
                             setTimeout(() => {
                                 this.cmdPending = false;
                                 this.shiftQueue();
@@ -221,7 +229,6 @@ module.exports = function (RED) {
                                 }
                             }, timeout || this.queueMaxWait);
 
-                            this.debug(cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.cmd + ' ' + JSON.stringify(cmd.zclData) + ' ' + JSON.stringify(cmd.cfg));
                             endpoint[cmd.cmdType](cmd.cid, cmd.cmd, cmd.zclData, cmd.cfg, (err, res) => {
                                 clearTimeout(timer);
                                 if (!cmd.disBlockQueue) {
