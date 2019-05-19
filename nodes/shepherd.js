@@ -243,8 +243,17 @@ module.exports = function (RED) {
 
                                 if (err) {
                                     this.error(err.message);
+                                    if (this.devices[cmd.ieeeAddr].status === 'online') {
+                                        this.devices[cmd.ieeeAddr].status = 'offline';
+                                        this.emit('devices', this.devices);
+                                    }
                                 } else {
                                     this.debug('defaultRsp ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.cmd + ' ' + JSON.stringify(res));
+
+                                    if (this.devices[cmd.ieeeAddr].status === 'offline') {
+                                        this.devices[cmd.ieeeAddr].status = 'online';
+                                        this.emit('devices', this.devices);
+                                    }
                                 }
 
                                 if (typeof cmd.callback === 'function') {
@@ -290,8 +299,16 @@ module.exports = function (RED) {
 
                             if (err) {
                                 this.error(err.message);
+                                if (this.devices[cmd.ieeeAddr].status === 'online') {
+                                    this.devices[cmd.ieeeAddr].status = 'offline';
+                                    this.emit('devices', this.devices);
+                                }
                             } else {
                                 this.debug('defaultRsp ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.attrId + ' ' + JSON.stringify(res));
+                                if (this.devices[cmd.ieeeAddr].status === 'offline') {
+                                    this.devices[cmd.ieeeAddr].status = 'online';
+                                    this.emit('devices', this.devices);
+                                }
                             }
 
                             if (typeof cmd.callback === 'function') {
@@ -338,8 +355,16 @@ module.exports = function (RED) {
 
                             if (err) {
                                 this.error(err.message);
+                                if (this.devices[cmd.ieeeAddr].status === 'online') {
+                                    this.devices[cmd.ieeeAddr].status = 'offline';
+                                    this.emit('devices', this.devices);
+                                }
                             } else {
                                 this.debug('defaultRsp ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.attrId + ' ' + JSON.stringify(res));
+                                if (this.devices[cmd.ieeeAddr].status === 'offline') {
+                                    this.devices[cmd.ieeeAddr].status = 'online';
+                                    this.emit('devices', this.devices);
+                                }
                             }
 
                             if (typeof cmd.callback === 'function') {
@@ -438,8 +463,16 @@ module.exports = function (RED) {
 
                             if (err) {
                                 this.error(err.message);
+                                if (this.devices[cmd.ieeeAddr].status === 'online') {
+                                    this.devices[cmd.ieeeAddr].status = 'offline';
+                                    this.emit('devices', this.devices);
+                                }
                             } else {
                                 this.debug('defaultRsp ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.attrId + ' ' + JSON.stringify(res));
+                                if (this.devices[cmd.ieeeAddr].status === 'offline') {
+                                    this.devices[cmd.ieeeAddr].status = 'online';
+                                    this.emit('devices', this.devices);
+                                }
                             }
 
                             if (typeof cmd.callback === 'function') {
@@ -672,15 +705,24 @@ module.exports = function (RED) {
                 ieeeAddr = firstEp.device && firstEp.device.ieeeAddr;
                 this.debug(msg.type + ' ' + ieeeAddr + ' ' + (this.devices[ieeeAddr] && this.devices[ieeeAddr].name) + ' ' + JSON.stringify(msg.data));
 
+                let stateChange;
                 if (this.devices[ieeeAddr]) {
                     this.devices[ieeeAddr].ts = now;
-                    if (this.devices[ieeeAddr].overdue !== false) {
+                    if (this.devices[ieeeAddr].overdue !== false || this.devices[ieeeAddr].status === 'offline') {
                         const timeout = interval[this.devices[ieeeAddr].modelId];
                         if (timeout) {
                             this.debug('overdue false ' + ieeeAddr + ' ' + this.devices[ieeeAddr].name);
                             this.devices[ieeeAddr].overdue = false;
+                            stateChange = true;
                         }
+                    }
 
+                    if (this.devices[ieeeAddr].status === 'offline') {
+                        this.devices[ieeeAddr].status = 'online';
+                        stateChange = true;
+                    }
+
+                    if (stateChange) {
                         this.proxy.emit('devices', this.devices);
                     }
                 }
