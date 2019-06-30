@@ -38,7 +38,8 @@ module.exports = function (RED) {
             const permitJoiningHandler = joinTimeLeft => {
                 this.send([{payload: joinTimeLeft}, null]);
                 if (joinTimeLeft) {
-                    this.status({fill: 'blue', shape: 'ring', text: joinTimeLeft + 's'});
+                    const text = joinTimeLeft === 255 ? 'always' : (joinTimeLeft + ' s');
+                    this.status({fill: 'blue', shape: 'ring', text});
                 } else {
                     this.status(nodeStatus);
                 }
