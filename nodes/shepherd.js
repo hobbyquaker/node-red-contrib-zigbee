@@ -127,7 +127,7 @@ module.exports = function (RED) {
 
             this.queueMaxWait = 5000;
             this.queueMaxLength = 50;
-            this.queuePause = 30;
+            this.queuePause = 300;
             this.commandQueue = [];
 
             this.trace = msg => {
