@@ -700,14 +700,14 @@ module.exports = function (RED) {
             let ieeeAddr;
 
             if (msg.type === 'devIncoming' || msg.type === 'devLeaving') {
-                this.log(msg.type + ' ' + msg.data);
+                this.log('indHandler ' + msg.type + ' ' + msg.data);
                 this.list();
             } else if (msg.type === 'devInterview') {
-                this.log(msg.type + ' ' + msg.data);
+                this.log('indHandler ' + msg.type + ' ' + msg.data);
             } else {
                 const firstEp = (msg && msg.endpoints && msg.endpoints[0]) || {};
                 ieeeAddr = firstEp.device && firstEp.device.ieeeAddr;
-                this.debug(msg.type + ' ' + ieeeAddr + ' ' + (this.devices[ieeeAddr] && this.devices[ieeeAddr].name) + ' ' + JSON.stringify(msg.data));
+                this.debug('indHandler ' + msg.type + ' ' + ieeeAddr + ' ' + (this.devices[ieeeAddr] && this.devices[ieeeAddr].name) + ' ' + JSON.stringify(msg.data));
 
                 let stateChange;
                 if (this.devices[ieeeAddr]) {
@@ -729,9 +729,13 @@ module.exports = function (RED) {
                     if (stateChange) {
                         this.proxy.emit('devices', this.devices);
                     }
+
                 }
 
+
                 this.indLightHandler(msg);
+
+
             }
 
             this.proxy.emit('ind', msg);
@@ -892,8 +896,11 @@ module.exports = function (RED) {
 
         indLightHandler(msg) {
 
+
             let ieeeAddr;
             let index;
+
+            this.debug('indLightHandler msg.type=' + msg.type + ' msg.data=' + JSON.stringify(msg.data));
 
             switch (msg.type) {
                 case 'attReport':
@@ -918,13 +925,12 @@ module.exports = function (RED) {
                         state.reachable = true;
                     }
 
-                    if (ziee.genOnOff) {
-                        state.on = Boolean(ziee.genOnOff.attrs.onOff);
+                    if (msg.data && msg.data.cid === 'genOnOff') {
+                        state.on = Boolean(msg.data.data.onOff);
                     }
 
-                    if (ziee.genLevelCtrl) {
-                        state.bri = ziee.genLevelCtrl.attrs.currentLevel;
-                        //state.on = state.bri > 1;
+                    if (msg.data && msg.data.cid === 'genLevelCtrl') {
+                        state.bri = msg.data.data.currentLevel;
                     }
 
                     if (ziee.lightingColorCtrl) {
@@ -980,21 +986,31 @@ module.exports = function (RED) {
         }
 
         updateLightState(lightIndex, data) {
-            this.debug('updateLightState ' + lightIndex + ' ' + JSON.stringify(data));
+            this.debug('updateLightState ' + lightIndex + ' old ' + JSON.stringify(this.lights[lightIndex].state));
+            console.log(this.lights[lightIndex].state)
+            this.debug('updateLightState ' + lightIndex + ' ext ' + JSON.stringify(data));
+            console.log(data)
             const now = (new Date()).getTime();
             Object.keys(data).forEach(attr => {
                 this.lightsInternal[lightIndex].knownStates[attr] = now;
             });
+            console.log('typeof data.bri', typeof data.bri, data.bri);
+
+            if (typeof data.bri === 'undefined') {
+                delete data.bri;
+            }
             if (oe.extend(this.lights[lightIndex].state, data)) {
+                this.debug('updateLightState ' + lightIndex + ' new ' + JSON.stringify(this.lights[lightIndex].state));
+                console.log(this.lights[lightIndex].state)
                 this.proxy.emit('updateLightState', lightIndex);
             }
         }
 
         putLightsState(msg) {
-            //console.log('putLightsState', msg);
+            console.log('putLightsState', msg);
             // xy > ct > hs
             // on bool
-            // bri uint8 1-254
+            // bri uint8 0-254
             // hue uint16 0-65535
             // sat uint8 0-254
             // xy [float,float] 0-1
@@ -1015,13 +1031,15 @@ module.exports = function (RED) {
             const cmds = [];
 
 
+            const attributes = [];
 
             if (typeof msg.payload.on !== 'undefined' && typeof msg.payload.bri === 'undefined') {
                 if (this.lightsInternal[lightIndex].knownStates.on && (msg.payload.on === this.lights[lightIndex].state.on)) {
-                    this.debug('on already has desired val');
+                    this.debug(dev.name + ' skip command - on ' + msg.payload.on);
                 } else  {
-                    delete this.lightsInternal[lightIndex].knownStates.on;
                     if (msg.payload.transitiontime) {
+                        attributes.push('on');
+                        attributes.push('bri');
                         cmds.push({
                             ieeeAddr: dev.ieeeAddr,
                             ep: dev.epList[0],
@@ -1029,7 +1047,7 @@ module.exports = function (RED) {
                             cid: 'genLevelCtrl',
                             cmd: 'moveToLevelWithOnOff',
                             zclData: {
-                                level: msg.payload.on ? 254 : 1,
+                                level: msg.payload.on ? 254 : 0,
                                 transtime: msg.payload.transitiontime || 0
                             },
                             cfg: {
@@ -1037,10 +1055,11 @@ module.exports = function (RED) {
                             },
                             disBlockQueue: true,
                             callback: (err, res) => {
-                                this.handlePutLightStateCallback(err, res, lightIndex, msg, ['bri']);
+                                this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes);
                             }
                         });
                     } else {
+                        attributes.push('on');
                         cmds.push({
                             ieeeAddr: dev.ieeeAddr,
                             ep: dev.epList[0],
@@ -1053,7 +1072,7 @@ module.exports = function (RED) {
                             },
                             disBlockQueue: true,
                             callback: (err, res) => {
-                                this.handlePutLightStateCallback(err, res, lightIndex, msg, ['on']);
+                                this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes);
                             }
                         });
                     }
@@ -1065,18 +1084,18 @@ module.exports = function (RED) {
 
             if (typeof msg.payload.bri !== 'undefined') {
 
-                if (this.lightsInternal[lightIndex].knownStates.bri && (msg.payload.bri === this.lights[lightIndex].state.bri)) {
-                    this.debug('bri already has desired val');
+                if (
+                    (this.lightsInternal[lightIndex].knownStates.bri && (msg.payload.bri === this.lights[lightIndex].state.bri) &&
+                    !(this.lightsInternal[lightIndex].knownStates.on && this.lights[lightIndex].state.on === false && msg.payload.bri > 0) &&
+                    !(this.lightsInternal[lightIndex].knownStates.on && this.lights[lightIndex].state.on === true && msg.payload.bri === 0)
+                )) {
+                    this.debug(dev.name + ' skip command - bri ' + msg.payload.bri);
                 } else {
-                    delete this.lightsInternal[lightIndex].knownStates.bri;
+                    attributes.push('on');
+                    attributes.push('bri');
 
-                    let level = msg.payload.bri || 1;
-                    if (msg.payload.on === true && level === 1) {
-                        level = 254;
-                    }
-                    if (msg.payload.on === false && level > 1) {
-                        level = 1;
-                    }
+                    let level = msg.payload.bri;
+
                     if (level > 254) {
                         level = 254;
                     }
@@ -1097,11 +1116,13 @@ module.exports = function (RED) {
                         },
                         disBlockQueue: true,
                         callback: (err, res) => {
-                            this.handlePutLightStateCallback(err, res, lightIndex, msg, ['bri']);
+                            this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes);
                         }
                     });
                 }
             } else if (typeof msg.payload.bri_inc !== 'undefined') {
+
+                attributes.push('bri');
                 cmds.push({
                     ieeeAddr: dev.ieeeAddr,
                     ep: dev.epList[0],
@@ -1120,12 +1141,13 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, ['bri']);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes);
                     }
                 });
             }
 
             if (typeof msg.payload.xy !== 'undefined') {
+                attributes.push('xy');
                 cmds.push({
                     ieeeAddr: dev.ieeeAddr,
                     ep: dev.epList[0],
@@ -1142,10 +1164,11 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, ['xy']);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes);
                     }
                 });
             } else if (typeof msg.payload.xy_inc !== 'undefined') {
+                attributes.push('xy');
                 cmds.push({
                     ieeeAddr: dev.ieeeAddr,
                     ep: dev.epList[0],
@@ -1162,10 +1185,12 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, []);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes);
                     }
                 });
             } else if (typeof msg.payload.ct !== 'undefined') {
+                attributes.push('ct');
+
                 cmds.push({
                     ieeeAddr: dev.ieeeAddr,
                     ep: dev.epList[0],
@@ -1181,12 +1206,15 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, ['ct']);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes);
                     }
                 });
             } else if (typeof msg.payload.ct_inc !== 'undefined') {
                 // Todo - clarify: it seems there is no stepColorTemperature cmd - need to know the current ct value?
             } else if (typeof msg.payload.hue !== 'undefined' && typeof msg.payload.sat !== 'undefined') {
+                attributes.push('hue');
+                attributes.push('sat');
+
                 cmds.push({
                     ieeeAddr: dev.ieeeAddr,
                     ep: dev.epList[0],
@@ -1203,11 +1231,13 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, ['hue', 'sat']);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes);
                     }
                 });
             } else if (typeof msg.payload.hue === 'undefined') {
                 if (typeof msg.payload.sat !== 'undefined') {
+                    attributes.push('sat');
+
                     cmds.push({
                         ieeeAddr: dev.ieeeAddr,
                         ep: dev.epList[0],
@@ -1223,7 +1253,7 @@ module.exports = function (RED) {
                         },
                         disBlockQueue: true,
                         callback: (err, res) => {
-                            this.handlePutLightStateCallback(err, res, lightIndex, msg, ['sat']);
+                            this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes);
                         }
                     });
                 } else if (typeof msg.payload.hue_inc !== 'undefined' && typeof msg.payload.sat_inc !== 'undefined') {
@@ -1234,6 +1264,8 @@ module.exports = function (RED) {
                     // TODO
                 }
             } else {
+                attributes.push('hue');
+
                 cmds.push({
                     ieeeAddr: dev.ieeeAddr,
                     ep: dev.epList[0],
@@ -1250,7 +1282,7 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, ['hue']);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes);
                     }
                 });
             }
@@ -1298,29 +1330,44 @@ module.exports = function (RED) {
                 cmds[cmds.length - 1].cfg.disDefaultRsp = 0;
             }
 
+            attributes.forEach(attr => {
+               delete this.lightsInternal[lightIndex].knownStates[attr];
+            });
+
             cmds.forEach(cmd => {
                 this.proxy.queue(cmd);
             });
         }
 
         handlePutLightStateCallback(err, res, lightIndex, msg, attributes) {
-            this.debug('handlePutLightStateCallback ' + lightIndex + ' ' + JSON.stringify(attributes) + ' ' + JSON.stringify(res));
             if (err) {
-                this.error('handlePutLightStateCallback ' + err.message);
-                this.updateLightState(lightIndex, {reachable: false});
+                this.error('handlePutLightStateCallback ' + lightIndex + ' ' + err.message + ' ' + JSON.stringify(attributes) + ' ' + JSON.stringify(res));
+            } else {
+                this.debug('handlePutLightStateCallback ' + lightIndex + ' ' + JSON.stringify(attributes) + ' ' + JSON.stringify(res));
+            }
+            if (err) {
+                let newState = {reachable: false};
+                attributes.forEach(attr => {
+                    if (typeof msg.payload[attr] !== 'undefined') {
+                        newState[attr] = msg.payload[attr];
+                    }
+                });
                 this.lightsInternal[lightIndex].knownStates = {};
+                this.updateLightState(lightIndex, newState);
             } else if (msg.payload.transitiontime) {
                 setTimeout(() => {
                     this.readLightState(lightIndex, attributes);
                 }, (msg.payload.transitiontime * 100) + 1000);
             } else if (res && res.statusCode === 0) {
                 const now = (new Date()).getTime();
-                let confirmedState = {reachable: true};
+                let newState = {reachable: true};
                 attributes.forEach(attr => {
-                    this.lightsInternal[lightIndex].knownStates[attr] = now;
-                    confirmedState[attr] = msg.payload[attr];
+                    if (typeof msg.payload[attr] !== 'undefined') {
+                        this.lightsInternal[lightIndex].knownStates[attr] = now;
+                        newState[attr] = msg.payload[attr];
+                    }
                 });
-                this.updateLightState(lightIndex, confirmedState);
+                this.updateLightState(lightIndex, newState);
             }
         }
 

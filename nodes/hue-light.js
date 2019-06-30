@@ -146,15 +146,11 @@ module.exports = function (RED) {
                     cmd.on = false;
                 } else {
                     const bri = parseInt(msg.payload, 10) || 0;
-                    if (!shepherdNode.lightsInternal[index].type.startsWith('On/off')) {
+                    if (bri > 0 && !shepherdNode.lightsInternal[index].type.startsWith('On/off')) {
                         cmd.bri = bri;
                     }
+                    cmd.on = bri > 0;
 
-                    if (bri) {
-                        cmd.on = true;
-                    } else {
-                        cmd.on = false;
-                    }
                 }
 
                 if (typeof cmd.transitiontime === 'undefined') {
