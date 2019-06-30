@@ -200,23 +200,18 @@ module.exports = function (RED) {
                 switch (cmd.cmdType) {
                     case 'foundation':
                     case 'functional':
-                        this.debug(cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.cmd + ' ' + JSON.stringify(cmd.zclData) + ' ' + JSON.stringify(Object.assign({disBlockQueue: cmd.disBlockQueue}, cmd.cfg)));
+                        this.debug(cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.cmd + ' ' + JSON.stringify(cmd.zclData) + ' ' + JSON.stringify(Object.assign({disBlockQueue: cmd.disBlockQueue}, cmd.cfg)) + ' timeout='+timeout);
 
                         if (cmd.cfg && cmd.cfg.disDefaultRsp) {
-                            endpoint[cmd.cmdType](cmd.cid, cmd.cmd, cmd.zclData, cmd.cfg, (err, res) => {
-                                if (err) {
-                                    this.error(err.message);
-                                } else {
-                                    this.debug('defaultRsp ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.cmd + ' ' + JSON.stringify(res));
-                                }
-                            });
+                            endpoint[cmd.cmdType](cmd.cid, cmd.cmd, cmd.zclData, cmd.cfg, () => {});
                             setTimeout(() => {
                                 this.cmdPending = false;
                                 this.shiftQueue();
                             }, this.queuePause);
                         } else {
-                            const timer = setTimeout(() => {
-                                this.warn('timeout ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.cmd);
+                            let queueShifted = false;
+
+                            let timer = setTimeout(() => {
                                 if (typeof cmd.callback === 'function') {
                                     const {callback} = cmd;
                                     delete cmd.callback;
@@ -225,7 +220,10 @@ module.exports = function (RED) {
 
                                 if (!cmd.disBlockQueue) {
                                     this.cmdPending = false;
-                                    this.shiftQueue();
+                                    if (!queueShifted) {
+                                        queueShifted = true;
+                                        this.shiftQueue();
+                                    }
                                 }
                             }, timeout || this.queueMaxWait);
 
@@ -236,7 +234,10 @@ module.exports = function (RED) {
                                     const pause = elapsed > this.queuePause ? 0 : (this.queuePause - elapsed);
                                     setTimeout(() => {
                                         this.cmdPending = false;
-                                        this.shiftQueue();
+                                        if (!queueShifted) {
+                                            queueShifted = true;
+                                            this.shiftQueue();
+                                        }
                                     }, pause);
                                     this.debug('blockQueue elapsed ' + elapsed + 'ms, wait ' + pause + 'ms');
                                 }
@@ -263,7 +264,10 @@ module.exports = function (RED) {
                             if (cmd.disBlockQueue) {
                                 setTimeout(() => {
                                     this.cmdPending = false;
-                                    this.shiftQueue();
+                                    if (!queueShifted) {
+                                        queueShifted = true;
+                                        this.shiftQueue();
+                                    }
                                 }, this.queuePause);
                             }
                         }
@@ -831,7 +835,7 @@ module.exports = function (RED) {
             const desc = epFirst.getSimpleDesc();
             const type = zllDevice[desc.devId];
             if (type && dev.modelId !== 'lumi.router') {
-                this.lightsInternal[this.currentIndex] = {ieeeAddr, type};
+                this.lightsInternal[this.currentIndex] = {ieeeAddr, type, knownStates: {}};
 
                 const uniqueid = ieeeAddr.replace('0x', '').replace(/([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/, '$1:$2:$3:$4:$5:$6:$7:$8') + '-' + (uniqueidSuffix[dev.manufName] || '00');
 
@@ -887,6 +891,7 @@ module.exports = function (RED) {
         }
 
         indLightHandler(msg) {
+
             let ieeeAddr;
             let index;
 
@@ -902,19 +907,24 @@ module.exports = function (RED) {
                     }
 
                     const ziee = msg.endpoints[0].clusters;
+                    //console.log('indLightHandler ziee', ziee);
 
-                    const state = {
-                        on: Boolean(ziee && ziee.genOnOff && ziee.genOnOff.attrs && ziee.genOnOff.attrs.onOff)
-                    };
+                    const state = {};
 
                     if (msg.type === 'devStatus') {
                         state.reachable = msg.data === 'online';
                         this.updateLight(index, {swversion: ziee.genBasic.attrs.swBuildId});
+                    } else {
+                        state.reachable = true;
                     }
-                    //console.log('clusters', msg.endpoints[0].clusters);
+
+                    if (ziee.genOnOff) {
+                        state.on = Boolean(ziee.genOnOff.attrs.onOff);
+                    }
 
                     if (ziee.genLevelCtrl) {
                         state.bri = ziee.genLevelCtrl.attrs.currentLevel;
+                        //state.on = state.bri > 1;
                     }
 
                     if (ziee.lightingColorCtrl) {
@@ -970,6 +980,11 @@ module.exports = function (RED) {
         }
 
         updateLightState(lightIndex, data) {
+            this.debug('updateLightState ' + lightIndex + ' ' + JSON.stringify(data));
+            const now = (new Date()).getTime();
+            Object.keys(data).forEach(attr => {
+                this.lightsInternal[lightIndex].knownStates[attr] = now;
+            });
             if (oe.extend(this.lights[lightIndex].state, data)) {
                 this.proxy.emit('updateLightState', lightIndex);
             }
@@ -999,65 +1014,93 @@ module.exports = function (RED) {
 
             const cmds = [];
 
+
+
             if (typeof msg.payload.on !== 'undefined' && typeof msg.payload.bri === 'undefined') {
-                if (msg.payload.transitiontime) {
+                if (this.lightsInternal[lightIndex].knownStates.on && (msg.payload.on === this.lights[lightIndex].state.on)) {
+                    this.debug('on already has desired val');
+                } else  {
+                    delete this.lightsInternal[lightIndex].knownStates.on;
+                    if (msg.payload.transitiontime) {
+                        cmds.push({
+                            ieeeAddr: dev.ieeeAddr,
+                            ep: dev.epList[0],
+                            cmdType: 'functional',
+                            cid: 'genLevelCtrl',
+                            cmd: 'moveToLevelWithOnOff',
+                            zclData: {
+                                level: msg.payload.on ? 254 : 1,
+                                transtime: msg.payload.transitiontime || 0
+                            },
+                            cfg: {
+                                disDefaultRsp: 1
+                            },
+                            disBlockQueue: true,
+                            callback: (err, res) => {
+                                this.handlePutLightStateCallback(err, res, lightIndex, msg, ['bri']);
+                            }
+                        });
+                    } else {
+                        cmds.push({
+                            ieeeAddr: dev.ieeeAddr,
+                            ep: dev.epList[0],
+                            cmdType: 'functional',
+                            cid: 'genOnOff',
+                            cmd: msg.payload.on ? 'on' : 'off',
+                            zclData: {},
+                            cfg: {
+                                disDefaultRsp: 1
+                            },
+                            disBlockQueue: true,
+                            callback: (err, res) => {
+                                this.handlePutLightStateCallback(err, res, lightIndex, msg, ['on']);
+                            }
+                        });
+                    }
+                }
+
+
+            }
+
+
+            if (typeof msg.payload.bri !== 'undefined') {
+
+                if (this.lightsInternal[lightIndex].knownStates.bri && (msg.payload.bri === this.lights[lightIndex].state.bri)) {
+                    this.debug('bri already has desired val');
+                } else {
+                    delete this.lightsInternal[lightIndex].knownStates.bri;
+
+                    let level = msg.payload.bri || 1;
+                    if (msg.payload.on === true && level === 1) {
+                        level = 254;
+                    }
+                    if (msg.payload.on === false && level > 1) {
+                        level = 1;
+                    }
+                    if (level > 254) {
+                        level = 254;
+                    }
+
                     cmds.push({
                         ieeeAddr: dev.ieeeAddr,
                         ep: dev.epList[0],
                         cmdType: 'functional',
                         cid: 'genLevelCtrl',
+                        // Todo: clarify - bri 1 sets off?
                         cmd: 'moveToLevelWithOnOff',
                         zclData: {
-                            level: msg.payload.on ? 254 : 0,
+                            level,
                             transtime: msg.payload.transitiontime || 0
                         },
                         cfg: {
-                            disDefaultRsp: 0
+                            disDefaultRsp: 1
                         },
                         disBlockQueue: true,
                         callback: (err, res) => {
-                            this.handlePutLightStateCallback(err, res, lightIndex, msg, ['on', 'bri']);
-                        }
-                    });
-                } else {
-                    cmds.push({
-                        ieeeAddr: dev.ieeeAddr,
-                        ep: dev.epList[0],
-                        cmdType: 'functional',
-                        cid: 'genOnOff',
-                        cmd: msg.payload.on ? 'on' : 'off',
-                        zclData: {},
-                        cfg: {
-                            disDefaultRsp: 0
-                        },
-                        disBlockQueue: true,
-                        callback: (err, res) => {
-                            this.handlePutLightStateCallback(err, res, lightIndex, msg, ['on']);
+                            this.handlePutLightStateCallback(err, res, lightIndex, msg, ['bri']);
                         }
                     });
                 }
-            }
-
-            if (typeof msg.payload.bri !== 'undefined') {
-                cmds.push({
-                    ieeeAddr: dev.ieeeAddr,
-                    ep: dev.epList[0],
-                    cmdType: 'functional',
-                    cid: 'genLevelCtrl',
-                    // Todo: clarify - bri 1 sets off?
-                    cmd: 'moveToLevelWithOnOff',
-                    zclData: {
-                        level: msg.payload.bri,
-                        transtime: msg.payload.transitiontime || 0
-                    },
-                    cfg: {
-                        disDefaultRsp: 0
-                    },
-                    disBlockQueue: true,
-                    callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, ['on', 'bri']);
-                    }
-                });
             } else if (typeof msg.payload.bri_inc !== 'undefined') {
                 cmds.push({
                     ieeeAddr: dev.ieeeAddr,
@@ -1073,11 +1116,11 @@ module.exports = function (RED) {
                         transtime: msg.payload.transitiontime || 0
                     },
                     cfg: {
-                        disDefaultRsp: 0
+                        disDefaultRsp: 1
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, []);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, ['bri']);
                     }
                 });
             }
@@ -1095,7 +1138,7 @@ module.exports = function (RED) {
                         transtime: msg.payload.transitiontime || 0
                     },
                     cfg: {
-                        disDefaultRsp: 0
+                        disDefaultRsp: 1
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
@@ -1115,7 +1158,7 @@ module.exports = function (RED) {
                         transtime: msg.payload.transitiontime || 0
                     },
                     cfg: {
-                        disDefaultRsp: 0
+                        disDefaultRsp: 1
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
@@ -1134,7 +1177,7 @@ module.exports = function (RED) {
                         transtime: msg.payload.transitiontime || 0
                     },
                     cfg: {
-                        disDefaultRsp: 0
+                        disDefaultRsp: 1
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
@@ -1156,7 +1199,7 @@ module.exports = function (RED) {
                         transtime: msg.payload.transitiontime || 0
                     },
                     cfg: {
-                        disDefaultRsp: 0
+                        disDefaultRsp: 1
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
@@ -1176,11 +1219,11 @@ module.exports = function (RED) {
                             transtime: msg.payload.transitiontime || 0
                         },
                         cfg: {
-                            disDefaultRsp: 0
+                            disDefaultRsp: 1
                         },
                         disBlockQueue: true,
                         callback: (err, res) => {
-                            this.handlePutLightStateCallback(err, res, lightIndex, msg, ['on']);
+                            this.handlePutLightStateCallback(err, res, lightIndex, msg, ['sat']);
                         }
                     });
                 } else if (typeof msg.payload.hue_inc !== 'undefined' && typeof msg.payload.sat_inc !== 'undefined') {
@@ -1203,7 +1246,7 @@ module.exports = function (RED) {
                         transtime: msg.payload.transitiontime || 0
                     },
                     cfg: {
-                        disDefaultRsp: 0
+                        disDefaultRsp: 1
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
@@ -1238,7 +1281,7 @@ module.exports = function (RED) {
                         effectvariant: 1
                     },
                     cfg: {
-                        disDefaultRsp: 0
+                        disDefaultRsp: 1
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
@@ -1251,24 +1294,33 @@ module.exports = function (RED) {
                 // TODO
             }
 
+            if (cmds.length > 0) {
+                cmds[cmds.length - 1].cfg.disDefaultRsp = 0;
+            }
+
             cmds.forEach(cmd => {
                 this.proxy.queue(cmd);
             });
         }
 
         handlePutLightStateCallback(err, res, lightIndex, msg, attributes) {
+            this.debug('handlePutLightStateCallback ' + lightIndex + ' ' + JSON.stringify(attributes) + ' ' + JSON.stringify(res));
             if (err) {
-                if (err.message.includes('status code: 233')) {
-                    this.updateLight(lightIndex, {reachable: false});
-                } else {
-                    setTimeout(() => {
-                        this.readLightState(lightIndex, attributes);
-                    }, 1000);
-                }
+                this.error('handlePutLightStateCallback ' + err.message);
+                this.updateLightState(lightIndex, {reachable: false});
+                this.lightsInternal[lightIndex].knownStates = {};
             } else if (msg.payload.transitiontime) {
                 setTimeout(() => {
                     this.readLightState(lightIndex, attributes);
                 }, (msg.payload.transitiontime * 100) + 1000);
+            } else if (res && res.statusCode === 0) {
+                const now = (new Date()).getTime();
+                let confirmedState = {reachable: true};
+                attributes.forEach(attr => {
+                    this.lightsInternal[lightIndex].knownStates[attr] = now;
+                    confirmedState[attr] = msg.payload[attr];
+                });
+                this.updateLightState(lightIndex, confirmedState);
             }
         }
 
