@@ -933,6 +933,7 @@ module.exports = function (RED) {
                         state.bri = msg.data.data.currentLevel;
                     }
 
+                    // TODO use msg.data
                     if (ziee.lightingColorCtrl) {
                         const {attrs} = ziee.lightingColorCtrl;
                         if (typeof attrs.colorTemperature !== 'undefined') {
@@ -986,31 +987,30 @@ module.exports = function (RED) {
         }
 
         updateLightState(lightIndex, data) {
-            this.debug('updateLightState ' + lightIndex + ' old ' + JSON.stringify(this.lights[lightIndex].state));
-            console.log(this.lights[lightIndex].state)
-            this.debug('updateLightState ' + lightIndex + ' ext ' + JSON.stringify(data));
-            console.log(data)
+            Object.keys(data).forEach(attr => {
+                if (typeof data[attr] === 'undefined') {
+                    delete data[attr];
+                }
+            });
+
             const now = (new Date()).getTime();
             Object.keys(data).forEach(attr => {
                 this.lightsInternal[lightIndex].knownStates[attr] = now;
             });
-            console.log('typeof data.bri', typeof data.bri, data.bri);
 
-            if (typeof data.bri === 'undefined') {
-                delete data.bri;
-            }
             if (oe.extend(this.lights[lightIndex].state, data)) {
-                this.debug('updateLightState ' + lightIndex + ' new ' + JSON.stringify(this.lights[lightIndex].state));
-                console.log(this.lights[lightIndex].state)
                 this.proxy.emit('updateLightState', lightIndex);
             }
         }
 
         putLightsState(msg) {
-            console.log('putLightsState', msg);
+            //console.log('putLightsState', msg);
             // xy > ct > hs
             // on bool
             // bri uint8 0-254
+            // bri uint8 1-254:
+            //      Osram Gardenpole RGBW-Lightify
+            //
             // hue uint16 0-65535
             // sat uint8 0-254
             // xy [float,float] 0-1

@@ -36,13 +36,6 @@ module.exports = function (RED) {
 
                 const newState = shepherdNode.lights[lightIndex].state;
 
-                if (typeof newState.bri === 'undefined') {
-                    newState.bri = 254;
-                }
-                if (typeof newState.on === 'undefined') {
-                    newState.on = false;
-                }
-
                 if (lastState[lightIndex].reachable !== newState.reachable) {
                     change = true;
                     if (config.payload !== 'json') {
@@ -75,7 +68,7 @@ module.exports = function (RED) {
                     this.send({
                         topic,
                         payload: {
-                            val: (newState.on || newState.bri > 1) ? newState.bri : 0,
+                            val: newState.on ? newState.bri : 0,
                             hue_state: newState /* eslint-disable-line camelcase */
                         },
                         name: shepherdNode.lights[lightIndex].name,
