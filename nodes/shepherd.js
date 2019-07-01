@@ -15,6 +15,19 @@ const lights = {};
 const shepherdNodes = {};
 const shepherdInstances = {};
 
+class Topology extends EventEmitter {
+    constructor() {
+        super();
+
+    }
+    scan() {
+        if (this.scanPending) {
+            return;
+        }
+
+    }
+}
+
 const {zllDevice, uniqueidSuffix, emptyStates} = require('../zll.js');
 
 module.exports = function (RED) {
@@ -26,43 +39,49 @@ module.exports = function (RED) {
         res.status(200).send(JSON.stringify(devices[req.query.id] || {}));
     });
 
-    RED.httpAdmin.get('/zigbee-shepherd/graphviz', (req, res) => {
+    RED.httpAdmin.get('/zigbee-shepherd/scan', (req, res) => {
         if (shepherdNodes[req.query.id]) {
             shepherdNodes[req.query.id].shepherd.lqiScan(shepherdNodes[req.query.id].shepherd.controller._coord.ieeeAddr)
                 .then(topology => {
-                    let text = 'digraph G {\nnode[shape=record];\n';
-                    Object.keys(shepherdNodes[req.query.id].devices).forEach(ieeeAddr => {
-                        const device = shepherdNodes[req.query.id].devices[ieeeAddr];
-                        const labels = [];
-                        labels.push(ieeeAddr);
-                        labels.push(device.name);
-                        labels.push(device.manufName);
-                        labels.push(device.modelId);
-                        labels.push(device.powerSource);
-                        labels.push('overdue=' + device.overdue + ' status=' + device.status);
-                        let devStyle;
-
-                        if (device.type === 'Coordinator') {
-                            devStyle = 'style="bold"';
-                        } else if (device.type === 'Router') {
-                            devStyle = 'style="rounded"';
-                        } else {
-                            devStyle = 'style="rounded, dashed"';
-                        }
-
-                        text += `  "${device.ieeeAddr}" [${devStyle}, label="{${labels.join('|')}}"];\n`;
-
-                        topology.filter(e => e.ieeeAddr === device.ieeeAddr).forEach(e => {
-                            const lineStyle = (e.lqi === 0) ? 'style="dashed", ' : '';
-                            text += `  "${device.ieeeAddr}" -> "${e.parent}" [` + lineStyle + `label="${e.lqi}"]\n`;
-                        });
-                    });
-                    text += '}';
-                    res.status(200).send(text.replace(/\0/g, ''));
+                    res.status(200).json(topology);
+                })
+                .catch(err => {
+                    res.status(500).send('500 Internal Server Error: ' + err.message);
                 });
         } else {
-            res.status(500).send('');
+            res.status(500).send('500 Internal Server Error: Unknown Shepherd Id');
         }
+    });
+
+    RED.httpAdmin.get('/zigbee-shepherd/vis/*', (req, res) => {
+        const file = (req.params[0] || '').split('?')[0];
+        const root = path.dirname(require.resolve('vis'));
+        fs.access(path.join(root, file), fs.constants.F_OK, err => {
+            if (err) {
+                res.status(404).send('Error 404: file not found');
+            } else {
+                res.sendFile(file, {
+                    root,
+                    dotfiles: 'deny'
+                });
+            }
+        });
+    });
+
+    RED.httpAdmin.get('/zigbee-shepherd/map/*', (req, res) => {
+        const file = (req.params[0] || '').split('?')[0] || 'index.html';
+        console.log('httpAdmin.get ' + file);
+        const root =  path.join(__dirname, '../static/map');
+        fs.access(path.join(root, file), fs.constants.F_OK, err => {
+            if (err) {
+                res.status(404).send('Error 404: file not found');
+            } else {
+                res.sendFile(file, {
+                    root,
+                    dotfiles: 'deny'
+                });
+            }
+        });
     });
 
     RED.httpAdmin.post('/zigbee-shepherd/names', (req, res) => {
@@ -897,40 +916,41 @@ module.exports = function (RED) {
         indLightHandler(msg) {
 
 
-            let ieeeAddr;
-            let index;
+            const ieeeAddr = msg.endpoints && msg.endpoints[0] && msg.endpoints[0].device && msg.endpoints[0].device.ieeeAddr;
+            const lightIndex = this.getLightIndex(ieeeAddr);
+            if (!lightIndex) {
+                return;
+            }
 
-            this.debug('indLightHandler msg.type=' + msg.type + ' msg.data=' + JSON.stringify(msg.data));
+            this.debug('indLightHandler ' + this.devices[ieeeAddr].name + ' msg.type=' + msg.type + ' msg.data=' + JSON.stringify(msg.data));
+
+            const ziee = msg.endpoints[0].clusters;
 
             switch (msg.type) {
+                case 'devStatus':
+                    this.updateLight(lightIndex, {swversion: ziee.genBasic.attrs.swBuildId});
+                    this.updateLightState(lightIndex, {reachable: msg.data === 'online'});
+                    break;
+
                 case 'attReport':
                 case 'devChange':
-                case 'devStatus':
                 case 'readRsp': {
-                    ieeeAddr = msg.endpoints && msg.endpoints[0] && msg.endpoints[0].device && msg.endpoints[0].device.ieeeAddr;
-                    index = this.getLightIndex(ieeeAddr);
-                    if (!index) {
-                        return;
-                    }
 
-                    const ziee = msg.endpoints[0].clusters;
+                    const now = (new Date()).getTime();
+
+
                     //console.log('indLightHandler ziee', ziee);
 
-                    const state = {};
-
-                    if (msg.type === 'devStatus') {
-                        state.reachable = msg.data === 'online';
-                        this.updateLight(index, {swversion: ziee.genBasic.attrs.swBuildId});
-                    } else {
-                        state.reachable = true;
-                    }
+                    const state = {reachable: true};
 
                     if (msg.data && msg.data.cid === 'genOnOff') {
                         state.on = Boolean(msg.data.data.onOff);
+                        this.lightsInternal[lightIndex].knownStates.on = now;
                     }
 
                     if (msg.data && msg.data.cid === 'genLevelCtrl') {
                         state.bri = msg.data.data.currentLevel;
+                        this.lightsInternal[lightIndex].knownStates.bri = now;
                     }
 
                     // TODO use msg.data
@@ -972,7 +992,7 @@ module.exports = function (RED) {
                         }
                     }
 
-                    this.updateLightState(index, state);
+                    this.updateLightState(lightIndex, state);
                     break;
                 }
 
@@ -993,11 +1013,6 @@ module.exports = function (RED) {
                 }
             });
 
-            const now = (new Date()).getTime();
-            Object.keys(data).forEach(attr => {
-                this.lightsInternal[lightIndex].knownStates[attr] = now;
-            });
-
             if (oe.extend(this.lights[lightIndex].state, data)) {
                 this.proxy.emit('updateLightState', lightIndex);
             }
@@ -1008,8 +1023,9 @@ module.exports = function (RED) {
             // xy > ct > hs
             // on bool
             // bri uint8 0-254
-            // bri uint8 1-254:
+            // bri uint8 1-254: // TODO some lights seem to not accept a 0 bri and return to 1?
             //      Osram Gardenpole RGBW-Lightify
+            //
             //
             // hue uint16 0-65535
             // sat uint8 0-254
@@ -1034,9 +1050,9 @@ module.exports = function (RED) {
             const attributes = [];
 
             if (typeof msg.payload.on !== 'undefined' && typeof msg.payload.bri === 'undefined') {
-                if (this.lightsInternal[lightIndex].knownStates.on && (msg.payload.on === this.lights[lightIndex].state.on)) {
-                    this.debug(dev.name + ' skip command - on ' + msg.payload.on);
-                } else  {
+                //if (this.lightsInternal[lightIndex].knownStates.on && (msg.payload.on === this.lights[lightIndex].state.on)) {
+                //    this.debug(dev.name + ' skip command - on ' + msg.payload.on);
+                //} else  {
                     if (msg.payload.transitiontime) {
                         attributes.push('on');
                         attributes.push('bri');
@@ -1076,7 +1092,7 @@ module.exports = function (RED) {
                             }
                         });
                     }
-                }
+                //}
 
 
             }
@@ -1084,13 +1100,13 @@ module.exports = function (RED) {
 
             if (typeof msg.payload.bri !== 'undefined') {
 
-                if (
-                    (this.lightsInternal[lightIndex].knownStates.bri && (msg.payload.bri === this.lights[lightIndex].state.bri) &&
-                    !(this.lightsInternal[lightIndex].knownStates.on && this.lights[lightIndex].state.on === false && msg.payload.bri > 0) &&
-                    !(this.lightsInternal[lightIndex].knownStates.on && this.lights[lightIndex].state.on === true && msg.payload.bri === 0)
-                )) {
-                    this.debug(dev.name + ' skip command - bri ' + msg.payload.bri);
-                } else {
+                //if (
+                //    (this.lightsInternal[lightIndex].knownStates.bri && (msg.payload.bri === this.lights[lightIndex].state.bri) &&
+                //    !(this.lightsInternal[lightIndex].knownStates.on && this.lights[lightIndex].state.on === false && msg.payload.bri > 0) &&
+                //    !(this.lightsInternal[lightIndex].knownStates.on && this.lights[lightIndex].state.on === true && msg.payload.bri === 0)
+                //)) {
+                //    this.debug(dev.name + ' skip command - bri ' + msg.payload.bri);
+                //} else {
                     attributes.push('on');
                     attributes.push('bri');
 
@@ -1119,7 +1135,7 @@ module.exports = function (RED) {
                             this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes);
                         }
                     });
-                }
+                //}
             } else if (typeof msg.payload.bri_inc !== 'undefined') {
 
                 attributes.push('bri');

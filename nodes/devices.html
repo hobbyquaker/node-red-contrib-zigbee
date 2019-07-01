@@ -86,7 +86,7 @@
                 $('#join-time').html('');
             });
 
-            $('#topology-link').attr('href', 'zigbee-shepherd/graphviz?id=' + $('#node-input-shepherd').val());
+            $('#topology-link').attr('href', 'zigbee-shepherd/map/index.html?id=' + $('#node-input-shepherd').val());
 
             $('#topology').click(() => {
                 $('#topology-view').show();
@@ -138,7 +138,7 @@
         <span id="join-time"></span>
     </div>
      <div class="form-row">
-        <a href="zigbee-shepherd/graphviz" target="_blank" id="topology-link">graphviz</a>
+        <a href="zigbee-shepherd/graphviz" target="_blank" id="topology-link">Network Map</a>
      </div>
 <!--
     <div class="form-row">

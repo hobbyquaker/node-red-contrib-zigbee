@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<head><script type="text/javascript" src="../vis/vis.min.js"></script>
+<link href="../vis/vis.min.css" type="text/css">
+<style>
+    html, body {
+        height: 100%;
+        font-family: arial;
+        margin: 0;
+        padding: 0;
+    }
+    h4 {
+        margin: 6px;
+    }
+    #map {
+        height: calc(100% - 30px);
+    }
+    #loader {
+        position: absolute;
+        top: 50px;
+        left: calc(50% - 64px);
+    }
+</style>
+</head><body>
+<h4>ZigBee Network Map</h4>
+<img src="loader.gif" id="loader">
+<div id="map"></div>
+
+
+<script type="text/javascript">
+
+    const container = document.querySelector('#map');
+
+    let devices;
+    let scan;
+
+    fetch('../devices' + window.location.search)
+        .then(response => {
+            return response.json();
+        })
+        .then(data => {
+            devices = data;
+            return getScan();
+        })
+        .catch(err => {
+            container.innerHTML = err.message;
+        })
+        .finally(() => {
+            document.querySelector('#loader').remove();
+        });
+
+    function getScan() {
+        return fetch('../scan' + window.location.search)
+            .then(response => {
+                return response.json();
+            })
+            .then(data => {
+                scan = data;
+                createGraph();
+            });
+    }
+
+
+    function createGraph() {
+        let coordAddr;
+
+        const data = {
+            nodes: new vis.DataSet(Object.keys(devices).map(ieeeAddr => {
+                const dev = devices[ieeeAddr];
+                const isCoord = dev.type === 'Coordinator';
+                isCoord && (coordAddr = ieeeAddr);
+                const isRouter = dev.type === 'Router';
+                const isBattery = dev.powerSource === 'Battery';
+                const id = ieeeAddr;
+                const status = isBattery
+                    ? (dev.overdue ? 'overdue' : '')
+                    : (dev.status === 'offline' ? 'offline' : '');
+                const isOffline = Boolean(status);
+                const children = scan.filter(pair => pair.parent === dev.ieeeAddr).length;
+                const label = [
+                    dev.name,
+                    dev.type,
+                    dev.ieeeAddr,
+                    dev.manufName,
+                    dev.modelId,
+                    dev.powerSource,
+                    !isCoord && status,
+                    children ? 'Children: ' + children : ''
+                ].filter(v => v).join('\n');
+
+                return {
+                    id,
+                    label,
+                    shape: children ? 'circle' : 'box',
+                    shapeProperties: {
+                        borderDashes: isOffline
+                    },
+                    color: {
+                        background: isCoord ? '#B2DC96' : isBattery ? '#E5F2FF' : '#D2E5FF',
+                        border: isCoord ? '#028C76' :  isBattery ? '#3386E9' : '#2B7CE9',
+                        highlight: {
+                            background: isCoord ? '#B2DC96' :  isBattery ? '#D2E5FF' : '#D2E5FF',
+                            border: isCoord ? '#028C76' :  isBattery ? '#2B7CE9' : '#2B7CE9'
+                        }
+                    },
+                    mass: isCoord ? 1.0 : (isRouter ? 1.01 : (isOffline ? 1.03 : 1.02))
+
+
+                }
+            })),
+
+            edges: new vis.DataSet(scan.map(pair => {
+                const isOffline = pair.status === 'offline'
+                return {
+                    from: pair.ieeeAddr,
+                    to: pair.parent,
+                    label: rssi(pair.lqi),
+                    arrows: 'to',
+                    dashes: isOffline,
+                    color: {inherit: 'to'},
+                    font: {
+                        color: 'rgba(0,0,0,0)'
+                    },
+                    chosen: {
+                        label: values => {
+                            values.color = {inherit: 'to'};
+                            values.mod = 'bold';
+                        }
+                    }
+                };
+            }))
+        };
+
+        const options = {
+            layout: {
+                //hierarchical: true
+            },
+            physics: {
+                stabilization: true,
+                solver: 'forceAtlas2Based',
+                forceAtlas2Based: {
+                    avoidOverlap: 0.00005
+                },
+                barnesHut: {
+                    gravitationalConstant: -2000,
+                    centralGravity: 0.35,
+                    springLength: 89,
+                    springConstant: 0.02,
+                    damping: 0.09,
+                    avoidOverlap: 0.2
+                }
+            }
+        };
+
+        const network = new vis.Network(container, data, options);
+    }
+
+
+    /*
+        lqi => rssi
+        https://e2e.ti.com/support/wireless-connectivity/zigbee-and-thread/f/158/t/555076?How-to-get-rssi-value-from-Z-Stack-Linux-Gateway-
+        RSSI = MIN_ED+LinkQuality*( MAX_ED-MIN_ED)/255
+        Default values for MIN_ED and MAX_ED are -87 and 10 respectively.
+     */
+    function rssi(lqi) {
+        return String(Math.round(-87 + lqi * 97 / 255));
+    }
+</script>
+</body>
