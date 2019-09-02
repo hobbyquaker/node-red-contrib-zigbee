@@ -4,7 +4,7 @@ const {EventEmitter} = require('events');
 
 const oe = require('obj-ease');
 const mkdirp = require('mkdirp');
-const Shepherd = require('zigbee-shepherd');
+const Shepherd = require('zigbee-herdsman');
 const shepherdConverters = require('zigbee-shepherd-converters');
 
 const interval = require('../interval.json');
@@ -14,19 +14,6 @@ const configured = new Set();
 const lights = {};
 const shepherdNodes = {};
 const shepherdInstances = {};
-
-class Topology extends EventEmitter {
-    constructor() {
-        super();
-
-    }
-    scan() {
-        if (this.scanPending) {
-            return;
-        }
-
-    }
-}
 
 const {zllDevice, uniqueidSuffix, emptyStates} = require('../zll.js');
 
@@ -90,7 +77,7 @@ module.exports = function (RED) {
 
     RED.httpAdmin.get('/zigbee-shepherd/map/*', (req, res) => {
         const file = (req.params[0] || '').split('?')[0] || 'index.html';
-        const root =  path.join(__dirname, '../static/map');
+        const root = path.join(__dirname, '../static/map');
         fs.access(path.join(root, file), fs.constants.F_OK, err => {
             if (err) {
                 res.status(404).send('Error 404: file not found');
@@ -190,8 +177,6 @@ module.exports = function (RED) {
             };
         }
 
-
-
         queue(cmd, timeout) {
             const {length} = this.commandQueue;
             this.commandQueue = this.commandQueue.filter(q => {
@@ -241,7 +226,7 @@ module.exports = function (RED) {
                 switch (cmd.cmdType) {
                     case 'foundation':
                     case 'functional':
-                        this.debug(cmd.cmdType + ' ' + this.logName(cmd.ieeeAddr) + ' ' + cmd.cid + ' ' + cmd.cmd + ' ' + JSON.stringify(cmd.zclData) + ' ' + JSON.stringify(Object.assign({disBlockQueue: cmd.disBlockQueue}, cmd.cfg)) + ' timeout='+timeout);
+                        this.debug(cmd.cmdType + ' ' + this.logName(cmd.ieeeAddr) + ' ' + cmd.cid + ' ' + cmd.cmd + ' ' + JSON.stringify(cmd.zclData) + ' ' + JSON.stringify(Object.assign({disBlockQueue: cmd.disBlockQueue}, cmd.cfg)) + ' timeout=' + timeout);
 
                         if (cmd.cfg && cmd.cfg.disDefaultRsp) {
                             endpoint[cmd.cmdType](cmd.cid, cmd.cmd, cmd.zclData, cmd.cfg, () => {});
@@ -252,7 +237,7 @@ module.exports = function (RED) {
                         } else {
                             let queueShifted = false;
 
-                            let timer = setTimeout(() => {
+                            const timer = setTimeout(() => {
                                 if (typeof cmd.callback === 'function') {
                                     const {callback} = cmd;
                                     delete cmd.callback;
@@ -372,7 +357,7 @@ module.exports = function (RED) {
 
                     case 'read': {
                         const timer = setTimeout(() => {
-                            this.warn('timeout ' + cmd.cmdType + ' ' + this.logName(cmd.ieeeAddr)  + ' ' + cmd.cid + ' ' + cmd.attrId);
+                            this.warn('timeout ' + cmd.cmdType + ' ' + this.logName(cmd.ieeeAddr) + ' ' + cmd.cid + ' ' + cmd.attrId);
                             if (typeof cmd.callback === 'function') {
                                 const {callback} = cmd;
                                 delete cmd.callback;
@@ -385,7 +370,7 @@ module.exports = function (RED) {
                             }
                         }, timeout || this.queueMaxWait);
 
-                        this.debug(cmd.cmdType + ' ' + this.logName(cmd.ieeeAddr)  + ' ' + cmd.cid + ' ' + cmd.attrId);
+                        this.debug(cmd.cmdType + ' ' + this.logName(cmd.ieeeAddr) + ' ' + cmd.cid + ' ' + cmd.attrId);
                         endpoint[cmd.cmdType](cmd.cid, cmd.attrId, (err, res) => {
                             clearTimeout(timer);
                             if (!cmd.disBlockQueue) {
@@ -692,7 +677,7 @@ module.exports = function (RED) {
                 if (mappedDevice) {
                     if (mappedDevice.configure) {
                         this.debug(`configure ${this.logName(ieeeAddr)}`);
-                        mappedDevice.configure(ieeeAddr, this.shepherd, this.shepherd.find(this.shepherd.info().net.ieeeAddr, 1), (success, msg) => {
+                        mappedDevice.configure(ieeeAddr, this.shepherd, this.shepherd.find(this.shepherd.info().net.ieeeAddr, 1), success => {
                             if (success) {
                                 this.log(`successfully configured ${this.logName(ieeeAddr)}`);
                                 configured.add(ieeeAddr);
@@ -771,13 +756,9 @@ module.exports = function (RED) {
                     if (stateChange) {
                         this.proxy.emit('devices', this.devices);
                     }
-
                 }
 
-
                 this.indLightHandler(msg);
-
-
             }
 
             this.proxy.emit('ind', msg);
@@ -937,15 +918,13 @@ module.exports = function (RED) {
         }
 
         indLightHandler(msg) {
-
-
             const ieeeAddr = msg.endpoints && msg.endpoints[0] && msg.endpoints[0].device && msg.endpoints[0].device.ieeeAddr;
             const lightIndex = this.getLightIndex(ieeeAddr);
             if (!lightIndex) {
                 return;
             }
 
-            this.debug('indLightHandler ' + this.logName(ieeeAddr)  + ' msg.type=' + msg.type + ' msg.data=' + JSON.stringify(msg.data));
+            this.debug('indLightHandler ' + this.logName(ieeeAddr) + ' msg.type=' + msg.type + ' msg.data=' + JSON.stringify(msg.data));
 
             const ziee = msg.endpoints[0].clusters;
 
@@ -958,9 +937,7 @@ module.exports = function (RED) {
                 case 'attReport':
                 case 'devChange':
                 case 'readRsp': {
-
                     const now = (new Date()).getTime();
-
 
                     //console.log('indLightHandler ziee', ziee);
 
@@ -1064,7 +1041,7 @@ module.exports = function (RED) {
             // xy_inc [] 0.5 0.5
 
             const lightIndex = msg.topic.match(/lights\/(\d+)\/state/)[1];
-            const ieeeAddr = this.lightsInternal[lightIndex].ieeeAddr;
+            const {ieeeAddr} = this.lightsInternal[lightIndex];
 
             if (!ieeeAddr) {
                 this.error('unknown light ' + lightIndex);
@@ -1078,7 +1055,7 @@ module.exports = function (RED) {
             clearTimeout(this.retryTimer[ieeeAddr]);
 
             const retry = () => {
-                if (retryCount++ < 3)  {
+                if (retryCount++ < 3) {
                     this.retryTimer[ieeeAddr] = setTimeout(() => {
                         this.debug('putLightState retry ' + retryCount);
                         this.putLightsState(msg, retryCount);
@@ -1092,78 +1069,17 @@ module.exports = function (RED) {
                 //if (this.lightsInternal[lightIndex].knownStates.on && (msg.payload.on === this.lights[lightIndex].state.on)) {
                 //    this.debug(dev.name + ' skip command - on ' + msg.payload.on);
                 //} else  {
-                    if (msg.payload.transitiontime) {
-                        attributes.push('on');
-                        attributes.push('bri');
-                        cmds.push({
-                            ieeeAddr: dev.ieeeAddr,
-                            ep: dev.epList[0],
-                            cmdType: 'functional',
-                            cid: 'genLevelCtrl',
-                            cmd: 'moveToLevelWithOnOff',
-                            zclData: {
-                                level: msg.payload.on ? 254 : 0,
-                                transtime: msg.payload.transitiontime || 0
-                            },
-                            cfg: {
-                                disDefaultRsp: 1
-                            },
-                            disBlockQueue: true,
-                            callback: (err, res) => {
-                                this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
-                            }
-                        });
-                    } else {
-                        attributes.push('on');
-                        cmds.push({
-                            ieeeAddr: dev.ieeeAddr,
-                            ep: dev.epList[0],
-                            cmdType: 'functional',
-                            cid: 'genOnOff',
-                            cmd: msg.payload.on ? 'on' : 'off',
-                            zclData: {},
-                            cfg: {
-                                disDefaultRsp: 1
-                            },
-                            disBlockQueue: true,
-                            callback: (err, res) => {
-                                this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
-                            }
-                        });
-                    }
-                //}
-
-
-            }
-
-
-            if (typeof msg.payload.bri !== 'undefined') {
-
-                //if (
-                //    (this.lightsInternal[lightIndex].knownStates.bri && (msg.payload.bri === this.lights[lightIndex].state.bri) &&
-                //    !(this.lightsInternal[lightIndex].knownStates.on && this.lights[lightIndex].state.on === false && msg.payload.bri > 0) &&
-                //    !(this.lightsInternal[lightIndex].knownStates.on && this.lights[lightIndex].state.on === true && msg.payload.bri === 0)
-                //)) {
-                //    this.debug(dev.name + ' skip command - bri ' + msg.payload.bri);
-                //} else {
+                if (msg.payload.transitiontime) {
                     attributes.push('on');
                     attributes.push('bri');
-
-                    let level = msg.payload.bri;
-
-                    if (level > 254) {
-                        level = 254;
-                    }
-
                     cmds.push({
                         ieeeAddr: dev.ieeeAddr,
                         ep: dev.epList[0],
                         cmdType: 'functional',
                         cid: 'genLevelCtrl',
-                        // Todo: clarify - bri 1 sets off?
                         cmd: 'moveToLevelWithOnOff',
                         zclData: {
-                            level,
+                            level: msg.payload.on ? 254 : 0,
                             transtime: msg.payload.transitiontime || 0
                         },
                         cfg: {
@@ -1174,9 +1090,65 @@ module.exports = function (RED) {
                             this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
                         }
                     });
+                } else {
+                    attributes.push('on');
+                    cmds.push({
+                        ieeeAddr: dev.ieeeAddr,
+                        ep: dev.epList[0],
+                        cmdType: 'functional',
+                        cid: 'genOnOff',
+                        cmd: msg.payload.on ? 'on' : 'off',
+                        zclData: {},
+                        cfg: {
+                            disDefaultRsp: 1
+                        },
+                        disBlockQueue: true,
+                        callback: (err, res) => {
+                            this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
+                        }
+                    });
+                }
+                //}
+            }
+
+            if (typeof msg.payload.bri !== 'undefined') {
+                //if (
+                //    (this.lightsInternal[lightIndex].knownStates.bri && (msg.payload.bri === this.lights[lightIndex].state.bri) &&
+                //    !(this.lightsInternal[lightIndex].knownStates.on && this.lights[lightIndex].state.on === false && msg.payload.bri > 0) &&
+                //    !(this.lightsInternal[lightIndex].knownStates.on && this.lights[lightIndex].state.on === true && msg.payload.bri === 0)
+                //)) {
+                //    this.debug(dev.name + ' skip command - bri ' + msg.payload.bri);
+                //} else {
+                attributes.push('on');
+                attributes.push('bri');
+
+                let level = msg.payload.bri;
+
+                if (level > 254) {
+                    level = 254;
+                }
+
+                cmds.push({
+                    ieeeAddr: dev.ieeeAddr,
+                    ep: dev.epList[0],
+                    cmdType: 'functional',
+                    cid: 'genLevelCtrl',
+                    // Todo: clarify - bri 1 sets off?
+                    cmd: 'moveToLevelWithOnOff',
+                    zclData: {
+                        level,
+                        transtime: msg.payload.transitiontime || 0
+                    },
+                    cfg: {
+                        disDefaultRsp: 1
+                    },
+                    disBlockQueue: true,
+                    callback: (err, res) => {
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
+                    }
+                });
                 //}
             } else if (typeof msg.payload.bri_inc !== 'undefined') {
-
                 attributes.push('bri');
                 cmds.push({
                     ieeeAddr: dev.ieeeAddr,
@@ -1386,7 +1358,7 @@ module.exports = function (RED) {
             }
 
             attributes.forEach(attr => {
-               delete this.lightsInternal[lightIndex].knownStates[attr];
+                delete this.lightsInternal[lightIndex].knownStates[attr];
             });
 
             cmds.forEach(cmd => {
@@ -1400,8 +1372,9 @@ module.exports = function (RED) {
             } else {
                 this.debug('handlePutLightStateCallback ' + this.logName(ieeeAddr) + ' ' + JSON.stringify(attributes) + ' ' + JSON.stringify(res));
             }
+
             if (err) {
-                let newState = {reachable: false};
+                const newState = {reachable: false};
                 attributes.forEach(attr => {
                     if (typeof msg.payload[attr] !== 'undefined') {
                         newState[attr] = msg.payload[attr];
@@ -1415,7 +1388,7 @@ module.exports = function (RED) {
                 }, (msg.payload.transitiontime * 100) + 1000);
             } else if (res && res.statusCode === 0) {
                 const now = (new Date()).getTime();
-                let newState = {reachable: true};
+                const newState = {reachable: true};
                 attributes.forEach(attr => {
                     if (typeof msg.payload[attr] !== 'undefined') {
                         this.lightsInternal[lightIndex].knownStates[attr] = now;
@@ -1424,6 +1397,7 @@ module.exports = function (RED) {
                 });
                 this.updateLightState(lightIndex, newState);
             }
+
             return !err;
         }
 
@@ -1474,11 +1448,11 @@ module.exports = function (RED) {
         checkOnline(ieeeAddr, callback) {
             this.shepherd.controller.checkOnline(this.shepherd._findDevByAddr(ieeeAddr), err => {
                 this.debug('checkOnline ' + ieeeAddr + ' ' + err);
-                queueCallback();
+                if (typeof callback === 'function') {
+                    callback();
+                }
             });
         }
-
-
 
         lqiScan(callback) {
             this.log('Starting lqi scan...');
@@ -1490,19 +1464,16 @@ module.exports = function (RED) {
                 console.log('processLqiResponse', rsp, targetIeeeAddr, targetNwkAddr);
                 if (error) {
                     this.warn(`Failed network lqi scan for device: ${this.logName(targetIeeeAddr)} with error: '${error}'`);
+                } else if (lqiScanList.has(targetIeeeAddr)) {
+                    // Haven't processed this one yet
+                    linkMap[targetIeeeAddr] = rsp;
                 } else {
-                    if (lqiScanList.has(targetIeeeAddr)) {
-                        // Haven't processed this one yet
-                            linkMap[targetIeeeAddr] = rsp;
-
-                    } else {
-                        // This target has already had timeout so don't add to result network map
-                        this.warn(`Ignoring late network lqi scan result for: ${this.logName(targetIeeeAddr)}`);
-                    }
+                    // This target has already had timeout so don't add to result network map
+                    this.warn(`Ignoring late network lqi scan result for: ${this.logName(targetIeeeAddr)}`);
                 }
             };
 
-            const shiftScanQueue = (cb) => {
+            const shiftScanQueue = cb => {
                 const f = scanQueue.shift();
                 if (f) {
                     f(() => {
@@ -1511,8 +1482,7 @@ module.exports = function (RED) {
                 } else {
                     cb();
                 }
-            }
-
+            };
 
             const queueScans = () => {
                 Object.keys(this.devices).filter(ieeeAddr => (this.devices[ieeeAddr].type !== 'EndDevice' && this.devices[ieeeAddr].status === 'online')).forEach(ieeeAddr => {
@@ -1520,7 +1490,7 @@ module.exports = function (RED) {
                     this.debug(`Queing network scans for device: ${this.logName(dev.ieeeAddr)}`);
 
                     lqiScanList.add(ieeeAddr);
-                    scanQueue.push((queueCallback) => {
+                    scanQueue.push(queueCallback => {
                         this.debug(`mgmtLqiReq ${this.logName(dev.ieeeAddr)}`);
                         this.shepherd.controller.request('ZDO', 'mgmtLqiReq', {dstaddr: dev.nwkAddr, startindex: 0},
                             (error, rsp) => {
@@ -1535,11 +1505,9 @@ module.exports = function (RED) {
                 shiftScanQueue(() => {
                     callback(linkMap);
                 });
-            }
-
+            };
 
             queueScans();
-
         }
 
         rtgScan(callback) {
@@ -1548,23 +1516,20 @@ module.exports = function (RED) {
             const routeMap = {};
             const scanQueue = [];
 
-
             const processRtgResponse = (error, rsp, sourceIeeeAddr, sourceNwkAddr) => {
                 console.log('processRtgResponse', rsp, sourceIeeeAddr, sourceNwkAddr);
                 if (error) {
                     this.warn(`Failed network rtg scan for device: ${this.logName(sourceIeeeAddr)} with error: '${error}'`);
+                } else if (rtgScanList.has(sourceIeeeAddr)) {
+                    // Haven't processed this one yet
+                    routeMap[sourceIeeeAddr] = rsp;
                 } else {
-                    if (rtgScanList.has(sourceIeeeAddr)) {
-                        // Haven't processed this one yet
-                        routeMap[sourceIeeeAddr] = rsp;
-                    } else {
-                        // This source has already had timeout so don't add to result network map
-                        this.warn(`Ignoring late network rtg scan result for: ${this.logName(sourceIeeeAddr)}`);
-                    }
+                    // This source has already had timeout so don't add to result network map
+                    this.warn(`Ignoring late network rtg scan result for: ${this.logName(sourceIeeeAddr)}`);
                 }
             };
 
-            const shiftScanQueue = (cb) => {
+            const shiftScanQueue = cb => {
                 const f = scanQueue.shift();
                 if (f) {
                     f(() => {
@@ -1573,7 +1538,7 @@ module.exports = function (RED) {
                 } else {
                     cb();
                 }
-            }
+            };
 
             const queueScans = () => {
                 Object.keys(this.devices).filter(ieeeAddr => (this.devices[ieeeAddr].type !== 'EndDevice' && this.devices[ieeeAddr].status === 'online')).forEach(ieeeAddr => {
@@ -1581,7 +1546,7 @@ module.exports = function (RED) {
                     this.debug(`Queing rtg scans for device: ${this.logName(dev.ieeeAddr)}`);
 
                     rtgScanList.add(ieeeAddr);
-                    scanQueue.push((queueCallback) => {
+                    scanQueue.push(queueCallback => {
                         this.debug(`mgmtRtgReq ${this.logName(dev.ieeeAddr)}`);
                         this.shepherd.controller.request('ZDO', 'mgmtRtgReq', {dstaddr: dev.nwkAddr, startindex: 0},
                             (error, rsp) => {
@@ -1600,12 +1565,7 @@ module.exports = function (RED) {
 
             //this.shiftScanQueue(queueScans);
             queueScans();
-
         }
-
-
-
-
     }
 
     RED.nodes.registerType('zigbee-shepherd', ZigbeeShepherd, {

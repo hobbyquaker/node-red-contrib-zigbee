@@ -41,7 +41,7 @@
   },
   "devDependencies": {
     "camo-purge": "^1.0.2",
-    "eslint-plugin-html": "^5.0.0",
+    "eslint-plugin-html": "^6.0.0",
     "xo": "^0.24.0"
   },
   "xo": {
@@ -49,7 +49,11 @@
     "plugin": "html",
     "global": [
       "$",
-      "RED"
+      "RED",
+      "window",
+      "document",
+      "fetch",
+      "vis"
     ],
     "extensions": [
       "js",
@@ -59,7 +63,8 @@
       "no-template-curly-in-string": "warn",
       "capitalized-comments": 0,
       "spaced-comment": 0,
-      "unicorn/catch-error-name": 0
+      "unicorn/catch-error-name": 0,
+      "no-unused-expressions": "warn"
     },
     "ignore": []
   }

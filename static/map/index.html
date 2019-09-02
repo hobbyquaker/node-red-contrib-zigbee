@@ -27,12 +27,11 @@
 
 
 <script type="text/javascript">
-
     const container = document.querySelector('#map');
 
     let devices;
-    let routes = [];
-    let routesMap = {}
+    const routes = [];
+    const routesMap = {};
 
     fetch('../devices' + window.location.search)
         .then(response => {
@@ -62,26 +61,21 @@
                     if (data[src].routingtablelist) {
                         data[src].routingtablelist.forEach(route => {
                             const id = src + '|' + route.nextHopNwkAddr;
-                            if (!routesMap[id]) {
+                            if (routesMap[id]) {
+                                routesMap[id].count += 1;
+                                routesMap[id].routeStatus |= route.routeStatus;
+                            } else {
                                 routesMap[id] = {
                                     sourceIeeeAddr: src,
-                                    targetIeeeAddr: getIeeeAddr(route.nextHopNwkAddr == 65534 ? route.destNwkAddr : route.nextHopNwkAddr),
+                                    targetIeeeAddr: getIeeeAddr(route.nextHopNwkAddr === 65534 ? route.destNwkAddr : route.nextHopNwkAddr),
                                     routeStatus: route.routeStatus,
                                     count: 1
                                 };
-                            } else {
-                                routesMap[id].count += 1;
-                                routesMap[id].routeStatus |= route.routeStatus
                             }
-
                         });
                     }
                 });
-
-
-
-            })
-
+            });
     }
 
     function getLqi() {
@@ -95,7 +89,12 @@
                 Object.keys(data).forEach(sourceIeeeAddr => {
                     data[sourceIeeeAddr].neighborlqilist.forEach(neighbour => {
                         const id = sourceIeeeAddr + '|' + neighbour.nwkAddr;
-                        if (!routesMap[id]) {
+                        if (routesMap[id]) {
+                            routesMap[id].count += 1;
+                            routesMap[id].lqi = neighbour.lqi;
+                            routesMap[id].depth = neighbour.depth;
+                            routesMap[id].relationship = neighbour.relationship;
+                        } else {
                             routesMap[id] = {
                                 sourceIeeeAddr,
                                 targetIeeeAddr: neighbour.extAddr,
@@ -105,11 +104,6 @@
                                 lqi: neighbour.lqi,
                                 count: 1
                             };
-                        } else {
-                            routesMap[id].count += 1;
-                            routesMap[id].lqi = neighbour.lqi;
-                            routesMap[id].depth = neighbour.depth;
-                            routesMap[id].relationship = neighbour.relationship;
                         }
                     });
                 });
@@ -129,9 +123,8 @@
         }
     }
 
-
     function createGraph() {
-        let coordAddr;
+        //let coordAddr;
         console.log('routes', routes);
         const routesData = routes.map(route => {
             return {
@@ -159,13 +152,15 @@
             nodes: new vis.DataSet(Object.keys(devices).map(ieeeAddr => {
                 const dev = devices[ieeeAddr];
                 const isCoord = dev.type === 'Coordinator';
-                isCoord && (coordAddr = ieeeAddr);
-                const isRouter = dev.type === 'Router';
+                //if (isCoord) {
+                //    coordAddr = ieeeAddr;
+                //}
+                //const isRouter = dev.type === 'Router';
                 const isBattery = dev.powerSource === 'Battery';
                 const id = ieeeAddr;
-                const status = isBattery
-                    ? (dev.overdue ? 'overdue' : '')
-                    : (dev.status === 'offline' ? 'offline' : '');
+                const status = isBattery ?
+                    (dev.overdue ? 'overdue' : '') :
+                    (dev.status === 'offline' ? 'offline' : '');
                 const isOffline = Boolean(status);
                 const children = routes.filter(pair => pair.sourceIeeeAddr === dev.ieeeAddr).length;
                 const label = [
@@ -188,16 +183,15 @@
                     },
                     color: {
                         background: isCoord ? '#B2DC96' : isBattery ? '#E5F2FF' : '#D2E5FF',
-                        border: isCoord ? '#028C76' :  isBattery ? '#3386E9' : '#2B7CE9',
+                        border: isCoord ? '#028C76' : isBattery ? '#3386E9' : '#2B7CE9',
                         highlight: {
-                            background: isCoord ? '#B2DC96' :  isBattery ? '#D2E5FF' : '#D2E5FF',
-                            border: isCoord ? '#028C76' :  isBattery ? '#2B7CE9' : '#2B7CE9'
+                            background: isCoord ? '#B2DC96' : isBattery ? '#D2E5FF' : '#D2E5FF',
+                            border: isCoord ? '#028C76' : isBattery ? '#2B7CE9' : '#2B7CE9'
                         }
-                    },
+                    }
                     //mass: isCoord ? 1.0 : (isRouter ? 1.02 : (isOffline ? 1.035 : 1.025))
 
-
-                }
+                };
             })),
 
             edges: new vis.DataSet(routesData)
@@ -224,9 +218,8 @@
             }
         };
 
-        const network = new vis.Network(container, data, options);
+        const network = new vis.Network(container, data, options); // eslint-disable-line no-unused-vars
     }
-
 
     /*
         lqi => rssi
@@ -235,7 +228,7 @@
         Default values for MIN_ED and MAX_ED are -87 and 10 respectively.
      */
     function rssi(lqi) {
-        return lqi ? (String(Math.round(-87 + lqi * 97 / 255)) + ' dBm') : '';
+        return lqi ? (String(Math.round(-87 + (lqi * 97 / 255))) + ' dBm') : '';
     }
 </script>
 </body>

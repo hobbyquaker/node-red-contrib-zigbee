@@ -142,8 +142,8 @@ module.exports = function (RED) {
                     if (bri > 0 && !shepherdNode.lightsInternal[index].type.startsWith('On/off')) {
                         cmd.bri = bri;
                     }
-                    cmd.on = bri > 0;
 
+                    cmd.on = bri > 0;
                 }
 
                 if (typeof cmd.transitiontime === 'undefined') {
