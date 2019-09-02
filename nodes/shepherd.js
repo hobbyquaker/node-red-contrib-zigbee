@@ -1019,7 +1019,7 @@ module.exports = function (RED) {
             }
         }
 
-        putLightsState(msg) {
+        putLightsState(msg, retryCount = 0) {
             //console.log('putLightsState', msg);
             // xy > ct > hs
             // on bool
@@ -1402,6 +1402,7 @@ module.exports = function (RED) {
                 });
                 this.updateLightState(lightIndex, newState);
             }
+            return !err;
         }
 
         readLightState(lightIndex, attributes) {
