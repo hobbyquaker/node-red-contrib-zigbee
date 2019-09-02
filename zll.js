@@ -3,6 +3,7 @@ module.exports = {
         0x0000: 'On/off light',
         0x0010: 'On/off plug-in unit',
         0x0100: 'Dimmable light',
+        0x0101: 'Color temperature light', // LEDVANCE Tunable White
         0x010D: 'Extended color light', // MLI ZBT-ExtendedColor
         0x0110: 'Dimmable plug-in unit',
         0x0200: 'Color light',
