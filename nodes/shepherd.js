@@ -53,6 +53,26 @@ module.exports = function (RED) {
         }
     });
 
+    RED.httpAdmin.get('/zigbee-shepherd/rtgScan', (req, res) => {
+        if (shepherdNodes[req.query.id]) {
+            shepherdNodes[req.query.id].rtgScan(result => {
+                res.status(200).json(result);
+            });
+        } else {
+            res.status(500).send('500 Internal Server Error: Unknown Shepherd Id');
+        }
+    });
+
+    RED.httpAdmin.get('/zigbee-shepherd/lqiScan', (req, res) => {
+        if (shepherdNodes[req.query.id]) {
+            shepherdNodes[req.query.id].lqiScan(result => {
+                res.status(200).json(result);
+            });
+        } else {
+            res.status(500).send('500 Internal Server Error: Unknown Shepherd Id');
+        }
+    });
+
     RED.httpAdmin.get('/zigbee-shepherd/vis/*', (req, res) => {
         const file = (req.params[0] || '').split('?')[0];
         const root = path.dirname(require.resolve('vis'));
@@ -70,7 +90,6 @@ module.exports = function (RED) {
 
     RED.httpAdmin.get('/zigbee-shepherd/map/*', (req, res) => {
         const file = (req.params[0] || '').split('?')[0] || 'index.html';
-        console.log('httpAdmin.get ' + file);
         const root =  path.join(__dirname, '../static/map');
         fs.access(path.join(root, file), fs.constants.F_OK, err => {
             if (err) {
@@ -143,6 +162,7 @@ module.exports = function (RED) {
             this.shepherdNode = shepherdNode;
             this.shepherd = shepherdNode.shepherd;
             this.devices = shepherdNode.devices;
+            this.logName = shepherdNode.logName;
 
             this.queueMaxWait = 5000;
             this.queueMaxLength = 50;
@@ -169,6 +189,8 @@ module.exports = function (RED) {
                 shepherdNode.error(msg);
             };
         }
+
+
 
         queue(cmd, timeout) {
             const {length} = this.commandQueue;
@@ -219,7 +241,7 @@ module.exports = function (RED) {
                 switch (cmd.cmdType) {
                     case 'foundation':
                     case 'functional':
-                        this.debug(cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.cmd + ' ' + JSON.stringify(cmd.zclData) + ' ' + JSON.stringify(Object.assign({disBlockQueue: cmd.disBlockQueue}, cmd.cfg)) + ' timeout='+timeout);
+                        this.debug(cmd.cmdType + ' ' + this.logName(cmd.ieeeAddr) + ' ' + cmd.cid + ' ' + cmd.cmd + ' ' + JSON.stringify(cmd.zclData) + ' ' + JSON.stringify(Object.assign({disBlockQueue: cmd.disBlockQueue}, cmd.cfg)) + ' timeout='+timeout);
 
                         if (cmd.cfg && cmd.cfg.disDefaultRsp) {
                             endpoint[cmd.cmdType](cmd.cid, cmd.cmd, cmd.zclData, cmd.cfg, () => {});
@@ -268,7 +290,7 @@ module.exports = function (RED) {
                                         this.emit('devices', this.devices);
                                     }
                                 } else {
-                                    this.debug('defaultRsp ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.cmd + ' ' + JSON.stringify(res));
+                                    this.debug('defaultRsp ' + cmd.cmdType + ' ' + this.logName(cmd.ieeeAddr) + ' ' + cmd.cid + ' ' + cmd.cmd + ' ' + JSON.stringify(res));
 
                                     if (this.devices[cmd.ieeeAddr].status === 'offline') {
                                         this.devices[cmd.ieeeAddr].status = 'online';
@@ -294,7 +316,7 @@ module.exports = function (RED) {
                         break;
                     case 'write': {
                         const timer = setTimeout(() => {
-                            this.warn('timeout ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.attrId);
+                            this.warn('timeout ' + cmd.cmdType + ' ' + this.logName(cmd.ieeeAddr) + ' ' + cmd.cid + ' ' + cmd.attrId);
                             if (typeof cmd.callback === 'function') {
                                 const {callback} = cmd;
                                 delete cmd.callback;
@@ -307,7 +329,7 @@ module.exports = function (RED) {
                             }
                         }, timeout || this.queueMaxWait);
 
-                        this.debug(cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.attrId + ' ' + JSON.stringify(cmd.data));
+                        this.debug(cmd.cmdType + ' ' + this.logName(cmd.ieeeAddr) + ' ' + cmd.cid + ' ' + cmd.attrId + ' ' + JSON.stringify(cmd.data));
                         endpoint[cmd.cmdType](cmd.cid, cmd.attrId, cmd.data, (err, res) => {
                             clearTimeout(timer);
                             if (!cmd.disBlockQueue) {
@@ -327,7 +349,7 @@ module.exports = function (RED) {
                                     this.emit('devices', this.devices);
                                 }
                             } else {
-                                this.debug('defaultRsp ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.attrId + ' ' + JSON.stringify(res));
+                                this.debug('defaultRsp ' + cmd.cmdType + ' ' + this.logName(cmd.ieeeAddr) + ' ' + cmd.cid + ' ' + cmd.attrId + ' ' + JSON.stringify(res));
                                 if (this.devices[cmd.ieeeAddr].status === 'offline') {
                                     this.devices[cmd.ieeeAddr].status = 'online';
                                     this.emit('devices', this.devices);
@@ -350,7 +372,7 @@ module.exports = function (RED) {
 
                     case 'read': {
                         const timer = setTimeout(() => {
-                            this.warn('timeout ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.attrId);
+                            this.warn('timeout ' + cmd.cmdType + ' ' + this.logName(cmd.ieeeAddr)  + ' ' + cmd.cid + ' ' + cmd.attrId);
                             if (typeof cmd.callback === 'function') {
                                 const {callback} = cmd;
                                 delete cmd.callback;
@@ -363,7 +385,7 @@ module.exports = function (RED) {
                             }
                         }, timeout || this.queueMaxWait);
 
-                        this.debug(cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.attrId);
+                        this.debug(cmd.cmdType + ' ' + this.logName(cmd.ieeeAddr)  + ' ' + cmd.cid + ' ' + cmd.attrId);
                         endpoint[cmd.cmdType](cmd.cid, cmd.attrId, (err, res) => {
                             clearTimeout(timer);
                             if (!cmd.disBlockQueue) {
@@ -383,7 +405,7 @@ module.exports = function (RED) {
                                     this.emit('devices', this.devices);
                                 }
                             } else {
-                                this.debug('defaultRsp ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.attrId + ' ' + JSON.stringify(res));
+                                this.debug('defaultRsp ' + cmd.cmdType + ' ' + this.logName(cmd.ieeeAddr) + ' ' + cmd.cid + ' ' + cmd.attrId + ' ' + JSON.stringify(res));
                                 if (this.devices[cmd.ieeeAddr].status === 'offline') {
                                     this.devices[cmd.ieeeAddr].status = 'online';
                                     this.emit('devices', this.devices);
@@ -410,7 +432,7 @@ module.exports = function (RED) {
                         const dstDesc = cmd.destination === 'group' ? cmd.dstGroup : (((this.devices[cmd.dstIeeeAddr] && this.devices[cmd.dstIeeeAddr].name) || cmd.dstIeeeAddr) + ' ' + cmd.dstEp);
 
                         const timer = setTimeout(() => {
-                            this.warn('timeout ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + dstDesc);
+                            this.warn('timeout ' + cmd.cmdType + ' ' + this.logName(cmd.ieeeAddr) + ' ' + cmd.cid + ' ' + dstDesc);
                             if (typeof cmd.callback === 'function') {
                                 const {callback} = cmd;
                                 delete cmd.callback;
@@ -423,7 +445,7 @@ module.exports = function (RED) {
                             }
                         }, timeout || this.queueMaxWait);
 
-                        this.debug(cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + dstDesc);
+                        this.debug(cmd.cmdType + ' ' + this.logName(cmd.ieeeAddr) + ' ' + cmd.cid + ' ' + dstDesc);
                         endpoint[cmd.cmdType](cmd.cid, dstEpOrGrpId, (err, res) => {
                             clearTimeout(timer);
                             if (!cmd.disBlockQueue) {
@@ -439,7 +461,7 @@ module.exports = function (RED) {
                             if (err) {
                                 this.error(err.message);
                             } else {
-                                this.debug('defaultRsp ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + dstDesc + ' ' + JSON.stringify(res));
+                                this.debug('defaultRsp ' + cmd.cmdType + ' ' + this.logName(cmd.ieeeAddr) + ' ' + cmd.cid + ' ' + dstDesc + ' ' + JSON.stringify(res));
                             }
 
                             if (typeof cmd.callback === 'function') {
@@ -458,7 +480,7 @@ module.exports = function (RED) {
 
                     case 'report': {
                         const timer = setTimeout(() => {
-                            this.warn('timeout ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.cmd);
+                            this.warn('timeout ' + cmd.cmdType + ' ' + this.logName(cmd.ieeeAddr) + ' ' + cmd.cid + ' ' + cmd.cmd);
                             if (typeof cmd.callback === 'function') {
                                 const {callback} = cmd;
                                 delete cmd.callback;
@@ -471,7 +493,7 @@ module.exports = function (RED) {
                             }
                         }, timeout || this.queueMaxWait);
 
-                        this.debug(cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.attrId + ' ' + cmd.minInt + ' ' + cmd.maxInt + ' ' + cmd.repChange);
+                        this.debug(cmd.cmdType + ' ' + this.logName(cmd.ieeeAddr) + ' ' + cmd.cid + ' ' + cmd.attrId + ' ' + cmd.minInt + ' ' + cmd.maxInt + ' ' + cmd.repChange);
                         endpoint.report(cmd.cid, cmd.attrId, cmd.minInt, cmd.maxInt, cmd.repChange, (err, res) => {
                             clearTimeout(timer);
                             if (!cmd.disBlockQueue) {
@@ -491,7 +513,7 @@ module.exports = function (RED) {
                                     this.emit('devices', this.devices);
                                 }
                             } else {
-                                this.debug('defaultRsp ' + cmd.cmdType + ' ' + cmd.ieeeAddr + ' ' + this.devices[cmd.ieeeAddr].name + ' ' + cmd.cid + ' ' + cmd.attrId + ' ' + JSON.stringify(res));
+                                this.debug('defaultRsp ' + cmd.cmdType + ' ' + this.logName(cmd.ieeeAddr) + ' ' + cmd.cid + ' ' + cmd.attrId + ' ' + JSON.stringify(res));
                                 if (this.devices[cmd.ieeeAddr].status === 'offline') {
                                     this.devices[cmd.ieeeAddr].status = 'online';
                                     this.emit('devices', this.devices);
@@ -669,13 +691,13 @@ module.exports = function (RED) {
 
                 if (mappedDevice) {
                     if (mappedDevice.configure) {
-                        this.debug(`configure ${ieeeAddr} ${dev.name}`);
+                        this.debug(`configure ${this.logName(ieeeAddr)}`);
                         mappedDevice.configure(ieeeAddr, this.shepherd, this.shepherd.find(this.shepherd.info().net.ieeeAddr, 1), (success, msg) => {
                             if (success) {
-                                this.log(`successfully configured ${ieeeAddr} ${dev.name}`);
+                                this.log(`successfully configured ${this.logName(ieeeAddr)}`);
                                 configured.add(ieeeAddr);
                             } else {
-                                this.error(`configure failed ${ieeeAddr} ${dev.name} ${msg}`);
+                                this.error(`configure failed ${this.logName(ieeeAddr)}`);
                             }
                         });
                     }
@@ -720,14 +742,14 @@ module.exports = function (RED) {
             let ieeeAddr;
 
             if (msg.type === 'devIncoming' || msg.type === 'devLeaving') {
-                this.log('indHandler ' + msg.type + ' ' + msg.data);
+                this.log('indHandler ' + msg.type + ' ' + this.logName(msg.data));
                 this.list();
             } else if (msg.type === 'devInterview') {
-                this.log('indHandler ' + msg.type + ' ' + msg.data);
+                this.log('indHandler ' + msg.type + ' ' + this.logName(msg.data));
             } else {
                 const firstEp = (msg && msg.endpoints && msg.endpoints[0]) || {};
                 ieeeAddr = firstEp.device && firstEp.device.ieeeAddr;
-                this.debug('indHandler ' + msg.type + ' ' + ieeeAddr + ' ' + (this.devices[ieeeAddr] && this.devices[ieeeAddr].name) + ' ' + JSON.stringify(msg.data));
+                this.debug('indHandler ' + msg.type + ' ' + this.logName(ieeeAddr) + ' ' + JSON.stringify(msg.data));
 
                 let stateChange;
                 if (this.devices[ieeeAddr]) {
@@ -735,7 +757,7 @@ module.exports = function (RED) {
                     if (this.devices[ieeeAddr].overdue !== false || this.devices[ieeeAddr].status === 'offline') {
                         const timeout = interval[this.devices[ieeeAddr].modelId];
                         if (timeout) {
-                            this.debug('overdue false ' + ieeeAddr + ' ' + this.devices[ieeeAddr].name);
+                            this.debug('overdue false ' + this.logName(ieeeAddr));
                             this.devices[ieeeAddr].overdue = false;
                             stateChange = true;
                         }
@@ -843,7 +865,7 @@ module.exports = function (RED) {
                 const timeout = interval[this.devices[ieeeAddr].modelId];
                 if (timeout && (elapsed > timeout) && (this.devices[ieeeAddr].overdue !== true)) {
                     change = true;
-                    this.info('overdue true ' + ieeeAddr + ' ' + this.devices[ieeeAddr].name);
+                    this.log('overdue true ' + this.logName(ieeeAddr));
                     this.devices[ieeeAddr].overdue = true;
                 }
             });
@@ -923,7 +945,7 @@ module.exports = function (RED) {
                 return;
             }
 
-            this.debug('indLightHandler ' + this.devices[ieeeAddr].name + ' msg.type=' + msg.type + ' msg.data=' + JSON.stringify(msg.data));
+            this.debug('indLightHandler ' + this.logName(ieeeAddr)  + ' msg.type=' + msg.type + ' msg.data=' + JSON.stringify(msg.data));
 
             const ziee = msg.endpoints[0].clusters;
 
@@ -1444,6 +1466,146 @@ module.exports = function (RED) {
                 this.proxy.queue(cmd);
             });
         }
+
+        logName(ieeeAddr) {
+            return this.devices[ieeeAddr] ? `${this.devices[ieeeAddr].name} (${ieeeAddr})` : ieeeAddr;
+        }
+
+        checkOnline(ieeeAddr, callback) {
+            this.shepherd.controller.checkOnline(this.shepherd._findDevByAddr(ieeeAddr), err => {
+                this.debug('checkOnline ' + ieeeAddr + ' ' + err);
+                queueCallback();
+            });
+        }
+
+
+
+        lqiScan(callback) {
+            this.log('Starting lqi scan...');
+            const lqiScanList = new Set();
+            const linkMap = {};
+            const scanQueue = [];
+
+            const processLqiResponse = (error, rsp, targetIeeeAddr, targetNwkAddr) => {
+                console.log('processLqiResponse', rsp, targetIeeeAddr, targetNwkAddr);
+                if (error) {
+                    this.warn(`Failed network lqi scan for device: ${this.logName(targetIeeeAddr)} with error: '${error}'`);
+                } else {
+                    if (lqiScanList.has(targetIeeeAddr)) {
+                        // Haven't processed this one yet
+                            linkMap[targetIeeeAddr] = rsp;
+
+                    } else {
+                        // This target has already had timeout so don't add to result network map
+                        this.warn(`Ignoring late network lqi scan result for: ${this.logName(targetIeeeAddr)}`);
+                    }
+                }
+            };
+
+            const shiftScanQueue = (cb) => {
+                const f = scanQueue.shift();
+                if (f) {
+                    f(() => {
+                        shiftScanQueue(cb);
+                    });
+                } else {
+                    cb();
+                }
+            }
+
+
+            const queueScans = () => {
+                Object.keys(this.devices).filter(ieeeAddr => (this.devices[ieeeAddr].type !== 'EndDevice' && this.devices[ieeeAddr].status === 'online')).forEach(ieeeAddr => {
+                    const dev = this.devices[ieeeAddr];
+                    this.debug(`Queing network scans for device: ${this.logName(dev.ieeeAddr)}`);
+
+                    lqiScanList.add(ieeeAddr);
+                    scanQueue.push((queueCallback) => {
+                        this.debug(`mgmtLqiReq ${this.logName(dev.ieeeAddr)}`);
+                        this.shepherd.controller.request('ZDO', 'mgmtLqiReq', {dstaddr: dev.nwkAddr, startindex: 0},
+                            (error, rsp) => {
+                                processLqiResponse(error, rsp, dev.ieeeAddr, dev.nwkAddr);
+                                queueCallback(error);
+                            });
+                    });
+                });
+
+                console.log('lqiScanList', lqiScanList);
+
+                shiftScanQueue(() => {
+                    callback(linkMap);
+                });
+            }
+
+
+            queueScans();
+
+        }
+
+        rtgScan(callback) {
+            this.log('Starting rtg scan...');
+            const rtgScanList = new Set();
+            const routeMap = {};
+            const scanQueue = [];
+
+
+            const processRtgResponse = (error, rsp, sourceIeeeAddr, sourceNwkAddr) => {
+                console.log('processRtgResponse', rsp, sourceIeeeAddr, sourceNwkAddr);
+                if (error) {
+                    this.warn(`Failed network rtg scan for device: ${this.logName(sourceIeeeAddr)} with error: '${error}'`);
+                } else {
+                    if (rtgScanList.has(sourceIeeeAddr)) {
+                        // Haven't processed this one yet
+                        routeMap[sourceIeeeAddr] = rsp;
+                    } else {
+                        // This source has already had timeout so don't add to result network map
+                        this.warn(`Ignoring late network rtg scan result for: ${this.logName(sourceIeeeAddr)}`);
+                    }
+                }
+            };
+
+            const shiftScanQueue = (cb) => {
+                const f = scanQueue.shift();
+                if (f) {
+                    f(() => {
+                        shiftScanQueue(cb);
+                    });
+                } else {
+                    cb();
+                }
+            }
+
+            const queueScans = () => {
+                Object.keys(this.devices).filter(ieeeAddr => (this.devices[ieeeAddr].type !== 'EndDevice' && this.devices[ieeeAddr].status === 'online')).forEach(ieeeAddr => {
+                    const dev = this.devices[ieeeAddr];
+                    this.debug(`Queing rtg scans for device: ${this.logName(dev.ieeeAddr)}`);
+
+                    rtgScanList.add(ieeeAddr);
+                    scanQueue.push((queueCallback) => {
+                        this.debug(`mgmtRtgReq ${this.logName(dev.ieeeAddr)}`);
+                        this.shepherd.controller.request('ZDO', 'mgmtRtgReq', {dstaddr: dev.nwkAddr, startindex: 0},
+                            (error, rsp) => {
+                                processRtgResponse(error, rsp, dev.ieeeAddr, dev.nwkAddr);
+                                queueCallback(error);
+                            });
+                    });
+                });
+
+                console.log('rtgScanList', rtgScanList);
+
+                shiftScanQueue(() => {
+                    callback(routeMap);
+                });
+            };
+
+            //this.shiftScanQueue(queueScans);
+            queueScans();
+
+        }
+
+
+
+
     }
 
     RED.nodes.registerType('zigbee-shepherd', ZigbeeShepherd, {

@@ -31,7 +31,8 @@
     const container = document.querySelector('#map');
 
     let devices;
-    let scan;
+    let routes = [];
+    let knownRoutes = new Set();
 
     fetch('../devices' + window.location.search)
         .then(response => {
@@ -39,7 +40,7 @@
         })
         .then(data => {
             devices = data;
-            return getScan();
+            return getRtg();
         })
         .catch(err => {
             container.innerHTML = err.message;
@@ -48,20 +49,68 @@
             document.querySelector('#loader').remove();
         });
 
-    function getScan() {
-        return fetch('../scan' + window.location.search)
+    function getRtg() {
+        return fetch('../rtgScan' + window.location.search)
             .then(response => {
                 return response.json();
             })
             .then(data => {
-                scan = data;
+                console.log(data);
+                Object.keys(data).forEach(src => {
+                    if (data[src].routingtablelist) {
+                        data[src].routingtablelist.forEach(route => {
+                            const id = src + '|' + route.nextHopNwkAddr;
+                            if (!knownRoutes.has(id)) {
+                                knownRoutes.add(id);
+                                routes.push({
+                                    sourceIeeeAddr: src,
+                                    targetIeeeAddr: getIeeeAddr(route.nextHopNwkAddr),
+                                    routeStatus: route.routeStatus
+                                });
+                            }
+                        });
+                    }
+                });
+
                 createGraph();
+
             });
+    }
+
+
+    function getIeeeAddr(nwkAddr) {
+        let ieeeAddr;
+        const devs = Object.keys(devices).filter(ieeeAddr => devices[ieeeAddr].nwkAddr === nwkAddr);
+        if (devs.length === 1) {
+            return devs[0];
+        }
     }
 
 
     function createGraph() {
         let coordAddr;
+
+        const routesData = routes.map(route => {
+            return {
+                from: route.sourceIeeeAddr,
+                to: route.targetIeeeAddr,
+                label: String(route.lqi), //rssi(pair.lqi),
+                arrows: 'to',
+                dashes: route.routeStatus === 0,
+                color: {inherit: 'to'},
+                font: {
+                    color: 'rgba(0,0,0,0)'
+                },
+                chosen: {
+                    label: values => {
+                        values.color = {inherit: 'to'};
+                        values.mod = 'bold';
+                    }
+                }
+            };
+        });
+
+        console.log(routesData);
 
         const data = {
             nodes: new vis.DataSet(Object.keys(devices).map(ieeeAddr => {
@@ -75,7 +124,7 @@
                     ? (dev.overdue ? 'overdue' : '')
                     : (dev.status === 'offline' ? 'offline' : '');
                 const isOffline = Boolean(status);
-                const children = scan.filter(pair => pair.parent === dev.ieeeAddr).length;
+                const children = routes.filter(pair => pair.targetIeeeAddr === dev.ieeeAddr).length;
                 const label = [
                     dev.name,
                     dev.type,
@@ -84,7 +133,7 @@
                     dev.modelId,
                     dev.powerSource,
                     !isCoord && status,
-                    children ? 'Children: ' + children : ''
+                    children ? 'Children: ' + children + (isCoord ? (' (' + Object.keys(devices).length + ')') : '') : ''
                 ].filter(v => v).join('\n');
 
                 return {
@@ -102,32 +151,13 @@
                             border: isCoord ? '#028C76' :  isBattery ? '#2B7CE9' : '#2B7CE9'
                         }
                     },
-                    mass: isCoord ? 1.0 : (isRouter ? 1.01 : (isOffline ? 1.03 : 1.02))
+                    //mass: isCoord ? 1.0 : (isRouter ? 1.02 : (isOffline ? 1.035 : 1.025))
 
 
                 }
             })),
 
-            edges: new vis.DataSet(scan.map(pair => {
-                const isOffline = pair.status === 'offline'
-                return {
-                    from: pair.ieeeAddr,
-                    to: pair.parent,
-                    label: rssi(pair.lqi),
-                    arrows: 'to',
-                    dashes: isOffline,
-                    color: {inherit: 'to'},
-                    font: {
-                        color: 'rgba(0,0,0,0)'
-                    },
-                    chosen: {
-                        label: values => {
-                            values.color = {inherit: 'to'};
-                            values.mod = 'bold';
-                        }
-                    }
-                };
-            }))
+            edges: new vis.DataSet(routesData)
         };
 
         const options = {
@@ -142,11 +172,11 @@
                 },
                 barnesHut: {
                     gravitationalConstant: -2000,
-                    centralGravity: 0.35,
+                    centralGravity: 0.37,
                     springLength: 89,
                     springConstant: 0.02,
                     damping: 0.09,
-                    avoidOverlap: 0.2
+                    avoidOverlap: 0.25
                 }
             }
         };
@@ -162,7 +192,7 @@
         Default values for MIN_ED and MAX_ED are -87 and 10 respectively.
      */
     function rssi(lqi) {
-        return String(Math.round(-87 + lqi * 97 / 255));
+        return lqi > 0 ? String(Math.round(-87 + lqi * 97 / 255)) : '';
     }
 </script>
 </body>
