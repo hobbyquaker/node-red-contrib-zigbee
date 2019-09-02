@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-zigbee",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "keywords": [
     "node-red",
     "zigbee",
@@ -20,8 +20,8 @@
     "mkdirp": "^0.5.1",
     "obj-ease": "^1.0.1",
     "vis": "^4.21.0",
-    "zigbee-shepherd": "git+https://github.com/Koenkk/zigbee-shepherd.git#a8b5828200140adf4de83457508576f6879f7ec1",
-    "zigbee-shepherd-converters": "8.1.4"
+    "zigbee-herdsman": "0.1.17",
+    "zigbee-shepherd-converters": "10.1.4"
   },
   "scripts": {
     "test": "camo-purge; xo",

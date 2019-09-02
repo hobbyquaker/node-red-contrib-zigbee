@@ -12,7 +12,7 @@ proprietary bridges anymore, use devices of different vendors in one Zigbee netw
 
 ## Credits
 
-Based on [Koenkk's fork](https://github.com/Koenkk/zigbee-shepherd) of 
+Based on [zigbee-herdsman](https://github.com/Koenkk/zigbee-herdsman), Koenkk's fork of 
 [Zigbee Shepherd](https://github.com/zigbeer/zigbee-shepherd). Strongly inspired by his awesome
 [zigbee2mqtt](https://github.com/Koenkk/zigbee2mqtt) project. All credits belong to him and the creators of the 
 zigbee-shepherd.
