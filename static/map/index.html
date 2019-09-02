@@ -137,9 +137,9 @@
             return {
                 to: route.targetIeeeAddr,
                 from: route.sourceIeeeAddr,
-                label: `RSSI=${rssi(route.lqi)}`,
-                arrows: 'to',
-                dashes: route.routeStatus === 0,
+                label: rssi(route.lqi),
+                arrows: 'from',
+                dashes: typeof route.lqi === 'undefined',
                 color: {inherit: 'to'},
                 font: {
                     color: 'rgba(0,0,0,0)'
@@ -235,7 +235,7 @@
         Default values for MIN_ED and MAX_ED are -87 and 10 respectively.
      */
     function rssi(lqi) {
-        return lqi > 0 ? String(Math.round(-87 + lqi * 97 / 255)) : '';
+        return lqi ? (String(Math.round(-87 + lqi * 97 / 255)) + ' dBm') : '';
     }
 </script>
 </body>
