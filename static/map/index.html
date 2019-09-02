@@ -22,7 +22,7 @@
 </style>
 </head><body>
 <h4>ZigBee Network Map</h4>
-<img src="loader.gif" id="loader">
+<div id="loader"><img src="loader.gif" id="loader"><br><span id="status"></span></div>
 <div id="map"></div>
 
 
@@ -32,7 +32,7 @@
 
     let devices;
     let routes = [];
-    let knownRoutes = new Set();
+    let routesMap = {}
 
     fetch('../devices' + window.location.search)
         .then(response => {
@@ -42,6 +42,7 @@
             devices = data;
             return getRtg();
         })
+        .then(getLqi)
         .catch(err => {
             container.innerHTML = err.message;
         })
@@ -50,36 +51,78 @@
         });
 
     function getRtg() {
+        document.querySelector('#status').innerHTML = 'rtgScan...';
         return fetch('../rtgScan' + window.location.search)
             .then(response => {
                 return response.json();
             })
             .then(data => {
-                console.log(data);
+                console.log('rtgScan', data);
                 Object.keys(data).forEach(src => {
                     if (data[src].routingtablelist) {
                         data[src].routingtablelist.forEach(route => {
                             const id = src + '|' + route.nextHopNwkAddr;
-                            if (!knownRoutes.has(id)) {
-                                knownRoutes.add(id);
-                                routes.push({
+                            if (!routesMap[id]) {
+                                routesMap[id] = {
                                     sourceIeeeAddr: src,
-                                    targetIeeeAddr: getIeeeAddr(route.nextHopNwkAddr),
-                                    routeStatus: route.routeStatus
-                                });
+                                    targetIeeeAddr: getIeeeAddr(route.nextHopNwkAddr == 65534 ? route.destNwkAddr : route.nextHopNwkAddr),
+                                    routeStatus: route.routeStatus,
+                                    count: 1
+                                };
+                            } else {
+                                routesMap[id].count += 1;
+                                routesMap[id].routeStatus |= route.routeStatus
                             }
+
                         });
                     }
                 });
 
-                createGraph();
 
+
+            })
+
+    }
+
+    function getLqi() {
+        document.querySelector('#status').innerHTML = 'lqiScan...';
+        return fetch('../lqiScan' + window.location.search)
+            .then(response => {
+                return response.json();
+            })
+            .then(data => {
+                console.log('lqiScan', data);
+                Object.keys(data).forEach(sourceIeeeAddr => {
+                    data[sourceIeeeAddr].neighborlqilist.forEach(neighbour => {
+                        const id = sourceIeeeAddr + '|' + neighbour.nwkAddr;
+                        if (!routesMap[id]) {
+                            routesMap[id] = {
+                                sourceIeeeAddr,
+                                targetIeeeAddr: neighbour.extAddr,
+                                routeStatus: 0,
+                                relationship: neighbour.relationship,
+                                depth: neighbour.depth,
+                                lqi: neighbour.lqi,
+                                count: 1
+                            };
+                        } else {
+                            routesMap[id].count += 1;
+                            routesMap[id].lqi = neighbour.lqi;
+                            routesMap[id].depth = neighbour.depth;
+                            routesMap[id].relationship = neighbour.relationship;
+                        }
+                    });
+                });
+
+                console.log('routesMap', routesMap);
+                Object.keys(routesMap).forEach(id => {
+                    routes.push(routesMap[id]);
+                });
+                createGraph();
             });
     }
 
-
     function getIeeeAddr(nwkAddr) {
-        let ieeeAddr;
         const devs = Object.keys(devices).filter(ieeeAddr => devices[ieeeAddr].nwkAddr === nwkAddr);
         if (devs.length === 1) {
             return devs[0];
@@ -89,12 +132,12 @@
 
     function createGraph() {
         let coordAddr;
-
+        console.log('routes', routes);
         const routesData = routes.map(route => {
             return {
-                from: route.sourceIeeeAddr,
                 to: route.targetIeeeAddr,
-                label: String(route.lqi), //rssi(pair.lqi),
+                from: route.sourceIeeeAddr,
+                label: `RSSI=${rssi(route.lqi)}`,
                 arrows: 'to',
                 dashes: route.routeStatus === 0,
                 color: {inherit: 'to'},
@@ -124,7 +167,7 @@
                     ? (dev.overdue ? 'overdue' : '')
                     : (dev.status === 'offline' ? 'offline' : '');
                 const isOffline = Boolean(status);
-                const children = routes.filter(pair => pair.targetIeeeAddr === dev.ieeeAddr).length;
+                const children = routes.filter(pair => pair.sourceIeeeAddr === dev.ieeeAddr).length;
                 const label = [
                     dev.name,
                     dev.type,
