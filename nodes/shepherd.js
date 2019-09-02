@@ -1041,11 +1041,27 @@ module.exports = function (RED) {
             // xy_inc [] 0.5 0.5
 
             const lightIndex = msg.topic.match(/lights\/(\d+)\/state/)[1];
+            const ieeeAddr = this.lightsInternal[lightIndex].ieeeAddr;
 
-            const dev = this.devices[this.lightsInternal[lightIndex].ieeeAddr];
+            if (!ieeeAddr) {
+                this.error('unknown light ' + lightIndex);
+                return;
+            }
+
+            const dev = this.devices[ieeeAddr];
 
             const cmds = [];
 
+            clearTimeout(this.retryTimer[ieeeAddr]);
+
+            const retry = () => {
+                if (retryCount++ < 3)  {
+                    this.retryTimer[ieeeAddr] = setTimeout(() => {
+                        this.debug('putLightState retry ' + retryCount);
+                        this.putLightsState(msg, retryCount);
+                    }, 250);
+                }
+            };
 
             const attributes = [];
 
@@ -1071,7 +1087,7 @@ module.exports = function (RED) {
                             },
                             disBlockQueue: true,
                             callback: (err, res) => {
-                                this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes);
+                                this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
                             }
                         });
                     } else {
@@ -1088,7 +1104,7 @@ module.exports = function (RED) {
                             },
                             disBlockQueue: true,
                             callback: (err, res) => {
-                                this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes);
+                                this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
                             }
                         });
                     }
@@ -1132,7 +1148,7 @@ module.exports = function (RED) {
                         },
                         disBlockQueue: true,
                         callback: (err, res) => {
-                            this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes);
+                            this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
                         }
                     });
                 //}
@@ -1157,7 +1173,7 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
                     }
                 });
             }
@@ -1180,7 +1196,7 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr);
                     }
                 });
             } else if (typeof msg.payload.xy_inc !== 'undefined') {
@@ -1201,7 +1217,7 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
                     }
                 });
             } else if (typeof msg.payload.ct !== 'undefined') {
@@ -1222,7 +1238,7 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
                     }
                 });
             } else if (typeof msg.payload.ct_inc !== 'undefined') {
@@ -1247,7 +1263,7 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
                     }
                 });
             } else if (typeof msg.payload.hue === 'undefined') {
@@ -1269,7 +1285,7 @@ module.exports = function (RED) {
                         },
                         disBlockQueue: true,
                         callback: (err, res) => {
-                            this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes);
+                            this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
                         }
                     });
                 } else if (typeof msg.payload.hue_inc !== 'undefined' && typeof msg.payload.sat_inc !== 'undefined') {
@@ -1298,7 +1314,7 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
                     }
                 });
             }
@@ -1333,7 +1349,7 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, []);
+                        this.handlePutLightStateCallback(err, res, lightIndex, msg, [], dev.ieeeAddr) || retry();
                     }
                 });
             }
@@ -1355,11 +1371,11 @@ module.exports = function (RED) {
             });
         }
 
-        handlePutLightStateCallback(err, res, lightIndex, msg, attributes) {
+        handlePutLightStateCallback(err, res, lightIndex, msg, attributes, ieeeAddr) {
             if (err) {
-                this.error('handlePutLightStateCallback ' + lightIndex + ' ' + err.message + ' ' + JSON.stringify(attributes) + ' ' + JSON.stringify(res));
+                this.error('handlePutLightStateCallback ' + this.logName(ieeeAddr) + ' ' + err.message + ' ' + JSON.stringify(attributes) + ' ' + JSON.stringify(res));
             } else {
-                this.debug('handlePutLightStateCallback ' + lightIndex + ' ' + JSON.stringify(attributes) + ' ' + JSON.stringify(res));
+                this.debug('handlePutLightStateCallback ' + this.logName(ieeeAddr) + ' ' + JSON.stringify(attributes) + ' ' + JSON.stringify(res));
             }
             if (err) {
                 let newState = {reachable: false};
