@@ -555,6 +555,7 @@ module.exports = function (RED) {
             this.devices = devices[this.id];
             this.lights = lights[this.id];
             this.lightsInternal = {};
+            this.retryTimer = {};
 
             let precfgkey;
             if (this.credentials.precfgkey) {
