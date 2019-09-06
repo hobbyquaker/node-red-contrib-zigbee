@@ -165,8 +165,6 @@ module.exports = function (RED) {
                         this.models.set(device.modelId, model);
                     }
 
-
-
                     if (model) {
                         // Find a converter for this message.
                         const {cid, cmdId} = message.data;
@@ -192,8 +190,6 @@ module.exports = function (RED) {
                                 out.payload = {};
                             }
 
-
-
                             converters.forEach(converter => {
                                 const publish = convertedPayload => {
                                     if (config.payload === 'plain') {
@@ -212,7 +208,7 @@ module.exports = function (RED) {
                                             this.send(out);
                                         }
                                     }
-                                }
+                                };
 
                                 const convertedPayload = converter.convert(model, message, publish, {});
 

@@ -647,6 +647,7 @@ module.exports = function (RED) {
                     if (err) {
                         this.error('stop ' + err);
                     }
+
                     Object.keys(listeners).forEach(event => {
                         this.shepherd.removeListener(event, listeners[event]);
                     });
