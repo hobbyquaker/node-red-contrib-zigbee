@@ -60,7 +60,7 @@ module.exports = function (RED) {
                         ieeeAddr,
                         name: this.shepherdNode.devices[ieeeAddr].name || ieeeAddr
                     };
-                    //console.log('offline', msg.name, msg.payload);
+                    this.debug(msg.name + ' ' + msg.payload);
                     msg.topic = this.topicReplace(this.topic, msg);
                     this.send(msg);
                 }
