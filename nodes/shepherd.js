@@ -708,6 +708,7 @@ module.exports = function (RED) {
 
                 this.log(`${ieeeAddr} ${dev.name} (${dev.type} ${dev.manufName} ${dev.modelId})`);
                 this.devices[ieeeAddr].ts = now;
+                this.devices[ieeeAddr].status = 'online';
                 delete this.devices[ieeeAddr].overdue;
 
                 this.initLight(ieeeAddr);
