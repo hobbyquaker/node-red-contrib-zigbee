@@ -165,6 +165,8 @@ module.exports = function (RED) {
                         this.models.set(device.modelId, model);
                     }
 
+
+
                     if (model) {
                         // Find a converter for this message.
                         const {cid, cmdId} = message.data;
@@ -190,10 +192,10 @@ module.exports = function (RED) {
                                 out.payload = {};
                             }
 
-                            converters.forEach(converter => {
-                                const convertedPayload = converter.convert(model, message, () => {}, {});
 
-                                if (convertedPayload) {
+
+                            converters.forEach(converter => {
+                                const publish = convertedPayload => {
                                     if (config.payload === 'plain') {
                                         Object.keys(convertedPayload).forEach(key => {
                                             if (config.attribute === '' || config.attribute === key) {
@@ -210,6 +212,12 @@ module.exports = function (RED) {
                                             this.send(out);
                                         }
                                     }
+                                }
+
+                                const convertedPayload = converter.convert(model, message, publish, {});
+
+                                if (convertedPayload) {
+                                    publish(convertedPayload);
                                 }
                             });
                         } else if (cid) {
