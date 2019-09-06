@@ -494,8 +494,8 @@ module.exports = function (RED) {
                             if (err) {
                                 this.error(err.message);
                                 if (this.devices[cmd.ieeeAddr].status === 'online') {
-                                    this.devices[cmd.ieeeAddr].status = 'offline';
-                                    this.emit('devices', this.devices);
+                                //    this.devices[cmd.ieeeAddr].status = 'offline';
+                                //    this.emit('devices', this.devices);
                                 }
                             } else {
                                 this.debug('defaultRsp ' + cmd.cmdType + ' ' + this.logName(cmd.ieeeAddr) + ' ' + cmd.cid + ' ' + cmd.attrId + ' ' + JSON.stringify(res));
@@ -616,7 +616,7 @@ module.exports = function (RED) {
                 if (error) {
                     this.proxy.emit('nodeStatus', {fill: 'red', shape: 'ring', text: error.message + ', retrying'});
                     this.error(error.message + ', retrying');
-                    this.shepherd.controller._znp.close((() => null));
+                    this.shepherd.controller._znp.close((() => {}));
 
                     setTimeout(() => {
                         this.shepherd.start(error => {
@@ -643,7 +643,10 @@ module.exports = function (RED) {
                 this.debug('stopping');
                 clearInterval(checkOverdueInterval);
                 this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'ring', text: 'closing'});
-                this.shepherd.stop(() => {
+                this.shepherd.stop(err => {
+                    if (err) {
+                        this.error('stop ' + err);
+                    }
                     Object.keys(listeners).forEach(event => {
                         this.shepherd.removeListener(event, listeners[event]);
                     });
@@ -1056,6 +1059,7 @@ module.exports = function (RED) {
 
             const retry = () => {
                 if (retryCount++ < 3) {
+                    clearTimeout(this.retryTimer[ieeeAddr]);
                     this.retryTimer[ieeeAddr] = setTimeout(() => {
                         this.debug('putLightState retry ' + retryCount);
                         this.putLightsState(msg, retryCount);
@@ -1087,7 +1091,11 @@ module.exports = function (RED) {
                         },
                         disBlockQueue: true,
                         callback: (err, res) => {
-                            this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
+                            if (this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr)) {
+                                clearTimeout(this.retryTimer[ieeeAddr]);
+                            } else {
+                                retry();
+                            }
                         }
                     });
                 } else {
@@ -1104,7 +1112,11 @@ module.exports = function (RED) {
                         },
                         disBlockQueue: true,
                         callback: (err, res) => {
-                            this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
+                            if (this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr)) {
+                                clearTimeout(this.retryTimer[ieeeAddr]);
+                            } else {
+                                retry();
+                            }
                         }
                     });
                 }
@@ -1144,7 +1156,11 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
+                        if (this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr)) {
+                            clearTimeout(this.retryTimer[ieeeAddr]);
+                        } else {
+                            retry();
+                        }
                     }
                 });
                 //}
@@ -1168,7 +1184,11 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
+                        if (this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr)) {
+                            clearTimeout(this.retryTimer[ieeeAddr]);
+                        } else {
+                            retry();
+                        }
                     }
                 });
             }
@@ -1191,7 +1211,11 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr);
+                        if (this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr)) {
+                            clearTimeout(this.retryTimer[ieeeAddr]);
+                        } else {
+                            retry();
+                        }
                     }
                 });
             } else if (typeof msg.payload.xy_inc !== 'undefined') {
@@ -1212,7 +1236,11 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
+                        if (this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr)) {
+                            clearTimeout(this.retryTimer[ieeeAddr]);
+                        } else {
+                            retry();
+                        }
                     }
                 });
             } else if (typeof msg.payload.ct !== 'undefined') {
@@ -1233,7 +1261,11 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
+                        if (this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr)) {
+                            clearTimeout(this.retryTimer[ieeeAddr]);
+                        } else {
+                            retry();
+                        }
                     }
                 });
             } else if (typeof msg.payload.ct_inc !== 'undefined') {
@@ -1258,7 +1290,11 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
+                        if (this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr)) {
+                            clearTimeout(this.retryTimer[ieeeAddr]);
+                        } else {
+                            retry();
+                        }
                     }
                 });
             } else if (typeof msg.payload.hue === 'undefined') {
@@ -1280,7 +1316,11 @@ module.exports = function (RED) {
                         },
                         disBlockQueue: true,
                         callback: (err, res) => {
-                            this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
+                            if (this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr)) {
+                                clearTimeout(this.retryTimer[ieeeAddr]);
+                            } else {
+                                retry();
+                            }
                         }
                     });
                 } else if (typeof msg.payload.hue_inc !== 'undefined' && typeof msg.payload.sat_inc !== 'undefined') {
@@ -1309,7 +1349,11 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr) || retry();
+                        if (this.handlePutLightStateCallback(err, res, lightIndex, msg, attributes, dev.ieeeAddr)) {
+                            clearTimeout(this.retryTimer[ieeeAddr]);
+                        } else {
+                            retry();
+                        }
                     }
                 });
             }
@@ -1344,7 +1388,11 @@ module.exports = function (RED) {
                     },
                     disBlockQueue: true,
                     callback: (err, res) => {
-                        this.handlePutLightStateCallback(err, res, lightIndex, msg, [], dev.ieeeAddr) || retry();
+                        if (this.handlePutLightStateCallback(err, res, lightIndex, msg, [], dev.ieeeAddr)) {
+                            clearTimeout(this.retryTimer[ieeeAddr]);
+                        } else {
+                            retry();
+                        }
                     }
                 });
             }
