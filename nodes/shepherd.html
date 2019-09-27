@@ -23,7 +23,7 @@
             }
         },
         defaults: {
-            name: {value: 'zigbee shepherd', require: true},
+            name: {value: 'zigbee herdsman', require: true},
             path: {value: '/dev/ttyACM0', required: true},
             baudRate: {value: 115200, required: true},
             rtscts: {value: true},
@@ -31,10 +31,84 @@
             led: {value: 'disabled'}
         },
         label() {
-            return this.name || 'zigbee shepherd';
+            return this.name || 'zigbee herdsman';
         },
-        paletteLabel: 'shepherd',
+        paletteLabel: 'herdsman',
         oneditprepare() {
+            const {id} = this;
+
+            const clusters = {};
+
+            $.getJSON('zigbee-shepherd/definitions', data => {
+                Object.keys(data.Cluster).forEach(cluster => {
+                    clusters[data.Cluster[cluster].ID] = cluster;
+                });
+            });
+
+            const tabs = RED.tabs.create({
+                id: 'node-config-zigbee-shepherd-tabs',
+                onchange(tab) {
+                    $('#node-config-zigbee-shepherd-tabs-content').children().hide();
+                    $('#' + tab.id).show();
+                }
+            });
+            tabs.addTab({
+                id: 'zigbee-shepherd-tab-config',
+                label: 'Config'
+            });
+            tabs.addTab({
+                id: 'zigbee-shepherd-tab-devices',
+                label: 'Devices'
+            });
+            tabs.addTab({
+                id: 'zigbee-shepherd-tab-reporting',
+                label: 'Reporting'
+            });
+            tabs.addTab({
+                id: 'zigbee-shepherd-tab-groups',
+                label: 'Groups'
+            });
+            tabs.addTab({
+                id: 'zigbee-shepherd-tab-binds',
+                label: 'Binds'
+            });
+
+            $('#error-dialog').dialog({
+                id: 'error-dialog-ui',
+                autoOpen: false,
+                modal: true,
+                closeOnEscape: true,
+                width: 480,
+                buttons: [
+                    {
+                        text: 'Dismiss',
+                        click() {
+                            $(this).dialog('close');
+                        }
+                    }
+                ]
+            });
+
+            function showError(msg) {
+                $('#error-message').html(msg);
+                $('#error-dialog').dialog('open');
+            }
+
+            function getStatus() {
+                $.get('zigbee-shepherd/status?id=' + id, status => {
+                    $('#status').html(status);
+                    switch (status) {
+                        case 'connected':
+                            break;
+                        case 'join permitted':
+                            break;
+                        default:
+                    }
+                });
+            }
+
+            this.statusInterval = setInterval(getStatus, 1000);
+
             $('#rtscts').val(String(Boolean(this.rtscts)));
             $('#rtscts').trigger('change');
 
@@ -51,8 +125,518 @@
                     $('#channel-' + channel).prop('checked', true);
                 }
             });
+
+            function isRouter(device) {
+                return device.type === 'Router'; //&& !forceEndDevice.includes(device.modelID),
+            }
+
+            function isBatteryPowered(device) {
+                device.powerSource && device.powerSource === 'Battery';
+            }
+
+            // Tab Devices
+            let devices = [];
+
+            const refreshDevices = () => {
+                if (this.refreshPending) {
+                    return;
+                }
+
+                this.refreshPending = true;
+
+                $.getJSON('zigbee-shepherd/devices?id=' + id, data => {
+                    this.devices = data;
+                    devices = data;
+                    const known = [];
+                    const deviceSelect = [];
+                    data.forEach(device => {
+                        deviceSelect.push(`<option value="${device.ieeeAddr}">${device.ieeeAddr} ${device.meta.name}</option>`);
+                        if (device.type === 'Coordinator') {
+                            $('#coordinator-addr').html(device.ieeeAddr);
+                        } else {
+                            if ($('.device-select').find('option[value="' + device.ieeeAddr + '"]').length === 0) {
+                                const desc = (device.meta.name || '') + ' ' + device.ieeeAddr;
+                                $('.device-select').append(`<option value="${device.ieeeAddr}">${desc}</option>`);
+                            }
+
+                            known.push(device.ieeeAddr);
+                            if ($('.device-address.incomplete[data-addr="' + device.ieeeAddr + '"]')) {
+                                $('.device-address.incomplete[data-addr="' + device.ieeeAddr + '"]').parent().parent().remove();
+                            }
+
+                            if ($('ol#devices .device-name[data-addr="' + device.ieeeAddr + '"]').length === 0) {
+                                $('ol#devices').editableList('addItem', device);
+                            }
+
+                            if ($('ol#reporting .device-report[data-addr="' + device.ieeeAddr + '"]').length === 0) {
+                                if (isRouter(device) && !isBatteryPowered(device) && device.modelID !== 'lumi.router') {
+                                    $('ol#reporting').editableList('addItem', device);
+                                }
+                            }
+                        }
+
+                        if (device.meta.binds) {
+                            console.log('has binds', device.ieeeAddr, device.meta.binds);
+                            device.meta.binds.forEach((bind, index) => {
+                                const {targetDevice} = bind;
+                                const tDevice = devices.find(d => d.ieeeAddr === targetDevice);
+                                const targetName = tDevice ? tDevice.meta.name : '';
+                                const data = {...bind, ieeeAddr: device.ieeeAddr, index, name: device.meta.name, targetName};
+                                console.log(data);
+                                if ($('ol#binds .bind-address[data-addr="' + device.ieeeAddr + '"][data-index="' + index + '"]').length === 0) {
+                                    $('ol#binds').editableList('addItem', data);
+                                }
+                            });
+                        }
+                    });
+                    $('ol#devices li .device-name').each(function () {
+                        const addr = $(this).data('addr');
+                        if (!known.includes(addr)) {
+                            $(this).parent().parent().remove();
+                        }
+                    });
+                    $('ol#reporting li .device-report').each(function () {
+                        const addr = $(this).data('addr');
+                        if (!known.includes(addr)) {
+                            $(this).parent().parent().remove();
+                        }
+                    });
+                    $('#add-bind-device').html(deviceSelect);
+                    $('#add-bind-targetDevice').html(deviceSelect);
+
+                    autocompleteMemberEndpoint();
+
+                    this.refreshPending = false;
+                });
+            };
+
+            $('ol#binds').editableList({
+                addItem(row, index, data) {
+                    $(row).html(`<span class="bind-title">Source:</span>
+                        <span data-addr="${data.ieeeAddr}" data-index="${data.index}" class="bind-address">${data.ieeeAddr}</span>
+                        <span class="bind-endpoint">${data.endpoint}</span>
+                        <span class="bind-cluster">${data.cluster}</span>
+                        <span class="bind-name">${data.name}</span>
+                        <br>
+                        <span class="bind-title">Target:</span>
+                        <span class="bind-targetIeeeAddr">${data.targetDevice}</span>
+                        <span class="bind-targetEndpoint">${data.targetEndpoint}</span>
+                        <span class="bind-cluster"></span>
+                        <span class="bind-targetName">${data.targetName}</span>
+                        <a href="#" data-device="${data.ieeeAddr}" data-endpoint="${data.endpoint}" data-cluster="${data.cluster}" data-target-device="${data.targetDevice}" data-target-endpoint="${data.targetEndpoint}" data-index="${data.index}" class="bind-remove red-ui-editableList-item-remove editor-button editor-button-small"><i class="fa fa-remove"></i></a>
+                    `);
+                },
+                addButton: false,
+                removable: false
+            });
+
+            $('ol#reporting').editableList({
+                addItem(row, index, device) {
+                    $(row).html(`<span data-addr="${device.ieeeAddr}" class="device-address">${device.ieeeAddr}<br>${device.type}</span>
+                        <span class="device-model">${device.manufacturerName}<br>${device.modelID}</span>
+                        <span class="checkbox-reporting"><input data-addr="${device.ieeeAddr}" class="device-report" type="checkbox" ${device.meta.shouldReport ? 'checked' : ''}></span>
+                        <span class="member-name">${device.meta.name}</span>
+                    `);
+                },
+                addButton: false,
+                removable: false
+            });
+
+            $('ol#devices').editableList({
+                addItem(row, index, data) {
+                    $(row).html(`<span data-addr="${data.ieeeAddr}" class="device-address ${data.interviewCompleted ? '' : 'incomplete'}">${data.ieeeAddr}<br>${data.type}</span>
+                        <span class="device-model">${data.manufacturerName}<br>${data.modelID}</span>
+                        <input style="margin-top: -13px" class="device-name" data-addr="${data.ieeeAddr}" value="${data.meta.name}" type="text">
+                        <a href="#" data-addr="${data.ieeeAddr}" class="device-remove red-ui-editableList-item-remove editor-button editor-button-small"><i class="fa fa-remove"></i></a>
+                    `);
+                },
+                addButton: false,
+                removable: false
+            });
+
+            $('ol#devices').on('click', '.device-remove', function () {
+                $(this).addClass('disabled');
+                $.get('zigbee-shepherd/remove?id=' + id + '&ieeeAddr=' + $(this).data('addr'), () => {
+                    refreshDevices();
+                });
+            });
+
+            $('#soft-reset').click(() => {
+                $.getJSON('zigbee-shepherd/soft-reset?id=' + id, () => {});
+            });
+
+            $('#join-permit').click(() => {
+                $.getJSON('zigbee-shepherd/join?id=' + id + '&permit=true', () => {});
+                clearInterval(this.refreshInterval);
+                this.refreshInterval = setInterval(() => {
+                    refreshDevices();
+                }, 1000);
+            });
+
+            $('#join-stop').click(() => {
+                $.getJSON('zigbee-shepherd/join?id=' + id + '&permit=false');
+                clearInterval(this.refreshInterval);
+            });
+
+            $('#topology-link').attr('href', 'zigbee-shepherd/map/index.html?id=' + id);
+
+            $('#topology').click(() => {
+                $('#topology-view').show();
+            });
+            $('#topology-close').click(() => {
+                $('#topology-view').hide();
+            });
+
+            refreshDevices(true);
+
+            // Groups
+
+            let groups;
+            let selectedGroup;
+
+            $('ol#groups').editableList({
+                addItem(row, index, data) {
+                    $(row).html(`<div class="group-row ${data.selected ? 'selected' : ''}" data-groupid="${data.groupID}" data-name="${data.name}">
+                            <span class="group-id">${data.groupID}</span><input class="group-name" data-groupid="${data.groupID}" type="text" value="${data.name}">
+                            <a href="#" data-groupid="${data.groupID}" style="right: 5px" class="${data.members.length > 0 ? 'disabled' : ''} group-remove red-ui-editableList-item-remove editor-button editor-button-small"><i class="fa fa-remove"></i></a>
+                        </div>
+                    `);
+                },
+                addButton: false,
+                removable: false
+            });
+
+            $('ol#groups').on('click', '.group-remove', function () {
+                const groupID = parseInt($(this).data('groupid'), 10);
+                console.log('remove group', groupID);
+                $(this).addClass('disabled');
+                $.ajax({
+                    type: 'POST',
+                    url: 'zigbee-shepherd/removeGroup?id=' + id,
+                    contentType: 'application/json',
+                    data: JSON.stringify({groupID}),
+                    success: () => {
+                        selectedGroup = null;
+                        refreshGroups();
+                    },
+                    error: xhr => {
+                        showError(xhr.responseText);
+                    }
+                });
+            });
+
+            $('ol#members').editableList({
+                addItem(row, index, data) {
+                    const {device, endpoint} = data;
+                    $(row).html(`<span data-addr="${device.ieeeAddr}" class="device-address">${device.ieeeAddr}<br>${device.type}</span>
+                        <span class="device-model">${device.manufacturerName}<br>${device.modelID}</span>
+                        <span class="member-endpoint">${endpoint.ID}</span>
+                        <span class="member-name">${device.meta.name}</span>
+                        <a href="#" data-epid="${endpoint.ID}" data-addr="${device.ieeeAddr}" class="member-remove red-ui-editableList-item-remove editor-button editor-button-small"><i class="fa fa-remove"></i></a>
+                    `);
+                },
+                addButton: false,
+                removable: false
+            });
+
+            $('ol#members').on('click', '.member-remove', function () {
+                $(this).addClass('disabled');
+                console.log('remove member', selectedGroup, $(this).data('addr'));
+                $.ajax({
+                    type: 'POST',
+                    url: 'zigbee-shepherd/removeFromGroup?id=' + id,
+                    contentType: 'application/json',
+                    data: JSON.stringify({groupID: selectedGroup, ieeeAddr: $(this).data('addr'), epID: parseInt($(this).data('epid'), 10)}),
+                    success: res => {
+                        console.log(res);
+                        $(this).parent().parent().remove();
+                        refreshGroups();
+                    },
+                    error: xhr => {
+                        $(this).removeClass('disabled');
+                        showError(xhr.responseText);
+                    }
+                });
+            });
+
+            function refreshMembers() {
+                console.log('refreshMembers', selectedGroup);
+                $('ol#members').editableList('empty');
+                $('#selected-group').html('');
+                console.log('groups', groups);
+                const group = groups.find(group => group.groupID === selectedGroup);
+                if (!group) {
+                    return;
+                }
+
+                console.log('group', group);
+                console.log('members', group.members);
+                const deviceList = [];
+                group.members.forEach(member => {
+                    const device = devices.find(device => device.ieeeAddr === member.deviceIeeeAddress);
+                    deviceList.push({device, endpoint: {ID: member.ID}});
+                    $('ol#members').editableList('empty');
+                    $('ol#members').editableList('addItems', deviceList);
+                });
+                $('#selected-group').html('Members of Group ' + group.groupID + '  ' + group.meta.name);
+            }
+
+            $('ol#groups').on('click', '.group-row', function () {
+                const groupID = parseInt($(this).data('groupid'), 10);
+                $('#add-member').removeClass('disabled');
+                $('ol#groups .group-row').removeClass('selected');
+                $(this).addClass('selected');
+                selectedGroup = groupID;
+                refreshMembers();
+            });
+
+            function refreshGroups() {
+                $.getJSON('zigbee-shepherd/groups?id=' + id, data => {
+                    groups = data;
+                    this.groups = data;
+                    $('#add-bind-group').html('');
+                    $('ol#groups').editableList('empty');
+                    groups.forEach(group => {
+                        $('#add-bind-group').append(`<option value="${group.groupID}">${group.groupID} ${group.meta.name}</option>`);
+                        $('ol#groups').editableList('addItem', {groupID: group.groupID, name: group.meta.name, members: group.members, selected: selectedGroup === group.groupID});
+                    });
+                    refreshMembers();
+                });
+            }
+
+            refreshGroups();
+
+            function autocompleteCluster() {
+                const ieeeAddr = $('#add-bind-device').val();
+                const device = devices.filter(d => d.ieeeAddr === ieeeAddr)[0];
+                if (!device) {
+                    $('#add-bind-cluster').html('');
+                    return;
+                }
+
+                const epId = parseInt($('#add-bind-endpoint').val(), 10);
+                const endpoint = device.endpoints.filter(e => e.ID === epId)[0];
+                if (!endpoint) {
+                    $('#add-bind-cluster').html('');
+                    return;
+                }
+
+                $('#add-bind-cluster').html([...endpoint.inputClusters, ...endpoint.outputClusters].map(cid => `<option>${clusters[cid]}</option>`));
+            }
+
+            function autocompleteEndpoint() {
+                const ieeeAddr = $('#add-bind-device').val();
+                const device = devices.filter(d => d.ieeeAddr === ieeeAddr)[0];
+                if (!device) {
+                    $('#add-bind-endpoint').html('');
+                    return;
+                }
+
+                $('#add-bind-endpoint').html(device.endpoints.map(e => `<option value="${e.ID}">${e.ID}</option>`));
+                autocompleteCluster();
+            }
+
+            $('#add-member-select').change(autocompleteMemberEndpoint);
+
+            function autocompleteMemberEndpoint() {
+                const ieeeAddr = $('#add-member-select').val();
+                const device = devices.filter(d => d.ieeeAddr === ieeeAddr)[0];
+                if (!device) {
+                    $('#add-member-endpoint-select').html('');
+                    return;
+                }
+
+                $('#add-member-endpoint-select').html(device.endpoints.map(e => `<option value="${e.ID}">${e.ID}</option>`));
+            }
+
+            function autocompleteTargetEndpoint() {
+                const ieeeAddr = $('#add-bind-targetDevice').val();
+                const device = devices.filter(d => d.ieeeAddr === ieeeAddr)[0];
+                if (!device) {
+                    $('#add-bind-targetEndpoint').html('');
+                    return;
+                }
+
+                $('#add-bind-targetEndpoint').html(device.endpoints.map(e => `<option value="${e.ID}">${e.ID}</option>`));
+            }
+
+            $('#add-bind-device').change(autocompleteEndpoint);
+            $('#add-bind-targetDevice').change(autocompleteTargetEndpoint);
+            $('#add-bind-endpoint').change(autocompleteCluster);
+
+            $('#add-member-dialog').dialog({
+                autoOpen: false,
+                modal: true,
+                closeOnEscape: true,
+                width: 600,
+                buttons: [
+                    {
+                        text: 'Add Member',
+                        id: 'add-member',
+                        click() {
+                            const ieeeAddr = $('#add-member-select').val();
+                            const endpoint = parseInt($('#add-member-endpoint-select').val(), 10);
+                            console.log('add member', selectedGroup, ieeeAddr);
+                            $.ajax({
+                                type: 'POST',
+                                url: 'zigbee-shepherd/addGroupMember?id=' + id,
+                                contentType: 'application/json',
+                                data: JSON.stringify({groupID: selectedGroup, ieeeAddr, endpoint}),
+                                success: () => {
+                                    refreshGroups();
+                                    refreshMembers();
+                                    $(this).dialog('close');
+                                },
+                                error: xhr => {
+                                    showError(xhr.responseText);
+                                }
+                            });
+                        }
+                    },
+                    {
+                        text: 'Cancel',
+                        click() {
+                            $(this).dialog('close');
+                        }
+                    }
+                ]
+            });
+            $('#add-member').click(() => {
+                $('#add-member-dialog').dialog('open');
+            });
+
+            $('#add-group-dialog').dialog({
+                autoOpen: false,
+                modal: true,
+                closeOnEscape: true,
+                width: 400,
+                buttons: [
+                    {
+                        text: 'Add Group',
+                        id: 'add-group',
+                        click() {
+                            const groupID = parseInt($('#add-group-id').val(), 10);
+                            const name = $('#add-group-name').val();
+                            console.log('add group', groupID, name);
+
+                            $.ajax({
+                                type: 'POST',
+                                url: 'zigbee-shepherd/createGroup?id=' + id,
+                                contentType: 'application/json',
+                                data: JSON.stringify({groupID, name}),
+                                success: res => {
+                                    console.log(res);
+                                    $(this).dialog('close');
+                                    refreshGroups();
+                                },
+                                error: xhr => {
+                                    showError(xhr.responseText);
+                                }
+                            });
+                        }
+                    }, {
+                        text: 'Cancel',
+                        click() {
+                            $(this).dialog('close');
+                        }
+                    }
+                ]
+            });
+            $('#add-group').click(() => {
+                $('#add-group-dialog').dialog('open');
+            });
+
+            $('ol#binds').on('click', '.bind-remove', function () {
+                $(this).addClass('disabled');
+                console.log(this);
+                $.ajax({
+                    type: 'POST',
+                    url: 'zigbee-shepherd/unbind?id=' + id,
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        device: $(this).data('device'),
+                        endpoint: $(this).data('endpoint'),
+                        cluster: $(this).data('cluster'),
+                        type: $(this).data('type') || 'endpoint',
+                        targetDevice: $(this).data('target-device'),
+                        targetEndpoint: $(this).data('target-endpoint')
+                    }),
+                    success: () => {
+                        $(this).parent().parent().remove();
+                    },
+                    error: xhr => {
+                        $(this).removeClass('disabled');
+                        showError(xhr.responseText);
+                    }
+                });
+            });
+
+            $('#add-bind-dialog').dialog({
+                autoOpen: false,
+                modal: true,
+                closeOnEscape: true,
+                width: 480,
+                buttons: [
+                    {
+                        text: 'Add Bind',
+                        id: 'add-bind-do',
+                        click() {
+                            const device = $('#add-bind-device').val();
+                            const endpoint = parseInt($('#add-bind-endpoint').val(), 10);
+                            const cluster = $('#add-bind-cluster').val();
+                            const type = $('#add-bind-type').val();
+                            const targetDevice = $('#add-bind-targetDevice').val();
+                            const targetEndpoint = parseInt($('#add-bind-targetEndpoint').val(), 10);
+                            const group = parseInt($('#add-bind-group').val(), 10);
+
+                            $.ajax({
+                                type: 'POST',
+                                url: 'zigbee-shepherd/bind?id=' + id,
+                                contentType: 'application/json',
+                                data: JSON.stringify({device, endpoint, cluster, type, group, targetDevice, targetEndpoint}),
+                                success: () => {
+                                    refreshDevices();
+                                    $(this).dialog('close');
+                                },
+                                error: xhr => {
+                                    showError(xhr.responseText);
+                                }
+                            });
+                        }
+                    }, {
+                        text: 'Cancel',
+                        click() {
+                            $(this).dialog('close');
+                        }
+                    }
+                ]
+            });
+            $('#add-bind').click(() => {
+                $('#add-bind-device').val('');
+                $('#add-bind-endpoint').val('');
+                $('#add-bind-cluster').val('');
+                $('#add-bind-type').val('endpoint');
+                $('#add-bind-targetDevice').val('');
+                $('#add-bind-targetEndpoint').val('');
+                $('#add-bind-group').val('');
+                $('#add-bind-dialog').dialog('open');
+            });
+            $('#add-bind-type').change(function () {
+                if ($(this).val() === 'endpoint') {
+                    $('.bind-to-group').hide();
+                    $('.bind-to-endpoint').show();
+                } else {
+                    $('.bind-to-endpoint').hide();
+                    $('.bind-to-group').show();
+                }
+            });
         },
         oneditsave() {
+            console.log('oneditsave');
+            clearInterval(this.statusInterval);
+            clearInterval(this.refreshInterval);
+            $.getJSON('zigbee-shepherd/join?id=' + this.id + '&permit=false');
+
             const arr = [];
             for (let i = 11; i <= 26; i++) {
                 if ($('#channel-' + i).is(':checked')) {
@@ -62,32 +646,60 @@
 
             this.channelList = arr;
             this.rtscts = $('#rtscts').val() === 'true';
+
+            const {devices, groups, id} = this;
+            $('ol#devices .device-name').each(function () {
+                const ieeeAddr = $(this).data('addr');
+                const name = $(this).val();
+                const device = devices.find(dev => dev.ieeeAddr === ieeeAddr);
+                if (device.meta.name !== name) {
+                    $.ajax({
+                        type: 'POST',
+                        url: 'zigbee-shepherd/rename?id=' + id,
+                        contentType: 'application/json',
+                        data: JSON.stringify({ieeeAddr, name})
+                    });
+                }
+            });
+            $('ol#groups .group-name').each(function () {
+                const groupID = parseInt($(this).data('groupid'), 10);
+                const name = $(this).val();
+                const group = groups.find(group => group.groupID === groupID);
+                if (group.meta.name !== name) {
+                    console.log('rename', groupID, name);
+                    $.ajax({
+                        type: 'POST',
+                        url: 'zigbee-shepherd/rename?id=' + id,
+                        contentType: 'application/json',
+                        data: JSON.stringify({groupID, name})
+                    });
+                }
+            });
+            $('ol#reporting .device-report').each(function () {
+                const ieeeAddr = $(this).data('addr');
+                const shouldReport = $(this).is(':checked');
+                const device = devices.find(dev => dev.ieeeAddr === ieeeAddr);
+                if (Boolean(device.meta.shouldReport) !== shouldReport) {
+                    $.ajax({
+                        type: 'POST',
+                        url: 'zigbee-shepherd/report?id=' + id,
+                        contentType: 'application/json',
+                        data: JSON.stringify({ieeeAddr, shouldReport})
+                    });
+                }
+            });
+        },
+        oneditcancel() {
+            console.log('oneditcancel');
+            clearInterval(this.statusInterval);
+            clearInterval(this.refreshInterval);
+            $.getJSON('zigbee-shepherd/join?id=' + this.id + '&permit=false');
         }
 
     });
 </script>
 
 <script type="text/x-red" data-template-name="zigbee-shepherd">
-    <div class="form-row">
-        <label for="node-config-input-name"><i class="icon-bookmark"></i> name</label>
-        <input type="text" id="node-config-input-name">
-    </div>
-    <div class="form-row"><h4>serialport</h4></div>
-    <div class="form-row">
-        <label for="node-config-input-path"><i class="icon-bookmark"></i> path</label>
-        <input type="text" id="node-config-input-path">
-    </div>
-    <div class="form-row">
-        <label for="node-config-input-baudRate"><i class="icon-bookmark"></i> baudRate</label>
-        <input type="text" id="node-config-input-baudRate">
-    </div>
-    <div class="form-row">
-        <label for="rtscts"><i class="icon-bookmark"></i> rtscts</label>
-        <select id="rtscts">
-            <option value="true">true</option>
-            <option value="false">false</option>
-        </select>
-    </div>
 
     <style>
         #channels {
@@ -108,55 +720,319 @@
             vertical-align: text-bottom;
 
         }
+
+        ul#node-config-zigbee-shepherd-tabs li.red-ui-tab {
+            max-width: 120px;
+        }
+        .device-select {
+            width: 360px;
+        }
+        .group-row {
+            padding: 5px;
+            width: calc(100% - 10px);
+            height: 100%;
+        }
+        .group-row.selected {
+            background-color: #eee;
+        }
+        .member-endpoint, .member-name {
+            display: inline-block;
+            vertical-align: top;
+        }
+        .member-endpoint {
+            width: 40px;
+            text-align: right;
+            padding-right: 24px;
+        }
+        .group-id {
+            display: inline-block;
+            width: 60px;
+            text-align: right;
+            padding-right: 12px;
+        }
+        .checkbox-reporting {
+            vertical-align: top;
+            margin-right: 20px;
+        }
+        .checkbox-reporting input {
+            width: auto;
+        }
+        ol#reporting .member-name {
+            vertical-align: 8px;
+        }
+        .bind-endpoint, .bind-targetEndpoint {
+            display: inline-block;
+            text-align: right;
+            width: 40px;
+
+        }
+        .bind-cluster {
+            display: inline-block;
+            width: 130px;
+            margin-left: 12px;
+
+        }
+
+
     </style>
 
-    <div class="form-row"><h4>zigbee</h4></div>
+    <div class="form-row">
+        Status: <span id="status"></span>
+    </div>
 
     <div class="form-row">
-        <label id="channels-label" for="channels"><i class="icon-bookmark"></i> channels<br><br><br></label>
-        <div id="channels">
+        <ul style="background: #fff; min-width: 480px; margin-bottom: 20px;" id="node-config-zigbee-shepherd-tabs"></ul>
+    </div>
 
-            <label><input type="checkbox" id="channel-11"> 11</label>
-            <label><input type="checkbox" id="channel-12"> 12</label>
-            <label><input type="checkbox" id="channel-13"> 13</label>
-            <label><input type="checkbox" id="channel-14"> 14</label>
-            <label><input type="checkbox" id="channel-15"> 15</label><br>
-            <label><input type="checkbox" id="channel-16"> 16</label>
-            <label><input type="checkbox" id="channel-17"> 17</label>
-            <label><input type="checkbox" id="channel-18"> 18</label>
-            <label><input type="checkbox" id="channel-19"> 19</label>
-            <label><input type="checkbox" id="channel-20"> 20</label><br>
-            <label><input type="checkbox" id="channel-21"> 21</label>
-            <label><input type="checkbox" id="channel-22"> 22</label>
-            <label><input type="checkbox" id="channel-23"> 23</label>
-            <label><input type="checkbox" id="channel-24"> 24</label>
-            <label><input type="checkbox" id="channel-25"> 25</label><br>
-            <label><input type="checkbox" id="channel-26"> 26</label>
+    <div id="node-config-zigbee-shepherd-tabs-content" style="min-height: 170px;">
+        <div id="zigbee-shepherd-tab-config" style="display:none">
 
+            <div class="form-row">
+                <label for="node-config-input-name"><i class="icon-bookmark"></i> name</label>
+                <input type="text" id="node-config-input-name">
+            </div>
+            <div class="form-row"><h4>serialport</h4></div>
+            <div class="form-row">
+                <label for="node-config-input-path"><i class="icon-bookmark"></i> path</label>
+                <input type="text" id="node-config-input-path">
+            </div>
+            <div class="form-row">
+                <label for="node-config-input-baudRate"><i class="icon-bookmark"></i> baudRate</label>
+                <input type="text" id="node-config-input-baudRate">
+            </div>
+            <div class="form-row">
+                <label for="rtscts"><i class="icon-bookmark"></i> rtscts</label>
+                <select id="rtscts">
+                    <option value="true">true</option>
+                    <option value="false">false</option>
+                </select>
+            </div>
+
+
+            <div class="form-row"><h4>zigbee</h4></div>
+
+            <div class="form-row">
+                <label id="channels-label" for="channels"><i class="icon-bookmark"></i> channels<br><br><br></label>
+                <div id="channels">
+
+                    <label><input type="checkbox" id="channel-11"> 11</label>
+                    <label><input type="checkbox" id="channel-12"> 12</label>
+                    <label><input type="checkbox" id="channel-13"> 13</label>
+                    <label><input type="checkbox" id="channel-14"> 14</label>
+                    <label><input type="checkbox" id="channel-15"> 15</label><br>
+                    <label><input type="checkbox" id="channel-16"> 16</label>
+                    <label><input type="checkbox" id="channel-17"> 17</label>
+                    <label><input type="checkbox" id="channel-18"> 18</label>
+                    <label><input type="checkbox" id="channel-19"> 19</label>
+                    <label><input type="checkbox" id="channel-20"> 20</label><br>
+                    <label><input type="checkbox" id="channel-21"> 21</label>
+                    <label><input type="checkbox" id="channel-22"> 22</label>
+                    <label><input type="checkbox" id="channel-23"> 23</label>
+                    <label><input type="checkbox" id="channel-24"> 24</label>
+                    <label><input type="checkbox" id="channel-25"> 25</label><br>
+                    <label><input type="checkbox" id="channel-26"> 26</label>
+
+                </div>
+            </div>
+
+            <div class="form-row">
+                <label for="node-config-input-panId"><i class="icon-bookmark"></i> panId</label>
+                <input type="text" id="node-config-input-panId">
+            </div>
+
+            <div class="form-row">
+                <label for="node-config-input-precfgkey"><i class="icon-bookmark"></i> networkKey</label>
+                <input type="text" id="node-config-input-precfgkey">
+            </div>
+            <div class="form-row">
+                <label for="node-config-input-led"><i class="icon-bookmark"></i> CC2531 LED</label>
+                <select id="node-config-input-led">
+                    <option value="disabled">disabled</option>
+                    <option value="enabled">enabled</option>
+                </select>
+            </div>
+            <div class="form-row">
+                Changing the configuration of an already existing Herdsman needs a Node-RED restart after deployment.
+            </div>
         </div>
-    </div>
-
-    <div class="form-row">
-        <label for="node-config-input-panId"><i class="icon-bookmark"></i> panId</label>
-        <input type="text" id="node-config-input-panId">
-    </div>
-
-    <div class="form-row">
-        <label for="node-config-input-precfgkey"><i class="icon-bookmark"></i> precfgkey</label>
-        <input type="text" id="node-config-input-precfgkey">
-    </div>
-    <div class="form-row">
-        <label for="node-config-input-led"><i class="icon-bookmark"></i> CC2531 LED</label>
-        <select id="node-config-input-led">
-            <option value="disabled">disabled</option>
-            <option value="enabled">enabled</option>
-        </select>
-    </div>
-    <div class="form-row">
-        Changing the configuration of an already existing Shepherd needs a Node-RED restart after deployment.
-    </div>
 
 
+        <div id="zigbee-shepherd-tab-devices" style="display:none">
+            <style>
+                .device-address, .device-type, .device-model {
+                    display: inline-block !important;
+                    overflow: hidden;
+                    white-space: nowrap;
+                    text-overflow: ellipsis;
+                    font-size: 10px;
+                    line-height: 12px;
+                    padding: 2px;
+                }
+                .device-address {
+                    width: 110px;
+                }
+                .bind-address, .bind-targetIeeeAddr {
+                    width: 150px;
+                    display: inline-block;
+                }
+                .bind-title {
+                    width: 54px;
+                    display: inline-block;
 
+                }
+                .device-model {
+                    width: 110px;
+                }
+                input.device-name {
+                    width: calc(100% - 270px) !important;
+                    display: inline-block !important;
+                }
+                input.device-remove {
+                    margin-left: 4px;
+                    width: 20px !important;
+                    display: inline-block !important;
+                    font-size: 10px;
+                }
+                #join-permit, #join-stop {
+                    width: 80px;
+                    display: inline-block;
+                }
+                .incomplete {
+                    color: #777;
+                }
+                #add-bind-dialog select {
+                    width: 70%;
+                }
+                ol#groups li {
+                    padding: 0;
+                }
+            </style>
+            <div class="form-row"><h4>join</h4></div>
+            <div class="form-row">
+                <input id="join-permit" type="button" value="permit">
+                <input id="join-stop" type="button" value="stop">
+                <!--
+                <input id="soft-reset" type="button" value="soft-reset z-stack">
+
+                <select id="join-type">
+                    <option value="all">Coordinator and Routers</option>
+                    <option value="coord">Coordinator only</option>
+                </select>
+
+                -->
+                <span id="join-time"></span>
+            </div>
+             <div class="form-row">
+                <a href="zigbee-herdsman/graphviz" target="_blank" id="topology-link">Network Map</a>
+             </div>
+            <!--
+            <div class="form-row">
+                <input id="topology" type="button" value="topology">
+            </div>
+            -->
+            <div class="form-row"><h4>devices</h4></div>
+
+
+            <div class="form-row">
+                Coordinator: <span id="coordinator-addr"></span>
+            </div>
+            <div class="form-row">
+                <ol id="devices"></ol>
+            </div>
+
+            <div id="topology-view" style="position:fixed;top:0;left:0;height:100vh;width:100vw;background-color:grey; display: none;">
+                <button id="topology-close">close</button>
+            </div>
+        </div>
+
+        <div id="zigbee-shepherd-tab-reporting" style="display:none">
+            <div class="form-row">
+                <h4>Reporting</h4>
+            </div>
+            <div class="form-row">
+                <ol id="reporting"></ol>
+            </div>
+        </div>
+
+        <div id="zigbee-shepherd-tab-groups" style="display:none">
+            <div class="form-row">
+                Groups
+            </div>
+            <div class="form-row">
+                <ol id="groups"></ol>
+                <a href="#" id="add-group" class="editor-button editor-button-small red-ui-editableList-addButton" style="margin-top: 4px;"><i class="fa fa-plus"></i> add group</a>
+            </div>
+            <div id="add-group-dialog" title="Add Group" dialog>
+                <div class="form-row">
+                    <label for="add-group-id">ID</label>
+                    <input id="add-group-id" type="number">
+                </div>
+                <div class="form-row">
+                    <label for="add-group-name">Name</label>
+                    <input id="add-group-name" type="text">
+                </div>
+
+            </div>
+            <div class="form-row">
+               <span id="selected-group"></span>
+            </div>
+            <div class="form-row">
+                <ol id="members"></ol>
+                <a href="#" id="add-member" class="disabled editor-button editor-button-small red-ui-editableList-addButton" style="margin-top: 4px;"><i class="fa fa-plus"></i> add member</a>
+            </div>
+            <div id="add-member-dialog" title="Add Member" dialog>
+                <select id="add-member-select" class="device-select"></select>
+                <select id="add-member-endpoint-select" class=""></select>
+            </div>
+        </div>
+
+
+        <div id="zigbee-shepherd-tab-binds" style="display:none">
+            <div class="form-row">
+                <ol id="binds"></ol>
+                <a href="#" id="add-bind" class="editor-button editor-button-small red-ui-editableList-addButton" style="margin-top: 4px;"><i class="fa fa-plus"></i> add bind</a>
+            </div>
+            <div id="add-bind-dialog" title="Add Bind" dialog>
+                <div class="form-row">
+                    <label for="add-bind-device">Device</label>
+                    <select id="add-bind-device"></select>
+                </div>
+                <div class="form-row">
+                    <label for="add-bind-endpoint">Endpoint</label>
+                    <select id="add-bind-endpoint"></select>
+                </div>
+                <div class="form-row">
+                    <label for="add-bind-cluster">Cluster</label>
+                    <select id="add-bind-cluster"></select>
+                </div>
+                <div class="form-row">
+                    <label for="add-bind-type">Target</label>
+                    <select id="add-bind-type">
+                        <option value="endpoint">Endpoint</option>
+                        <option disabled value="group">Group</option>
+                    </select>
+                </div>
+                <div class="bind-to-endpoint">
+                    <div class="form-row">
+                        <label for="add-bind-targetDevice">Target Device</label>
+                        <select id="add-bind-targetDevice"></select>
+                    </div>
+                    <div class="form-row">
+                        <label for="add-bind-targetEndpoint">Target Endpoint</label>
+                        <select id="add-bind-targetEndpoint"></select>
+                    </div>
+                </div>
+                <div class="form-row bind-to-group" style="display: none;">
+                    <label for="add-bind-group">Target Group</label>
+                    <select id="add-bind-group"></select>
+                </div>
+            </div>
+        </div>
+
+        <div id="error-dialog" title="Error" dialog>
+            <div id="error-message"></div>
+        </div>
+
+    </div>
 
 </script>

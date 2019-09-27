@@ -33,41 +33,49 @@
     const routes = [];
     const routesMap = {};
 
+    const knownDevices = [];
+
     fetch('../devices' + window.location.search)
         .then(response => {
             return response.json();
         })
         .then(data => {
             devices = data;
-            return getRtg();
+            devices.forEach(device => {
+                knownDevices.push(device.ieeeAddr);
+            });
+            console.log('devices', devices);
         })
+        .then(getRtg)
         .then(getLqi)
         .catch(err => {
             container.innerHTML = err.message;
         })
         .finally(() => {
             document.querySelector('#loader').remove();
+            createGraph();
         });
 
     function getRtg() {
-        document.querySelector('#status').innerHTML = 'rtgScan...';
+        document.querySelector('#status').innerHTML = 'get routing tables...';
         return fetch('../rtgScan' + window.location.search)
             .then(response => {
                 return response.json();
             })
             .then(data => {
                 console.log('rtgScan', data);
+
                 Object.keys(data).forEach(src => {
-                    if (data[src].routingtablelist) {
-                        data[src].routingtablelist.forEach(route => {
-                            const id = src + '|' + route.nextHopNwkAddr;
+                    if (data[src]) {
+                        data[src].forEach(route => {
+                            const id = src + '|' + route.nextHop;
                             if (routesMap[id]) {
                                 routesMap[id].count += 1;
-                                routesMap[id].routeStatus |= route.routeStatus;
+                                routesMap[id].status = route.status;
                             } else {
                                 routesMap[id] = {
                                     sourceIeeeAddr: src,
-                                    targetIeeeAddr: getIeeeAddr(route.nextHopNwkAddr === 65534 ? route.destNwkAddr : route.nextHopNwkAddr),
+                                    targetIeeeAddr: getIeeeAddr(route.nextHop === 65534 ? route.destinationAddress : route.nextHop),
                                     routeStatus: route.routeStatus,
                                     count: 1
                                 };
@@ -79,29 +87,41 @@
     }
 
     function getLqi() {
-        document.querySelector('#status').innerHTML = 'lqiScan...';
+        document.querySelector('#status').innerHTML = 'get lqi lists...';
         return fetch('../lqiScan' + window.location.search)
             .then(response => {
                 return response.json();
             })
             .then(data => {
                 console.log('lqiScan', data);
+
                 Object.keys(data).forEach(sourceIeeeAddr => {
-                    data[sourceIeeeAddr].neighborlqilist.forEach(neighbour => {
-                        const id = sourceIeeeAddr + '|' + neighbour.nwkAddr;
+                    data[sourceIeeeAddr].forEach(neighbour => {
+                        if (!knownDevices.includes(neighbour.ieeeAddr)) {
+                            devices.push({
+                                ieeeAddr: neighbour.ieeeAddr,
+                                foreign: true,
+                                meta: {}
+                            });
+                        }
+
+                        const id = sourceIeeeAddr + '|' + neighbour.networkAddress;
                         if (routesMap[id]) {
-                            routesMap[id].count += 1;
-                            routesMap[id].lqi = neighbour.lqi;
+                            if (knownDevices.includes(neighbour.ieeeAddr)) {
+                                routesMap[id].count += 1;
+                            }
+
+                            routesMap[id].lqi = neighbour.linkquality;
                             routesMap[id].depth = neighbour.depth;
                             routesMap[id].relationship = neighbour.relationship;
                         } else {
                             routesMap[id] = {
                                 sourceIeeeAddr,
-                                targetIeeeAddr: neighbour.extAddr,
+                                targetIeeeAddr: neighbour.ieeeAddr,
                                 routeStatus: 0,
                                 relationship: neighbour.relationship,
                                 depth: neighbour.depth,
-                                lqi: neighbour.lqi,
+                                lqi: neighbour.linkquality,
                                 count: 1
                             };
                         }
@@ -112,14 +132,13 @@
                 Object.keys(routesMap).forEach(id => {
                     routes.push(routesMap[id]);
                 });
-                createGraph();
             });
     }
 
     function getIeeeAddr(nwkAddr) {
-        const devs = Object.keys(devices).filter(ieeeAddr => devices[ieeeAddr].nwkAddr === nwkAddr);
+        const devs = devices.filter(device => device.networkAddress === nwkAddr);
         if (devs.length === 1) {
-            return devs[0];
+            return devs[0].ieeeAddr;
         }
     }
 
@@ -149,29 +168,32 @@
         console.log(routesData);
 
         const data = {
-            nodes: new vis.DataSet(Object.keys(devices).map(ieeeAddr => {
-                const dev = devices[ieeeAddr];
+            nodes: new vis.DataSet(devices.map(dev => {
                 const isCoord = dev.type === 'Coordinator';
                 //if (isCoord) {
                 //    coordAddr = ieeeAddr;
                 //}
                 //const isRouter = dev.type === 'Router';
                 const isBattery = dev.powerSource === 'Battery';
-                const id = ieeeAddr;
-                const status = isBattery ?
-                    (dev.overdue ? 'overdue' : '') :
-                    (dev.status === 'offline' ? 'offline' : '');
-                const isOffline = Boolean(status);
+                const id = dev.ieeeAddr;
+                let status = '';
+                if (dev.meta.offline === true) {
+                    status = 'offline';
+                } else if (dev.meta.offline === false) {
+                    status = 'online';
+                }
+
+                const isOffline = dev.meta.offline === true;
                 const children = routes.filter(pair => pair.sourceIeeeAddr === dev.ieeeAddr).length;
                 const label = [
                     dev.name,
                     dev.type,
                     dev.ieeeAddr,
-                    dev.manufName,
-                    dev.modelId,
+                    dev.manufacturerName,
+                    dev.modelID,
                     dev.powerSource,
                     !isCoord && status,
-                    children ? 'Children: ' + children + (isCoord ? (' (' + Object.keys(devices).length + ')') : '') : ''
+                    children ? 'Children: ' + children + (isCoord ? (' (' + devices.length + ')') : '') : ''
                 ].filter(v => v).join('\n');
 
                 return {
@@ -182,11 +204,11 @@
                         borderDashes: isOffline
                     },
                     color: {
-                        background: isCoord ? '#B2DC96' : isBattery ? '#E5F2FF' : '#D2E5FF',
-                        border: isCoord ? '#028C76' : isBattery ? '#3386E9' : '#2B7CE9',
+                        background: dev.foreign ? '#eee' : isCoord ? '#B2DC96' : (isBattery ? '#E5F2FF' : '#D2E5FF'),
+                        border: dev.foreign ? '#ccc' : isCoord ? '#028C76' : (isBattery ? '#3386E9' : '#2B7CE9'),
                         highlight: {
-                            background: isCoord ? '#B2DC96' : isBattery ? '#D2E5FF' : '#D2E5FF',
-                            border: isCoord ? '#028C76' : isBattery ? '#2B7CE9' : '#2B7CE9'
+                            background: dev.foreign ? '#eee' : isCoord ? '#B2DC96' : (isBattery ? '#D2E5FF' : '#D2E5FF'),
+                            border: dev.foreign ? '#aaa' : isCoord ? '#028C76' : (isBattery ? '#2B7CE9' : '#2B7CE9')
                         }
                     }
                     //mass: isCoord ? 1.0 : (isRouter ? 1.02 : (isOffline ? 1.035 : 1.025))
@@ -228,7 +250,8 @@
         Default values for MIN_ED and MAX_ED are -87 and 10 respectively.
      */
     function rssi(lqi) {
-        return lqi ? (String(Math.round(-87 + (lqi * 97 / 255))) + ' dBm') : '';
+        const rssi = Math.round(-87 + (lqi * 97 / 255));
+        return lqi ? `${rssi} dBm\n(${lqi})` : '';
     }
 </script>
 </body>

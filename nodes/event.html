@@ -6,8 +6,8 @@
             shepherd: {value: '', type: 'zigbee-shepherd', required: true},
             name: {value: ''},
             device: {value: ''},
-            events: {value: ['attReport']},
-            topic: {value: 'zigbee/${ieeeAddr}/${event}/${epId}/${cid}/${attribute}'},
+            events: {value: ['attributeReport', 'command']},
+            topic: {value: 'zigbee/${ieeeAddr}/${type}/${endpoint}/${cluster}/${attribute}'},
             payload: {value: 'json'}
         },
         inputs: 0,
@@ -31,11 +31,11 @@
                 const id = $('#node-input-shepherd').val();
                 $.getJSON('zigbee-shepherd/devices?id=' + id, data => {
                     $('#node-input-device').html('<option value="">*</option>');
-                    Object.keys(data).forEach(addr => {
-                        if (data[addr].type !== 'Coordinator') {
-                            const selected = addr === this.device ? ' selected' : '';
-                            const desc = (data[addr].name || '') + ' ' + data[addr].modelId + ' ' + addr;
-                            $('#node-input-device').append(`<option value="${addr}"${selected}>${desc}</option>`);
+                    data.forEach(device => {
+                        if (device.type !== 'Coordinator') {
+                            const selected = this.device === device.ieeeAddr ? ' selected' : '';
+                            const desc = (device.meta.name || '') + ' ' + device.modelID + ' ' + device.ieeeAddr;
+                            $('#node-input-device').append(`<option value="${device.ieeeAddr}"${selected}>${desc}</option>`);
                         }
                     });
                     $('#node-input-device').trigger('change');
@@ -44,7 +44,7 @@
         },
         oneditsave() {
             this.events = [];
-            ['attReport', 'devChange', 'devStatus', 'devIncoming', 'devLeaving', 'statusChange', 'cmd', 'readRsp'].forEach(event => {
+            ['attributeReport', 'command', 'readResponse'].forEach(event => {
                 if ($('#node-input-event-' + event).is(':checked')) {
                     this.events.push(event);
                 }
@@ -55,7 +55,7 @@
 
 <script type="text/x-red" data-template-name="zigbee-event">
     <div class="form-row">
-        <label for="node-input-shepherd"><i class="icon-global"></i> shepherd</label>
+        <label for="node-input-shepherd"><i class="icon-global"></i> herdsman</label>
         <input type="text" id="node-input-shepherd">
     </div>
     <div class="form-row">
@@ -84,14 +84,9 @@
             }
         </style>
         <div id="event" style="width: 70%">
-            <label for="node-input-event-attReport"><input type="checkbox" id="node-input-event-attReport"/>attReport</label>
-            <label for="node-input-event-statusChange"><input type="checkbox" id="node-input-event-attReport"/>statusChange</label><br>
-            <label for="node-input-event-cmd"><input type="checkbox" id="node-input-event-cmd"/>cmd*</label>
-            <label for="node-input-event-readRsp"><input type="checkbox" id="node-input-event-readRsp"/>readRsp</label><br>
-            <label for="node-input-event-devChange"><input type="checkbox" id="node-input-event-devChange"/>devChange</label>
-            <label for="node-input-event-devStatus"><input type="checkbox" id="node-input-event-devStatus"/>devStatus</label><br>
-            <label for="node-input-event-devIncoming"><input type="checkbox" id="node-input-event-devIncoming"/>devIncoming</label>
-            <label for="node-input-event-devLeaving"><input type="checkbox" id="node-input-event-devLeaving"/>devLeaving</label>
+            <label for="node-input-event-attributeReport"><input type="checkbox" id="node-input-event-attributeReport"/>attributeReport</label>
+            <label for="node-input-event-command"><input type="checkbox" id="node-input-event-command"/>command*</label>
+            <label for="node-input-event-readResponse"><input type="checkbox" id="node-input-event-readResponse"/>readResponse</label><br>
         </div>
     </div>
 

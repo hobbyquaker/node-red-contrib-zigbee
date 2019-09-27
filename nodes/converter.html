@@ -14,7 +14,7 @@
         inputs: 1,
         outputs: 1,
         icon: 'bee.png',
-        color: '#DEBD5C',
+        color: '#E2D96E',
         paletteLabel: 'converter',
         align: 'left',
         label() {
@@ -31,11 +31,11 @@
                 $.getJSON('zigbee-shepherd/devices?id=' + id, data => {
                     devices = data;
                     $('#node-input-device').html('<option value="">*</option>');
-                    Object.keys(data).forEach(addr => {
-                        if (data[addr].type !== 'Coordinator') {
-                            const selected = addr === this.device ? ' selected' : '';
-                            const desc = (data[addr].name || '') + ' ' + data[addr].modelId + ' ' + addr;
-                            $('#node-input-device').append(`<option value="${addr}"${selected}>${desc}</option>`);
+                    devices.forEach(device => {
+                        if (device.type !== 'Coordinator') {
+                            const selected = device.ieeeAddr === this.device ? ' selected' : '';
+                            const desc = (device.meta.name || '') + ' ' + device.modelID + ' ' + device.ieeeAddr;
+                            $('#node-input-device').append(`<option value="${device.ieeeAddr}"${selected}>${desc}</option>`);
                         }
                     });
                     $('#node-input-device').trigger('change');
@@ -74,7 +74,7 @@
 
 <script type="text/x-red" data-template-name="zigbee-converter">
     <div class="form-row">
-        <label for="node-input-shepherd"><i class="icon-global"></i> shepherd</label>
+        <label for="node-input-shepherd"><i class="icon-global"></i> herdsman</label>
         <input type="text" id="node-input-shepherd">
     </div>
     <div class="form-row">

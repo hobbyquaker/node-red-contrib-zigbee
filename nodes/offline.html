@@ -20,15 +20,19 @@
             return this.name ? 'node_label_italic' : '';
         },
         oneditprepare() {
-            $('#node-input-shepherd').change(() => {
-                const id = $('#node-input-shepherd').val();
+            $('#node-input-shepherd').change(e => {
+                const id = e.target.value;
+                if (id === '_ADD_') {
+                    return;
+                }
+
                 $.getJSON('zigbee-shepherd/devices?id=' + id, data => {
                     $('#node-input-device').html('<option value="">*</option>');
-                    Object.keys(data).forEach(addr => {
-                        if (data[addr].type !== 'Coordinator') {
-                            const selected = addr === this.device ? ' selected' : '';
-                            const desc = (data[addr].name || '') + ' ' + data[addr].modelId + ' ' + addr;
-                            $('#node-input-device').append(`<option value="${addr}"${selected}>${desc}</option>`);
+                    data.forEach(device => {
+                        if (device.type !== 'Coordinator') {
+                            const selected = device.ieeeAddr === this.device ? ' selected' : '';
+                            const desc = (device.meta.name || '') + ' ' + device.modelID + ' ' + device.ieeeAddr;
+                            $('#node-input-device').append(`<option value="${device.ieeeAddr}"${selected}>${desc}</option>`);
                         }
                     });
                     $('#node-input-device').trigger('change');
@@ -43,7 +47,7 @@
 
 <script type="text/x-red" data-template-name="zigbee-offline">
     <div class="form-row">
-        <label for="node-input-shepherd"><i class="icon-global"></i> shepherd</label>
+        <label for="node-input-shepherd"><i class="icon-global"></i> herdsman</label>
         <input type="text" id="node-input-shepherd">
     </div>
 

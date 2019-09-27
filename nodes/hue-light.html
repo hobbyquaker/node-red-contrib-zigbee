@@ -13,16 +13,16 @@
         outputLabels: ['response', 'light state changes'],
         icon: 'bee.png',
         color: '#E2D96E',
-        paletteLabel: 'hue light',
+        paletteLabel: 'hue',
         align: 'left',
         label() {
-            return this.name || 'hue light';
+            return this.name || 'hue';
         },
         labelStyle() {
             return this.name ? 'node_label_italic' : '';
         },
         oneditprepare() {
-            $.getJSON('zigbee-shepherd/hue?id=' + $('#node-input-shepherd').val(), data => {
+            $.getJSON('zigbee-shepherd/hue?id=' + $('#node-input-herdsman').val(), data => {
                 Object.keys(data).forEach(index => {
                     const light = data[index];
                     $('#lights').append(`<tr><td style="text-align: right;">${index}</td><td>${light.name}</td><td>${light.manufacturername}</td><td>${light.modelid}</td><td>${light.type}</td></tr>`);
@@ -34,7 +34,7 @@
 
 <script type="text/x-red" data-template-name="zigbee-hue-light">
     <div class="form-row">
-        <label for="node-input-shepherd"><i class="icon-global"></i> shepherd</label>
+        <label for="node-input-shepherd"><i class="icon-global"></i> herdsman</label>
         <input type="text" id="node-input-shepherd">
     </div>
     <div class="form-row">

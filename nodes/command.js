@@ -18,115 +18,63 @@ module.exports = function (RED) {
 
             this.shepherd = shepherdNode.shepherd;
 
-            this.on('input', msg => {
-                let configZclData;
-
-                try {
-                    if (typeof configZclData !== 'object') {
-                        configZclData = JSON.parse(config.zclData);
-                    }
-                } catch (err) {
-                    configZclData = {};
+            let configZclData;
+            try {
+                if (typeof configZclData !== 'object') {
+                    configZclData = JSON.parse(config.zclData);
                 }
+            } catch (_) {
+                configZclData = {};
+            }
 
+            let configAttributesRead;
+            try {
+                configAttributesRead = JSON.parse(config.configAttributesRead);
+            } catch (_) {
+                configAttributesRead = {};
+            }
+
+            let configAttributesWrite;
+            try {
+                configAttributesWrite = JSON.parse(config.configAttributesWrite);
+            } catch (_) {
+                configAttributesWrite = {};
+            }
+
+            this.on('input', msg => {
                 const cmdType = msg.cmdType || config.cmdType;
                 const ieeeAddr = msg.ieeeAddr || ((config.ieeeAddr || '').split(' ')[0]);
-                const ep = parseInt(msg.ep || config.ep, 10);
-                const destination = msg.destination || config.destination;
-                const dstIeeeAddr = msg.dstIeeeAddr || ((config.dstIeeeAddr || '').split(' ')[0]);
-                const dstEp = parseInt(msg.dstEp || config.dstEp, 10);
-                const dstGroup = msg.dstGroup || config.dstGroup;
-                const cid = msg.cid || config.cid;
-                const cmd = msg.cmd || config.cmd;
-                const data = msg.data || (config.dataType === 'num' ? Number(config.data) : String(config.data));
-                const zclData = msg.zclData || configZclData;
-                const attrId = msg.attrId || config.attrId;
-                const minInt = msg.minInt || config.minInt;
-                const maxInt = msg.maxInt || config.maxInt;
-                const repChange = msg.repChange || config.repChange;
-                const manufSpec = msg.manufSpec || config.manufSpec;
-                const disableDefaultRsp = msg.disableDefaultRsp || config.disableDefaultRsp;
+                const ep = parseInt(msg.endpoint || msg.ep || config.ep, 10);
+                const cid = msg.cluster || msg.cid || config.cid;
+                const cmd = msg.command || msg.cmd || config.cmd;
+                const zclData = msg.parameters || msg.zclData || configZclData;
+                const attributesRead = msg.attributes || configAttributesRead;
+                const attributesWrite = msg.attributes || configAttributesWrite;
+                //const manufSpec = msg.manufSpec || config.manufSpec;
+                //const disableDefaultRsp = msg.disableDefaultRsp || config.disableDefaultRsp;
 
-                let obj;
-
+                let promise;
                 switch (cmdType) {
-                    case 'functional':
-                    case 'foundation':
-                        obj = {
-                            cmdType,
-                            ieeeAddr,
-                            ep,
-                            cid,
-                            cmd,
-                            zclData,
-                            cfg: {
-                                manufSpec,
-                                disableDefaultRsp
-                            }
-                        };
+                    case 'command':
+                        promise = shepherdNode.command(ieeeAddr, ep, cid, cmd, zclData);
                         break;
                     case 'write':
-                        obj = {
-                            cmdType,
-                            ieeeAddr,
-                            ep,
-                            cid,
-                            attrId,
-                            data
-                        };
+                        promise = shepherdNode.write(ieeeAddr, ep, cid, attributesWrite);
                         break;
                     case 'read':
-                        obj = {
-                            cmdType,
-                            ieeeAddr,
-                            ep,
-                            cid,
-                            attrId
-                        };
-                        break;
-                    case 'bind':
-                    case 'unbind':
-                        obj = {
-                            cmdType,
-                            ieeeAddr,
-                            ep,
-                            cid,
-                            destination,
-                            dstIeeeAddr,
-                            dstEp,
-                            dstGroup
-                        };
-                        break;
-                    case 'report':
-                        obj = {
-                            cmdType,
-                            ieeeAddr,
-                            ep,
-                            cid,
-                            attrId,
-                            minInt,
-                            maxInt
-                        };
-                        if (repChange) {
-                            obj.repChange = repChange;
-                        }
-
+                        promise = shepherdNode.read(ieeeAddr, ep, cid, attributesRead);
                         break;
                     default:
                         this.error('unknown command ' + cmdType);
                 }
 
-                obj.callback = (err, res) => {
-                    if (err) {
-                        this.error(err.message);
-                        this.status({fill: 'red', shape: 'dot', text: err.message});
-                    } else {
-                        this.send({topic: msg.topic, payload: res});
-                        this.status(nodeStatus);
-                    }
-                };
-
-                shepherdNode.proxy.queue(obj);
+                promise.then(result => {
+                    this.send({topic: msg.topic, payload: result});
+                    this.status(nodeStatus);
+                }).catch(err => {
+                    this.error(err.message);
+                    this.status({fill: 'red', shape: 'dot', text: err.message});
+                });
             });
         }
     }

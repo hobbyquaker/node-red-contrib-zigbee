@@ -18,55 +18,41 @@ module.exports = function (RED) {
             this.shepherd = shepherdNode.shepherd;
             this.topic = config.topic;
 
-            this.state = {};
+            const sendMessage = device => {
+                if (this.device && (this.device !== device.ieeeAddr)) {
+                    return;
+                }
 
-            const devicesHandler = () => {
-                this.checkState();
+                if (typeof device.meta.offline !== 'boolean') {
+                    return;
+                }
+
+                this.debug(`${device.ieeeAddr} ${device.meta.name} offline=${device.meta.offline}`);
+                const msg = {
+                    topic: null,
+                    payload: device.meta.offline,
+                    ieeeAddr: device.ieeeAddr,
+                    name: device.meta.name,
+                    lastSeen: device.lastSeen,
+                    retain: true
+
+                };
+                msg.topic = this.topicReplace(this.topic, msg);
+                this.send(msg);
             };
 
             const readyHandler = () => {
-                this.checkState();
+                this.shepherdNode.herdsman.getDevices().forEach(sendMessage);
             };
 
             shepherdNode.proxy.on('nodeStatus', nodeStatusHandler);
-            shepherdNode.proxy.on('devices', devicesHandler);
+            shepherdNode.proxy.on('offline', sendMessage);
             shepherdNode.proxy.on('ready', readyHandler);
 
             this.on('close', () => {
                 shepherdNode.proxy.removeListener('nodeStatus', nodeStatusHandler);
-                shepherdNode.proxy.removeListener('devices', devicesHandler);
+                shepherdNode.proxy.removeListener('offline', sendMessage);
                 shepherdNode.proxy.removeListener('ready', readyHandler);
-            });
-        }
-
-        checkState() {
-            Object.keys(this.shepherdNode.devices).forEach(ieeeAddr => {
-                const {overdue} = this.shepherdNode.devices[ieeeAddr];
-                const offline = this.shepherdNode.devices[ieeeAddr].status === 'offline';
-                if (!this.state[ieeeAddr]) {
-                    this.state[ieeeAddr] = {};
-                }
-
-                if (this.state[ieeeAddr].overdue !== overdue || this.state[ieeeAddr].offline !== offline) {
-                    const payload = this.shepherdNode.devices[ieeeAddr].powerSource === 'Battery' ? overdue : offline;
-                    if (typeof payload !== 'boolean') {
-                        return;
-                    }
-
-                    const msg = {
-                        topic: null,
-                        payload,
-                        retain: true,
-                        ieeeAddr,
-                        name: this.shepherdNode.devices[ieeeAddr].name || ieeeAddr
-                    };
-                    this.debug(msg.name + ' ' + msg.payload);
-                    msg.topic = this.topicReplace(this.topic, msg);
-                    this.send(msg);
-                }
-
-                this.state[ieeeAddr].overdue = overdue;
-                this.state[ieeeAddr].offline = offline;
             });
         }
 

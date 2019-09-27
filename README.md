@@ -9,14 +9,14 @@
 > Control Zigbee Devices (Xiaomi Aqara, Hue, Lightify, Tradfri, ...) with Node-RED via a CC253x Module. No need for
 proprietary bridges anymore, use devices of different vendors in one Zigbee network.
 
+**Work in progress** Will bump version to 1.0 as soon as todo is done, zigbee-herdsman api is stable and everything is 
+tested.
 
 ## Credits
 
 Based on [zigbee-herdsman](https://github.com/Koenkk/zigbee-herdsman), Koenkk's fork of 
 [Zigbee Shepherd](https://github.com/zigbeer/zigbee-shepherd). Strongly inspired by his awesome
-[zigbee2mqtt](https://github.com/Koenkk/zigbee2mqtt) project. All credits belong to him and the creators of the 
-zigbee-shepherd.
-
+[zigbee2mqtt](https://github.com/Koenkk/zigbee2mqtt) project. 
 
 ## Hardware Prerequisites
 
@@ -25,39 +25,28 @@ Ready to use firmware images are available here: https://github.com/Koenkk/Z-Sta
 
 ## Getting started
 
-Add a "devices" Node, open it's configuration, add a "shepherd" node, configure it, close both nodes and deploy. Wait
-a few seconds and go to the configuration of the "devices" node again, now you should be able to pair devices. Keep
+Add any Zigbee Node, open it's configuration, add a "herdsman" node, configure it, close both nodes and deploy. Wait
+a few seconds and go to the configuration of the "herdsman" node again, now you should be able to pair devices. Keep
 an eye on Node-RED's log output.
 
 
 ## Nodes
 
-#### shepherd
+#### herdman
 
-Config node that holds the serial port and ZigBee network configuration of zigbee-shepherd. You should change the 
-precfgkey for security reasons before pairing the first devices. I suggest to use a password manager (like e.g. KeyPass) 
+Config node that holds the serial port and ZigBee network configuration of zigbee-herdsman. You should change the 
+`networkKey` for security reasons before pairing the first devices. I suggest to use a password manager (like e.g. KeyPass) 
 to create and store a random key (has to be 16 Byte in uppercase hex representation (32 chars 0-9A-F). 
-
-
-#### devices
-
-With this node devices can be paired, removed and named. If you send a numeric value to it's input it permits joining
-of new devices for given seconds. If the value exceeds 254 it permits joining permanently. If it receives the value 0
-joining is stopped. 
+With this config node you can also manage your devices (pairing, removing, renaming), reporting, groups and binds.
 
 
 #### converter
 
-This Node utilizes [Koenkk's zigbee-shepherd-converters](https://github.com/Koenkk/zigbee-shepherd-converters) and 
+This Node utilizes [Koenkk's zigbee-herdsman-converters](https://github.com/Koenkk/zigbee-shepherd-converters) and 
 offers payload formats as known from zigbee2mqtt. In fact most of this nodes code is taken 1:1 from zigbee2mqtt.
 
 
-#### hue api
-
-This node mimics the Philips Hue bridge API for ZigBee Light Link devices.
-
-
-#### hue light
+#### hue
 
 This node aims to be a drop-in replacement for https://github.com/hobbyquaker/hue2mqtt.js
 
@@ -69,13 +58,21 @@ This node outputs the online/offline status of the devices.
 
 #### event
 
-This Node outputs events as received from zigbee-shepherd. 
+This Node outputs events as received from zigbee-herdsman. 
 
 
 #### command
 
-Send a command to a device endpoint. See https://github.com/zigbeer/zigbee-shepherd/wiki#API_functional
+Send a command to a device endpoint or group. 
 
+
+## Todo
+
+* [ ] Group support converter node
+* [ ] Group support hue node
+* [ ] Group support command node
+* [ ] remove frontend debug output
+* [ ] Documentation
 
 
 ## License
