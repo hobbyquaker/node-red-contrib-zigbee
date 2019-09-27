@@ -327,9 +327,9 @@ module.exports = function (RED) {
                 precfgkey = bytes.map(t => parseInt(t, 16));
             }
 
-            let panId = 0xFFFF;
+            let panID = 0xFFFF;
             if (this.credentials.panId) {
-                panId = parseInt(this.credentials.panId, 16);
+                panID = parseInt(this.credentials.panId, 16);
             }
 
             this.herdsmanOptions = {
@@ -339,7 +339,7 @@ module.exports = function (RED) {
                     rtscts: Boolean(config.rtscts)
                 },
                 network: {
-                    panId,
+                    panID,
                     networkKey: precfgkey,
                     channelList: config.channelList
                 },
