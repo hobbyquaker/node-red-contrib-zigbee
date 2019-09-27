@@ -71,7 +71,9 @@
       "no-await-in-loop": "warn",
       "unicorn/prefer-string-slice": "warn",
       "require-atomic-updates": "warn",
-      "unicorn/no-nested-ternary": "warn"
+      "unicorn/no-nested-ternary": "warn",
+      "promise/prefer-await-to-then": "warn",
+      "prefer-named-capture-group": "warn"
     },
     "ignore": []
   }

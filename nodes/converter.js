@@ -200,11 +200,9 @@ module.exports = function (RED) {
                     if (config.payload === 'plain') {
                         Object.keys(convertedPayload).forEach(key => {
                             if (config.attribute === '' || config.attribute === key) {
-                                const msg = Object.assign({}, out, {
-                                    topic: out.topic + '/' + key,
+                                const msg = {...out, topic: out.topic + '/' + key,
                                     payload: convertedPayload[key],
-                                    retain: !['click', 'action', 'angle'].includes(key)
-                                });
+                                    retain: !['click', 'action', 'angle'].includes(key)};
                                 this.send(msg);
                             }
                         });
