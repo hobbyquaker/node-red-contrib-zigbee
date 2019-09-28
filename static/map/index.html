@@ -270,18 +270,8 @@
         const data = {
             nodes: new vis.DataSet(devices.map(dev => {
                 const isCoord = dev.type === 'Coordinator';
-                //if (isCoord) {
-                //    coordAddr = ieeeAddr;
-                //}
-                //const isRouter = dev.type === 'Router';
                 const isBattery = dev.powerSource === 'Battery';
                 const id = dev.ieeeAddr;
-                let status = '';
-                if (dev.meta.offline === true) {
-                    status = 'offline';
-                } else if (dev.meta.offline === false) {
-                    status = 'online';
-                }
 
                 const isOffline = dev.meta.offline === true;
                 const children = routes.filter(pair => pair.sourceIeeeAddr === dev.ieeeAddr).length;
@@ -292,7 +282,6 @@
                     dev.manufacturerName,
                     dev.modelID,
                     dev.powerSource,
-                    //!isCoord && status,
                     children ? 'Children: ' + children + (isCoord ? (' (' + devices.length + ')') : '') : ''
                 ].filter(v => v).join('\n');
 
