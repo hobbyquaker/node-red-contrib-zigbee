@@ -131,20 +131,24 @@ module.exports = function (RED) {
         }
     });
 
-    RED.httpAdmin.get('/zigbee-shepherd/rtgScan', (req, res) => {
+    RED.httpAdmin.get('/zigbee-shepherd/getRoutingTable', (req, res) => {
         if (shepherdNodes[req.query.id]) {
-            shepherdNodes[req.query.id].rtgScan(result => {
+            shepherdNodes[req.query.id].getRoutingTable(req.query.ieeeAddr).then(result => {
                 res.status(200).json(result);
+            }).catch(err => {
+                res.status(500).send(err.message);
             });
         } else {
             res.status(500).send('500 Internal Server Error: Unknown Herdsman Id');
         }
     });
 
-    RED.httpAdmin.get('/zigbee-shepherd/lqiScan', (req, res) => {
+    RED.httpAdmin.get('/zigbee-shepherd/getLqi', (req, res) => {
         if (shepherdNodes[req.query.id]) {
-            shepherdNodes[req.query.id].lqiScan(result => {
+            shepherdNodes[req.query.id].getLqi(req.query.ieeeAddr).then(result => {
                 res.status(200).json(result);
+            }).catch(err => {
+                res.status(500).send(err.message);
             });
         } else {
             res.status(500).send('500 Internal Server Error: Unknown Herdsman Id');
@@ -842,81 +846,41 @@ module.exports = function (RED) {
             return device.meta.name ? `${device.ieeeAddr} (${device.meta.name})` : `${device.ieeeAddr}`;
         }
 
-        lqiScan(callback) {
-            this.log('Starting lqi scan...');
-            const lqiMap = {};
-            const scanQueue = [];
-
-            const shiftScanQueue = cb => {
-                const f = scanQueue.shift();
-                if (f) {
-                    f(() => {
-                        shiftScanQueue(cb);
-                    });
-                } else {
-                    cb();
-                }
-            };
-
-            this.herdsman.getDevices().forEach(device => {
-                if (device.type === 'EndDevice') {
+        getLqi(ieeeAddr) {
+            return new Promise((resolve, reject) => {
+                const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
+                if (!device) {
+                    reject(new Error('unknown device ' + ieeeAddr));
                     return;
                 }
 
-                scanQueue.push(queueCallback => {
-                    this.debug(`get lqi ${this.logName(device)}`);
-                    device.lqi().then(result => {
-                        lqiMap[device.ieeeAddr] = result.neighbors;
-                        this.debug(`lqi ${this.logName(device)} has ${result.neighbors.length} neighbors`);
-                    }).catch(err => {
-                        this.error(err.message);
-                    }).finally(() => {
-                        queueCallback();
-                    });
+                this.debug(`get lqi ${this.logName(device)}`);
+                device.lqi().then(result => {
+                    this.debug(`lqi ${this.logName(device)} has ${result.neighbors.length} neighbors`);
+                    resolve(result.neighbors);
+                }).catch(err => {
+                    this.error(err.message);
+                    reject(err);
                 });
-            });
-            shiftScanQueue(() => {
-                this.log('lqi scan done');
-                callback(lqiMap);
             });
         }
 
-        rtgScan(callback) {
-            this.log('Starting routingTable scan...');
-            const routeMap = {};
-            const scanQueue = [];
-
-            const shiftScanQueue = cb => {
-                const f = scanQueue.shift();
-                if (f) {
-                    f(() => {
-                        shiftScanQueue(cb);
-                    });
-                } else {
-                    cb();
-                }
-            };
-
-            this.herdsman.getDevices().forEach(device => {
-                if (device.type === 'EndDevice') {
+        getRoutingTable(ieeeAddr) {
+            return new Promise((resolve, reject) => {
+                const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
+                if (!device) {
+                    reject(new Error('unknown device ' + ieeeAddr));
                     return;
                 }
 
-                scanQueue.push(queueCallback => {
-                    this.debug(`get routingTable ${this.logName(device)}`);
-                    device.routingTable().then(result => {
-                        routeMap[device.ieeeAddr] = result.table;
-                        this.debug(`routingTable ${this.logName(device)} has ${result.table.length} routes`);
-                    }).catch(err => {
-                        this.error(err.message);
-                    }).finally(() => {
-                        queueCallback();
-                    });
+                this.debug(`get routingTable ${this.logName(device)}`);
+                device.routingTable().then(result => {
+                    this.debug(`routingTable ${this.logName(device)} has ${result.table.length} routes`);
+                    resolve(result.table);
+                }).catch(err => {
+                    this.error(err.message);
+                    reject(err);
                 });
-            });
-            shiftScanQueue(() => {
-                this.log('routingTable scan done');
-                callback(routeMap);
             });
         }
     }

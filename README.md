@@ -72,6 +72,7 @@ Send a command to a device endpoint or group.
 * [ ] Group support hue node
 * [ ] Group support command node
 * [ ] remove frontend debug output
+* [ ] per-device configurable ping
 * [ ] Documentation
 
 

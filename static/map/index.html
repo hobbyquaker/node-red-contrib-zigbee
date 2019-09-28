@@ -35,6 +35,8 @@
 
     const knownDevices = [];
 
+    const $status = document.querySelector('#status');
+
     fetch('../devices' + window.location.search)
         .then(response => {
             return response.json();
@@ -57,36 +59,133 @@
         });
 
     function getRtg() {
-        document.querySelector('#status').innerHTML = 'get routing tables...';
-        return fetch('../rtgScan' + window.location.search)
-            .then(response => {
-                return response.json();
-            })
-            .then(data => {
-                console.log('rtgScan', data);
+        return new Promise(resolve => {
+            const tasks = [];
+            devices.forEach(device => {
+                if (device.type === 'EndDevice') {
+                    return;
+                }
 
-                Object.keys(data).forEach(src => {
-                    if (data[src]) {
-                        data[src].forEach(route => {
-                            const id = src + '|' + route.nextHop;
-                            if (routesMap[id]) {
-                                routesMap[id].count += 1;
-                                routesMap[id].status = route.status;
-                            } else {
-                                routesMap[id] = {
-                                    sourceIeeeAddr: src,
-                                    targetIeeeAddr: getIeeeAddr(route.nextHop === 65534 ? route.destinationAddress : route.nextHop),
-                                    routeStatus: route.routeStatus,
-                                    count: 1
-                                };
-                            }
-                        });
-                    }
+                tasks.push(() => {
+                    return new Promise(resolve => {
+                        console.log('get routing table of ' + device.ieeeAddr + ' ' + device.meta.name);
+                        $status.innerHTML = 'get routing table of ' + device.ieeeAddr + ' ' + device.meta.name;
+
+                        fetch('../getRoutingTable' + window.location.search + '&ieeeAddr=' + device.ieeeAddr)
+                            .then(response => {
+                                return response.json();
+                            })
+                            .then(data => {
+                                console.log('getRoutingTable', device.ieeeAddr, data);
+                                data.forEach(route => {
+                                    const id = device.ieeeAddr + '|' + route.nextHop;
+                                    if (routesMap[id]) {
+                                        routesMap[id].count += 1;
+                                        routesMap[id].status = route.status;
+                                    } else {
+                                        routesMap[id] = {
+                                            sourceIeeeAddr: device.ieeeAddr,
+                                            targetIeeeAddr: getIeeeAddr(route.nextHop === 65534 ? route.destinationAddress : route.nextHop),
+                                            routeStatus: route.routeStatus,
+                                            count: 1
+                                        };
+                                    }
+                                });
+                            })
+                            .finally(resolve);
+                    });
                 });
             });
+
+            function shiftTasks() {
+                if (tasks.length > 0) {
+                    const task = tasks.shift();
+                    task().then(shiftTasks);
+                } else {
+                    console.log('routesMap', routesMap);
+                    resolve();
+                }
+            }
+
+            shiftTasks();
+        });
     }
 
     function getLqi() {
+        return new Promise(resolve => {
+            const tasks = [];
+            devices.forEach(device => {
+                if (device.type === 'EndDevice') {
+                    return;
+                }
+
+                tasks.push(() => {
+                    return new Promise(resolve => {
+                        console.log('get lqi list of ' + device.ieeeAddr + ' ' + device.meta.name);
+                        $status.innerHTML = 'get lqi list of ' + device.ieeeAddr + ' ' + device.meta.name;
+
+                        fetch('../getLqi' + window.location.search + '&ieeeAddr=' + device.ieeeAddr)
+                            .then(response => {
+                                return response.json();
+                            })
+                            .then(data => {
+                                console.log('getLqi', device.ieeeAddr, data);
+                                data.forEach(neighbour => {
+                                    /*
+                                    if (!knownDevices.includes(neighbour.ieeeAddr)) {
+                                        devices.push({
+                                            ieeeAddr: neighbour.ieeeAddr,
+                                            foreign: true,
+                                            meta: {}
+                                        });
+                                        knownDevices.push(neighbour.ieeeAddr);
+                                    }
+                                    */
+                                    const id = device.ieeeAddr + '|' + neighbour.networkAddress;
+                                    if (routesMap[id]) {
+                                        if (knownDevices.includes(neighbour.ieeeAddr)) {
+                                            routesMap[id].count += 1;
+                                        }
+
+                                        routesMap[id].lqi = neighbour.linkquality;
+                                        routesMap[id].depth = neighbour.depth;
+                                        routesMap[id].relationship = neighbour.relationship;
+                                    } else {
+                                        routesMap[id] = {
+                                            sourceIeeeAddr: device.ieeeAddr,
+                                            targetIeeeAddr: neighbour.ieeeAddr,
+                                            routeStatus: 0,
+                                            relationship: neighbour.relationship,
+                                            depth: neighbour.depth,
+                                            lqi: neighbour.linkquality,
+                                            count: 1
+                                        };
+                                    }
+                                });
+                            })
+                            .finally(resolve);
+                    });
+                });
+            });
+
+            function shiftTasks() {
+                if (tasks.length > 0) {
+                    const task = tasks.shift();
+                    task().then(shiftTasks);
+                } else {
+                    console.log('routesMap', routesMap);
+                    Object.keys(routesMap).forEach(id => {
+                        routes.push(routesMap[id]);
+                    });
+                    resolve();
+                }
+            }
+
+            shiftTasks();
+        });
+
+        /*
+
         document.querySelector('#status').innerHTML = 'get lqi lists...';
         return fetch('../lqiScan' + window.location.search)
             .then(response => {
@@ -103,6 +202,7 @@
                                 foreign: true,
                                 meta: {}
                             });
+                            knownDevices.push(neighbour.ieeeAddr)
                         }
 
                         const id = sourceIeeeAddr + '|' + neighbour.networkAddress;
@@ -132,7 +232,7 @@
                 Object.keys(routesMap).forEach(id => {
                     routes.push(routesMap[id]);
                 });
-            });
+            });*/
     }
 
     function getIeeeAddr(nwkAddr) {
@@ -186,13 +286,13 @@
                 const isOffline = dev.meta.offline === true;
                 const children = routes.filter(pair => pair.sourceIeeeAddr === dev.ieeeAddr).length;
                 const label = [
-                    dev.name,
+                    dev.meta.name,
                     dev.type,
                     dev.ieeeAddr,
                     dev.manufacturerName,
                     dev.modelID,
                     dev.powerSource,
-                    !isCoord && status,
+                    //!isCoord && status,
                     children ? 'Children: ' + children + (isCoord ? (' (' + devices.length + ')') : '') : ''
                 ].filter(v => v).join('\n');
 
