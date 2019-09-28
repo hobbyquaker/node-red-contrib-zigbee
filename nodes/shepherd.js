@@ -650,6 +650,7 @@ module.exports = function (RED) {
                 }
 
                 device.meta.shouldReport = shouldReport;
+                delete device.meta.shouldRemoveReport;
                 this.debug(`shouldReport ${ieeeAddr} ${device.meta.name} ${shouldReport}`);
                 device.save();
                 this.configure(device);
