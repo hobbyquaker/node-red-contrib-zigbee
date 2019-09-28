@@ -89,6 +89,22 @@
                 ]
             });
 
+            $('#device-details-dialog').dialog({
+                id: 'device-details-ui',
+                autoOpen: false,
+                modal: true,
+                closeOnEscape: true,
+                width: 480,
+                buttons: [
+                    {
+                        text: 'Close',
+                        click() {
+                            $(this).dialog('close');
+                        }
+                    }
+                ]
+            });
+
             function showError(msg) {
                 $('#error-message').html(msg);
                 $('#error-dialog').dialog('open');
@@ -247,6 +263,7 @@
                     $(row).html(`<span data-addr="${data.ieeeAddr}" class="device-address ${data.interviewCompleted ? '' : 'incomplete'}">${data.ieeeAddr}<br>${data.type}</span>
                         <span class="device-model">${data.manufacturerName}<br>${data.modelID}</span>
                         <input style="margin-top: -13px" class="device-name" data-addr="${data.ieeeAddr}" value="${data.meta.name}" type="text">
+                        <a href="#" data-addr="${data.ieeeAddr}" class="device-details editor-button editor-button-small"><i class="fa fa-info"></i></a>
                         <a href="#" data-addr="${data.ieeeAddr}" class="device-remove red-ui-editableList-item-remove editor-button editor-button-small"><i class="fa fa-remove"></i></a>
                     `);
                 },
@@ -259,6 +276,13 @@
                 $.get('zigbee-shepherd/remove?id=' + id + '&ieeeAddr=' + $(this).data('addr'), () => {
                     refreshDevices();
                 });
+            });
+
+            $('ol#devices').on('click', '.device-details', function () {
+                const dev = devices.find(d => d.ieeeAddr === $(this).data('addr'));
+                $('#device-details').html(JSON.stringify(dev, null, '    '));
+                $('#device-details-dialog').dialog('option', 'title', `${dev.ieeeAddr} ${dev.meta.name}`);
+                $('#device-details-dialog').dialog('open');
             });
 
             $('#soft-reset').click(() => {
@@ -772,6 +796,14 @@
             margin-left: 12px;
 
         }
+        #device-details {
+            width: 420px;
+            height: 480px;
+            font-size: 12px;
+            font-family: monospace;
+            white-space: pre;
+            overflow: scroll;
+        }
 
 
     </style>
@@ -884,7 +916,7 @@
                     width: 110px;
                 }
                 input.device-name {
-                    width: calc(100% - 270px) !important;
+                    width: calc(100% - 285px) !important;
                     display: inline-block !important;
                 }
                 input.device-remove {
@@ -905,6 +937,15 @@
                 }
                 ol#groups li {
                     padding: 0;
+                }
+                .device-details {
+                    position: absolute;
+                    top: 17px;
+                    right: 23px;
+                }
+                #device-details {
+                    font-family: monospace;
+                    white-space: pre;
                 }
             </style>
             <div class="form-row"><h4>join</h4></div>
@@ -1028,6 +1069,11 @@
                 </div>
             </div>
         </div>
+
+         <div id="device-details-dialog" title="Error" dialog>
+            <div id="device-details"></textarea>
+        </div>
+
 
         <div id="error-dialog" title="Error" dialog>
             <div id="error-message"></div>
