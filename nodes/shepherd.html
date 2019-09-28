@@ -167,9 +167,6 @@
                     const deviceSelect = [];
                     data.forEach(device => {
                         deviceSelect.push(`<option value="${device.ieeeAddr}">${device.ieeeAddr} ${device.meta.name}</option>`);
-                        if (device.type === 'Coordinator') {
-                            $('#coordinator-addr').html(device.ieeeAddr);
-                        } else {
                             if ($('.device-select').find('option[value="' + device.ieeeAddr + '"]').length === 0) {
                                 const desc = (device.meta.name || '') + ' ' + device.ieeeAddr;
                                 $('.device-select').append(`<option value="${device.ieeeAddr}">${desc}</option>`);
@@ -189,7 +186,6 @@
                                     $('ol#reporting').editableList('addItem', device);
                                 }
                             }
-                        }
 
                         if (device.meta.binds) {
                             console.log('has binds', device.ieeeAddr, device.meta.binds);
@@ -261,10 +257,10 @@
             $('ol#devices').editableList({
                 addItem(row, index, data) {
                     $(row).html(`<span data-addr="${data.ieeeAddr}" class="device-address ${data.interviewCompleted ? '' : 'incomplete'}">${data.ieeeAddr}<br>${data.type}</span>
-                        <span class="device-model">${data.manufacturerName}<br>${data.modelID}</span>
-                        <input style="margin-top: -13px" class="device-name" data-addr="${data.ieeeAddr}" value="${data.meta.name}" type="text">
+                        <span class="device-model">${data.meta.isCoordinator ? data.meta.type : data.manufacturerName}<br>${data.meta.isCoordinator ? data.meta.version + ' ' + data.meta.revision : data.modelID}</span>
+                        <input ${data.meta.isCoordinator ? 'disabled' : ''} style="margin-top: -13px" class="device-name" data-addr="${data.ieeeAddr}" value="${data.meta.name}" type="text">
                         <a href="#" data-addr="${data.ieeeAddr}" class="device-details editor-button editor-button-small"><i class="fa fa-info"></i></a>
-                        <a href="#" data-addr="${data.ieeeAddr}" class="device-remove red-ui-editableList-item-remove editor-button editor-button-small"><i class="fa fa-remove"></i></a>
+                        <a href="#" data-addr="${data.ieeeAddr}" class="${data.meta.isCoordinator ? 'disabled' : ''} device-remove red-ui-editableList-item-remove editor-button editor-button-small"><i class="fa fa-remove"></i></a>
                     `);
                 },
                 addButton: false,
@@ -973,10 +969,6 @@
             -->
             <div class="form-row"><h4>devices</h4></div>
 
-
-            <div class="form-row">
-                Coordinator: <span id="coordinator-addr"></span>
-            </div>
             <div class="form-row">
                 <ol id="devices"></ol>
             </div>

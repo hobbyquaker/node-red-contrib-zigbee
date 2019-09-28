@@ -417,6 +417,7 @@ module.exports = function (RED) {
                     if (device.type === 'Coordinator') {
                         this.coordinatorEndpoint = device.endpoints[0];
                         device.meta.name = 'Coordinator';
+                        device.meta.isCoordinator = true;
                         return;
                     }
 
@@ -474,6 +475,17 @@ module.exports = function (RED) {
         logStartupInfo() {
             this.herdsman.getNetworkParameters().then(data => {
                 this.log(`Zigbee network parameters: ${JSON.stringify(data)}`);
+            }).then(() => {
+                this.herdsman.getCoordinatorVersion().then(data => {
+                    const version = `${data.meta.majorrel}.${data.meta.minorrel}.${data.meta.maintrel}`;
+                    const revision = data.meta.revision;
+                    const type = data.type;
+                    this.log(`Coordinator: ${type} ${version} ${revision}`);
+                    const coordinator = this.herdsman.getDeviceByIeeeAddr(this.coordinatorEndpoint.deviceIeeeAddress);
+                    coordinator.meta.version = version;
+                    coordinator.meta.revision = revision;
+                    coordinator.meta.type = type;
+                });
             });
         }
 
