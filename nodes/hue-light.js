@@ -186,7 +186,6 @@ module.exports = function (RED) {
                     //cmd.transitiontime = 4;
                 }
 
-                console.log(device.ID, cmd);
                 this.putLightsState({topic: 'lights/' + device.ID + '/state', payload: cmd});
             });
         }
@@ -239,7 +238,6 @@ module.exports = function (RED) {
         }
 
         putLightsState(msg) {
-            console.log('putLightsState', msg);
             // xy > ct > hs
             // on bool
             // bri uint8 0-254
@@ -478,7 +476,7 @@ module.exports = function (RED) {
                 //console.log(cmd);
                 this.shepherdNode.command(cmd.ieeeAddr, cmd.ep.ID, cmd.cid, cmd.cmd, cmd.zclData, cmd.options)
                     .then(() => {
-                        this.debug('putLightState success');
+                        this.debug(`putLightState ${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(msg.payload)} success`);
                         if (cmd.attributes) {
                             const data = {};
                             cmd.attributes.forEach(attr => {
@@ -487,7 +485,7 @@ module.exports = function (RED) {
                             update = update || oe.extend(device.meta.hue.state, data);
                         }
                     }).catch(err => {
-                        this.error('putLightState error ' + err.message);
+                        this.error(`putLightState ${device.ieeeAddr} ${device.meta.name} error ${err.message}`);
                     }).finally(() => {
                         if (--todo === 0 && update) {
                             this.publishLightState(device);

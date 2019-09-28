@@ -347,13 +347,6 @@ module.exports = function (RED) {
                 backupPath: this.backupPath
             };
 
-            if (!herdsmanInstances[this.id]) {
-                herdsmanInstances[this.id] = new ZigbeeHerdsman.Controller(this.herdsmanOptions);
-            }
-
-            this.herdsman = herdsmanInstances[this.id];
-            this.proxy = new HerdsmanProxy(this);
-
             this.reportingConfiguring = new Set();
 
             const listeners = {
@@ -387,8 +380,19 @@ module.exports = function (RED) {
                         this.log(`deviceInterview ${data.status} ${data.device.ieeeAddr}`);
                     }
                 },
-                message: this.messageHandler.bind(this)
+                message: message => {
+                    this.messageHandler(message);
+                }
             };
+
+            if (!herdsmanInstances[this.id]) {
+                this.debug('creating new herdsman instance');
+                herdsmanInstances[this.id] = new ZigbeeHerdsman.Controller(this.herdsmanOptions);
+            }
+
+            this.herdsman = herdsmanInstances[this.id];
+
+            this.proxy = new HerdsmanProxy(this);
 
             this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'dot', text: 'starting'});
             this.status = 'starting';
@@ -398,7 +402,8 @@ module.exports = function (RED) {
                 this.logStartupInfo();
 
                 Object.keys(listeners).forEach(event => {
-                    this.herdsman.on(event, listeners[event]);
+                    this.herdsman.addListener(event, listeners[event]);
+                    this.debug(`add ${event} listener`);
                 });
 
                 const devices = this.herdsman.getDevices();
@@ -440,18 +445,21 @@ module.exports = function (RED) {
                 clearInterval(checkOverdueInterval);
                 this.status = 'closing';
                 this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'ring', text: 'closing'});
-                this.herdsman.stop().catch(err => {
-                    this.error('stop ' + err);
+
+                Object.keys(listeners).forEach(event => {
+                    this.herdsman.removeListener(event, listeners[event]);
+                    this.debug(`removed ${event} listener`);
+                });
+                this.herdsman.stop().then(() => {
+                    this.debug('stopped shepherd');
+                }).catch(err => {
+                    this.error(`stop ${err.message}`);
                 }).finally(() => {
-                    Object.keys(listeners).forEach(event => {
-                        this.herdsman.removeListener(event, listeners[event]);
-                    });
                     this.status = '';
                     this.proxy.emit('nodeStatus', {});
                     setTimeout(() => {
                         this.proxy.removeAllListeners();
-                        this.trace('removed event listeners');
-                        this.debug('stopped shepherd');
+                        this.debug('removed proxy event listeners');
                         done();
                     }, 100);
                 });
@@ -531,13 +539,25 @@ module.exports = function (RED) {
 
         command(ieeeAddr, endpoint, cluster, command, payload, options) {
             return new Promise((resolve, reject) => {
-                this.log(`command ${ieeeAddr} ${endpoint} ${cluster} ${command} ${JSON.stringify(payload)} ${JSON.stringify(options)}`);
-                const ep = this.herdsman.getDeviceByIeeeAddr(ieeeAddr).getEndpoint(endpoint);
+                const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
+                if (!device) {
+                    reject(new Error(`Device ${ieeeAddr} not found`));
+                    return;
+                }
+
+                const ep = device.getEndpoint(endpoint);
+                if (!ep) {
+                    reject(new Error(`Endpoint ${endpoint} of ${ieeeAddr} ${device.meta.name} not found`));
+                    return;
+                }
+
                 if (ep) {
                     ep.command(cluster, command, payload, options).then(result => {
+                        this.debug(`command successful ${ieeeAddr} ${device.meta.name} ${endpoint} ${cluster} ${command} ${JSON.stringify(payload)} ${Object.keys(options || {}).length > 0 ? JSON.stringify(options) : ''}`);
                         this.reachable(this.herdsman.getDeviceByIeeeAddr(ieeeAddr), true);
                         resolve(result);
                     }).catch(err => {
+                        this.debug(`command failed ${ieeeAddr} ${device.meta.name} ${endpoint} ${cluster} ${command} ${err.message}`);
                         this.reachable(this.herdsman.getDeviceByIeeeAddr(ieeeAddr), false);
                         reject(err);
                     });
