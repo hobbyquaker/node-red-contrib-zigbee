@@ -472,11 +472,12 @@ module.exports = function (RED) {
 
             this.lastState[device.ID] = oe.clone(device.meta.hue.state);
 
+            this.debug(`putLightState ${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(msg.payload)}`);
+
             cmds.forEach(cmd => {
                 //console.log(cmd);
                 this.shepherdNode.command(cmd.ieeeAddr, cmd.ep.ID, cmd.cid, cmd.cmd, cmd.zclData, cmd.options)
                     .then(() => {
-                        this.debug(`putLightState ${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(msg.payload)} success`);
                         if (cmd.attributes) {
                             const data = {};
                             cmd.attributes.forEach(attr => {
@@ -484,9 +485,7 @@ module.exports = function (RED) {
                             });
                             update = update || oe.extend(device.meta.hue.state, data);
                         }
-                    }).catch(err => {
-                        this.error(`putLightState ${device.ieeeAddr} ${device.meta.name} error ${err.message}`);
-                    }).finally(() => {
+                    }).catch(() => {}).finally(() => {
                         if (--todo === 0 && update) {
                             this.publishLightState(device);
                         }
