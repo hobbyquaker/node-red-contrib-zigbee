@@ -348,6 +348,7 @@ module.exports = function (RED) {
             };
 
             this.reportingConfiguring = new Set();
+            this.offlineTimeouts = {};
 
             const listeners = {
                 deviceAnnounce: data => {
@@ -555,10 +556,16 @@ module.exports = function (RED) {
                     ep.command(cluster, command, payload, options).then(result => {
                         this.debug(`command successful ${ieeeAddr} ${device.meta.name} ${endpoint} ${cluster} ${command} ${JSON.stringify(payload)} ${Object.keys(options || {}).length > 0 ? JSON.stringify(options) : ''}`);
                         this.reachable(this.herdsman.getDeviceByIeeeAddr(ieeeAddr), true);
+                        clearTimeout(this.offlineTimeouts[ieeeAddr]);
+                        this.offlineTimeouts[ieeeAddr] = setTimeout(() => {
+                            delete this.offlineTimeouts[ieeeAddr];
+                        });
                         resolve(result);
                     }).catch(err => {
                         this.debug(`command failed ${ieeeAddr} ${device.meta.name} ${endpoint} ${cluster} ${command} ${err.message}`);
-                        this.reachable(this.herdsman.getDeviceByIeeeAddr(ieeeAddr), false);
+                        if (!this.offlineTimeouts[ieeeAddr]) {
+                            this.reachable(this.herdsman.getDeviceByIeeeAddr(ieeeAddr), false);
+                        }
                         reject(err);
                     });
                 } else {
@@ -637,11 +644,11 @@ module.exports = function (RED) {
             const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
             if (device) {
                 if (!shouldReport && device.meta.shouldReport) {
-                    device.meta.removeReport = true;
+                    device.meta.shouldRemoveReport = true;
+                    this.debug(`shouldRemoveReport ${ieeeAddr} ${device.meta.name} ${shouldReport}`);
                 }
-
                 device.meta.shouldReport = shouldReport;
-                this.debug(`shouldReport ${ieeeAddr} ${shouldReport}`);
+                this.debug(`shouldReport ${ieeeAddr} ${device.meta.name} ${shouldReport}`);
                 device.save();
                 this.configure(device);
             }
@@ -653,7 +660,15 @@ module.exports = function (RED) {
                 const endpoint = device.getEndpoint(epid);
 
                 const targetDevice = this.herdsman.getDeviceByIeeeAddr(targetIeeeAddr);
+                if (!targetDevice) {
+                    reject(new Error(`cannot find device ${targetIeeeAddr}`));
+                    return;
+                }
                 const targetEndpoint = targetDevice.getEndpoint(targetEpid);
+                if (!targetEndpoint) {
+                    reject(new Error(`cannot find endpoint ${targetEpid} of device ${targetIeeeAddr} ${targetDevice.meta.name}`));
+                    return;
+                }
 
                 endpoint.bind(cluster, targetEndpoint).then(() => {
                     this.log(`bind ${device.ieeeAddr} ${device.meta.name} ${epid} ${cluster} to ${targetDevice.ieeeAddr} ${targetDevice.meta.name} ${targetEpid} successful`);
@@ -725,10 +740,10 @@ module.exports = function (RED) {
 
         configure(dev) {
             const doConfigure = device => {
-                if (device.meta.shouldReport && (!device.meta.reporting || utils.isIkeaTradfriDevice(device))) {
+                if (device.meta.shouldReport  && (!device.meta.reporting || utils.isIkeaTradfriDevice(device))) {
                     reporting.setup.call(this, device);
                 } else if (device.meta.shouldRemoveReport && device.meta.reporting) {
-                    //reporting.remove.call(this, device);
+                    reporting.remove.call(this, device);
                 }
 
                 if (!device || device.type === 'Coordinator' || configured.has(device.ieeeAddr) || configuring.has(device.ieeeAddr)) {
@@ -741,7 +756,7 @@ module.exports = function (RED) {
 
                 const mappedDevice = shepherdConverters.findByZigbeeModel(device.modelID);
                 if (mappedDevice && mappedDevice.configure) {
-                    this.debug(`configure ${this.logName(device)}`);
+                    this.debug(`configure ${device.ieeeAddr} ${device.meta.name}`);
                     configuring.add(device.ieeeAddr);
                     mappedDevice.configure(device, this.coordinatorEndpoint).then(() => {
                         this.log(`successfully configured ${this.logName(device)}`);
@@ -767,8 +782,12 @@ module.exports = function (RED) {
         messageHandler(message) {
             this.debug('message ' + message.type + ' ' + this.logName(message.device));
             this.proxy.emit('message', message);
+            clearTimeout(this.offlineTimeouts[message.device.ieeeAddr]);
+            this.offlineTimeouts[message.device.ieeeAddr] = setTimeout(() => {
+                delete this.offlineTimeouts[message.device.ieeeAddr];
+            });
+            this.reachable(message.device, true);
             if (message.device.interviewCompleted) {
-                this.reachable(message.device, true);
                 this.configure(message.device);
             }
         }
