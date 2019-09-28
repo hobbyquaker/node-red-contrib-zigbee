@@ -566,6 +566,7 @@ module.exports = function (RED) {
                         if (!this.offlineTimeouts[ieeeAddr]) {
                             this.reachable(this.herdsman.getDeviceByIeeeAddr(ieeeAddr), false);
                         }
+
                         reject(err);
                     });
                 } else {
@@ -647,6 +648,7 @@ module.exports = function (RED) {
                     device.meta.shouldRemoveReport = true;
                     this.debug(`shouldRemoveReport ${ieeeAddr} ${device.meta.name} ${shouldReport}`);
                 }
+
                 device.meta.shouldReport = shouldReport;
                 this.debug(`shouldReport ${ieeeAddr} ${device.meta.name} ${shouldReport}`);
                 device.save();
@@ -664,6 +666,7 @@ module.exports = function (RED) {
                     reject(new Error(`cannot find device ${targetIeeeAddr}`));
                     return;
                 }
+
                 const targetEndpoint = targetDevice.getEndpoint(targetEpid);
                 if (!targetEndpoint) {
                     reject(new Error(`cannot find endpoint ${targetEpid} of device ${targetIeeeAddr} ${targetDevice.meta.name}`));
@@ -740,7 +743,7 @@ module.exports = function (RED) {
 
         configure(dev) {
             const doConfigure = device => {
-                if (device.meta.shouldReport  && (!device.meta.reporting || utils.isIkeaTradfriDevice(device))) {
+                if (device.meta.shouldReport && (!device.meta.reporting || utils.isIkeaTradfriDevice(device))) {
                     reporting.setup.call(this, device);
                 } else if (device.meta.shouldRemoveReport && device.meta.reporting) {
                     reporting.remove.call(this, device);
