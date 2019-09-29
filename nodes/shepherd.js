@@ -478,8 +478,8 @@ module.exports = function (RED) {
             }).then(() => {
                 this.herdsman.getCoordinatorVersion().then(data => {
                     const version = `${data.meta.majorrel}.${data.meta.minorrel}.${data.meta.maintrel}`;
-                    const revision = data.meta.revision;
-                    const type = data.type;
+                    const {revision} = data.meta;
+                    const {type} = data;
                     this.log(`Coordinator: ${type} ${version} ${revision}`);
                     const coordinator = this.herdsman.getDeviceByIeeeAddr(this.coordinatorEndpoint.deviceIeeeAddress);
                     coordinator.meta.version = version;

@@ -15,7 +15,7 @@ module.exports = function (RED) {
             };
 
             this.shepherdNode = shepherdNode;
-            this.shepherd = shepherdNode.shepherd;
+            this.shepherd = shepherdNode.herdsman;
             this.topic = config.topic;
 
             const sendMessage = device => {

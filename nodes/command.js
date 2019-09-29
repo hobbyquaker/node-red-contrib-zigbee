@@ -16,7 +16,7 @@ module.exports = function (RED) {
                 this.status(status);
             });
 
-            this.shepherd = shepherdNode.shepherd;
+            this.shepherd = shepherdNode.herdsman;
 
             let configZclData;
             try {

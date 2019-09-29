@@ -167,25 +167,25 @@
                     const deviceSelect = [];
                     data.forEach(device => {
                         deviceSelect.push(`<option value="${device.ieeeAddr}">${device.ieeeAddr} ${device.meta.name}</option>`);
-                            if ($('.device-select').find('option[value="' + device.ieeeAddr + '"]').length === 0) {
-                                const desc = (device.meta.name || '') + ' ' + device.ieeeAddr;
-                                $('.device-select').append(`<option value="${device.ieeeAddr}">${desc}</option>`);
-                            }
+                        if ($('.device-select').find('option[value="' + device.ieeeAddr + '"]').length === 0) {
+                            const desc = (device.meta.name || '') + ' ' + device.ieeeAddr;
+                            $('.device-select').append(`<option value="${device.ieeeAddr}">${desc}</option>`);
+                        }
 
-                            known.push(device.ieeeAddr);
-                            if ($('.device-address.incomplete[data-addr="' + device.ieeeAddr + '"]')) {
-                                $('.device-address.incomplete[data-addr="' + device.ieeeAddr + '"]').parent().parent().remove();
-                            }
+                        known.push(device.ieeeAddr);
+                        if ($('.device-address.incomplete[data-addr="' + device.ieeeAddr + '"]')) {
+                            $('.device-address.incomplete[data-addr="' + device.ieeeAddr + '"]').parent().parent().remove();
+                        }
 
-                            if ($('ol#devices .device-name[data-addr="' + device.ieeeAddr + '"]').length === 0) {
-                                $('ol#devices').editableList('addItem', device);
-                            }
+                        if ($('ol#devices .device-name[data-addr="' + device.ieeeAddr + '"]').length === 0) {
+                            $('ol#devices').editableList('addItem', device);
+                        }
 
-                            if ($('ol#reporting .device-report[data-addr="' + device.ieeeAddr + '"]').length === 0) {
-                                if (isRouter(device) && !isBatteryPowered(device) && device.modelID !== 'lumi.router') {
-                                    $('ol#reporting').editableList('addItem', device);
-                                }
+                        if ($('ol#reporting .device-report[data-addr="' + device.ieeeAddr + '"]').length === 0) {
+                            if (isRouter(device) && !isBatteryPowered(device) && device.modelID !== 'lumi.router') {
+                                $('ol#reporting').editableList('addItem', device);
                             }
+                        }
 
                         if (device.meta.binds) {
                             console.log('has binds', device.ieeeAddr, device.meta.binds);
