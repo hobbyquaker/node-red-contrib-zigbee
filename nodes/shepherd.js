@@ -361,7 +361,9 @@ module.exports = function (RED) {
 
             try {
                 this.names = require(this.namesPath);
-            } catch (_) {}
+            } catch (_) {
+                this.names = {};
+            }
 
             shepherdNodes[this.id] = this;
 
