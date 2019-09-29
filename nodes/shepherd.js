@@ -660,17 +660,20 @@ module.exports = function (RED) {
         report(ieeeAddr, shouldReport) {
             const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
             if (device) {
-                if (!shouldReport && device.meta.shouldReport) {
-                    device.meta.shouldRemoveReport = true;
-                    this.debug(`shouldRemoveReport ${ieeeAddr} ${device.meta.name} ${shouldReport}`);
-                }
-
                 device.meta.shouldReport = shouldReport;
-                delete device.meta.shouldRemoveReport;
-                this.debug(`shouldReport ${ieeeAddr} ${device.meta.name} ${shouldReport}`);
                 device.save();
-                this.configure(device);
+                this.configureReport(device);
             }
+        }
+
+        configureReport(device) {
+            return new Promise(resolve => {
+                if (device.meta.shouldReport && (!device.meta.reporting || utils.isIkeaTradfriDevice(device))) {
+                    reporting.setup.call(this, device).finally(resolve);
+                } else if (!device.meta.shouldReport && device.meta.reporting) {
+                    reporting.remove.call(this, device).finally(resolve);
+                }
+            });
         }
 
         bind(ieeeAddr, epid, cluster, targetIeeeAddr, targetEpid) {
@@ -760,17 +763,7 @@ module.exports = function (RED) {
 
         configure(dev) {
             const doConfigure = device => {
-                if (device.meta.shouldReport && (!device.meta.reporting || utils.isIkeaTradfriDevice(device))) {
-                    reporting.setup.call(this, device);
-                } else if (device.meta.shouldRemoveReport && device.meta.reporting) {
-                    reporting.remove.call(this, device);
-                }
-
                 if (!device || device.type === 'Coordinator' || configured.has(device.ieeeAddr) || configuring.has(device.ieeeAddr)) {
-                    return;
-                }
-
-                if (dev && (dev.ieeeAddr !== device.ieeeAddr)) {
                     return;
                 }
 
@@ -785,7 +778,10 @@ module.exports = function (RED) {
                         this.error(`configure failed ${this.logName(device)} ${err && err.message}`);
                     }).finally(() => {
                         configuring.delete(device.ieeeAddr);
+                        this.configureReport(device);
                     });
+                } else {
+                    this.configureReport(device);
                 }
             };
 
@@ -820,7 +816,6 @@ module.exports = function (RED) {
                     this.log('removed from network ' + ieeeAddr + ' ' + device.meta.name);
                 }).catch(err => {
                     this.error((err && err.message) + ' ' + ieeeAddr);
-                }).finally(() => {
                     device.removeFromDatabase().then(() => {
                         this.log('removed from database ' + ieeeAddr + ' ' + device.meta.name);
                         resolve();
