@@ -817,7 +817,7 @@ module.exports = function (RED) {
                         this.log(`successfully configured ${this.logName(device)}`);
                         configured.add(device.ieeeAddr);
                     }).catch(err => {
-                        this.error(`configure failed ${this.logName(device)} ${err && err.message}`);
+                        this.warn(`configure failed ${this.logName(device)} ${err && err.message}`);
                     }).finally(() => {
                         configuring.delete(device.ieeeAddr);
                         this.configureReport(device);
