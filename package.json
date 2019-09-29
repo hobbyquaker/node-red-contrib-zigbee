@@ -4,6 +4,8 @@
   "keywords": [
     "node-red",
     "zigbee",
+    "shepherd",
+    "herdsman",
     "hue",
     "aqara",
     "tradfri",
@@ -23,7 +25,7 @@
     "obj-ease": "^1.0.1",
     "vis": "^4.21.0",
     "zigbee-herdsman": "0.7.3",
-    "zigbee-herdsman-converters": "11.1.11"
+    "zigbee-herdsman-converters": "11.1.13"
   },
   "engines": {
     "node": ">= 10.0.0"
