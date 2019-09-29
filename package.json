@@ -31,8 +31,18 @@
     "node": ">= 10.0.0"
   },
   "scripts": {
+    "checkgit": "([[ $(git rev-parse --abbrev-ref HEAD) == \"master\" ]] && git diff --exit-code && git diff --cached --exit-code && git diff --exit-code origin/master..master)",
+    "prepublishOnly": "npm run checkgit --silent",
+    "postpublish": "git tag v$(jq -r '.version' package.json) && git push --no-verify --tags",
     "test": "camo-purge; xo",
-    "lintfix": "xo --fix"
+    "lintfix": "xo --fix",
+    "lintonly": "xo"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run lintonly",
+      "pre-push": "npm run lintonly"
+    }
   },
   "node-red": {
     "nodes": {
@@ -48,7 +58,8 @@
   "devDependencies": {
     "camo-purge": "^1.0.2",
     "eslint-plugin-html": "^6.0.0",
-    "xo": "^0.25.3"
+    "xo": "^0.25.3",
+    "husky": "^3.0.7"
   },
   "xo": {
     "space": 4,
