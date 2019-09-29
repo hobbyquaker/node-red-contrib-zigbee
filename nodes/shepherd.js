@@ -12,7 +12,6 @@ const interval = require('../lib/interval.json');
 
 const configured = new Set();
 const configuring = new Set();
-const lights = {};
 const shepherdNodes = {};
 const herdsmanInstances = {};
 
@@ -25,92 +24,123 @@ const convertersVersion = require(path.join(convertersPath, 'package.json')).ver
 const zclDefinitions = require(path.join(herdsmanPath, 'dist/zcl/definition/index.js'));
 
 module.exports = function (RED) {
-    RED.httpAdmin.get('/zigbee-shepherd/hue', (req, res) => {
-        res.status(200).send(JSON.stringify(lights[req.query.id] || {}));
-    });
-
     RED.httpAdmin.get('/zigbee-shepherd/status', (req, res) => {
-        res.status(200).send(shepherdNodes[req.query.id].joinPermitted ? 'join permitted' : (shepherdNodes[req.query.id].status || ''));
+        if (shepherdNodes[req.query.id]) {
+            res.status(200).send(shepherdNodes[req.query.id].joinPermitted ? 'join permitted' : (shepherdNodes[req.query.id].status || ''));
+        } else {
+            res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
+        }
     });
 
     RED.httpAdmin.get('/zigbee-shepherd/devices', (req, res) => {
-        res.status(200).send(JSON.stringify(shepherdNodes[req.query.id].herdsman.getDevices()));
+        if (shepherdNodes[req.query.id]) {
+            res.status(200).send(JSON.stringify(shepherdNodes[req.query.id].herdsman.getDevices()));
+        } else {
+            res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
+        }
     });
 
     RED.httpAdmin.get('/zigbee-shepherd/groups', (req, res) => {
-        const result = [];
-
-        shepherdNodes[req.query.id].herdsman.getGroups().forEach(group => {
-            result.push({
-                databaseID: group.databaseID,
-                groupID: group.groupID,
-                meta: group.meta,
-                members: group.getMembers()
+        if (shepherdNodes[req.query.id]) {
+            const result = [];
+            shepherdNodes[req.query.id].herdsman.getGroups().forEach(group => {
+                result.push({
+                    databaseID: group.databaseID,
+                    groupID: group.groupID,
+                    meta: group.meta,
+                    members: group.getMembers()
+                });
             });
-        });
-        res.status(200).send(JSON.stringify(result));
+            res.status(200).send(JSON.stringify(result));
+        } else {
+            res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
+        }
     });
 
     RED.httpAdmin.post('/zigbee-shepherd/createGroup', (req, res) => {
-        shepherdNodes[req.query.id].createGroup(req.body.groupID, req.body.name).then(result => {
-            res.status(200).send(JSON.stringify(result));
-        }).catch(err => {
-            res.status(500).send(err && err.message);
-        });
+        if (shepherdNodes[req.query.id]) {
+            shepherdNodes[req.query.id].createGroup(req.body.groupID, req.body.name).then(result => {
+                res.status(200).send(JSON.stringify(result));
+            }).catch(err => {
+                res.status(500).send(err && err.message);
+            });
+        } else {
+            res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
+        }
     });
 
     RED.httpAdmin.post('/zigbee-shepherd/removeGroup', (req, res) => {
-        shepherdNodes[req.query.id].removeGroup(req.body.groupID).then(result => {
-            res.status(200).send(JSON.stringify(result));
-        }).catch(err => {
-            res.status(500).send(err && err.message);
-        });
+        if (shepherdNodes[req.query.id]) {
+            shepherdNodes[req.query.id].removeGroup(req.body.groupID).then(result => {
+                res.status(200).send(JSON.stringify(result));
+            }).catch(err => {
+                res.status(500).send(err && err.message);
+            });
+        } else {
+            res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
+        }
     });
 
     RED.httpAdmin.post('/zigbee-shepherd/bind', (req, res) => {
-        let promise;
-        if (req.body.type === 'endpoint') {
-            promise = shepherdNodes[req.query.id].bind(req.body.device, req.body.endpoint, req.body.cluster, req.body.targetDevice, req.body.targetEndpoint);
-        } else {
-            promise = shepherdNodes[req.query.id].bindGroup(req.body.device, req.body.endpoint, req.body.cluster, req.body.group);
-        }
+        if (shepherdNodes[req.query.id]) {
+            let promise;
+            if (req.body.type === 'endpoint') {
+                promise = shepherdNodes[req.query.id].bind(req.body.device, req.body.endpoint, req.body.cluster, req.body.targetDevice, req.body.targetEndpoint);
+            } else {
+                promise = shepherdNodes[req.query.id].bindGroup(req.body.device, req.body.endpoint, req.body.cluster, req.body.group);
+            }
 
-        promise.then(result => {
-            res.status(200).send(JSON.stringify(result));
-        }).catch(err => {
-            res.status(500).send(err && err.message);
-        });
+            promise.then(result => {
+                res.status(200).send(JSON.stringify(result));
+            }).catch(err => {
+                res.status(500).send(err && err.message);
+            });
+        } else {
+            res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
+        }
     });
 
     RED.httpAdmin.post('/zigbee-shepherd/unbind', (req, res) => {
-        let promise;
-        if (req.body.type === 'endpoint') {
-            promise = shepherdNodes[req.query.id].unbind(req.body.device, req.body.endpoint, req.body.cluster, req.body.targetDevice, req.body.targetEndpoint);
-        } else {
-            promise = shepherdNodes[req.query.id].unbindGroup(req.body.device, req.body.endpoint, req.body.cluster, req.body.group);
-        }
+        if (shepherdNodes[req.query.id]) {
+            let promise;
+            if (req.body.type === 'endpoint') {
+                promise = shepherdNodes[req.query.id].unbind(req.body.device, req.body.endpoint, req.body.cluster, req.body.targetDevice, req.body.targetEndpoint);
+            } else {
+                promise = shepherdNodes[req.query.id].unbindGroup(req.body.device, req.body.endpoint, req.body.cluster, req.body.group);
+            }
 
-        promise.then(result => {
-            res.status(200).send(JSON.stringify(result));
-        }).catch(err => {
-            res.status(500).send(err && err.message);
-        });
+            promise.then(result => {
+                res.status(200).send(JSON.stringify(result));
+            }).catch(err => {
+                res.status(500).send(err && err.message);
+            });
+        } else {
+            res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
+        }
     });
 
     RED.httpAdmin.post('/zigbee-shepherd/addGroupMember', (req, res) => {
-        shepherdNodes[req.query.id].addGroupMember(req.body.groupID, req.body.ieeeAddr, req.body.endpoint).then(result => {
-            res.status(200).send(JSON.stringify(result));
-        }).catch(err => {
-            res.status(500).send(err && err.message);
-        });
+        if (shepherdNodes[req.query.id]) {
+            shepherdNodes[req.query.id].addGroupMember(req.body.groupID, req.body.ieeeAddr, req.body.endpoint).then(result => {
+                res.status(200).send(JSON.stringify(result));
+            }).catch(err => {
+                res.status(500).send(err && err.message);
+            });
+        } else {
+            res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
+        }
     });
 
     RED.httpAdmin.post('/zigbee-shepherd/removeFromGroup', (req, res) => {
-        shepherdNodes[req.query.id].removeFromGroup(req.body.groupID, req.body.ieeeAddr, req.body.epID).then(result => {
-            res.status(200).send(JSON.stringify(result));
-        }).catch(err => {
-            res.status(500).send(err && err.message);
-        });
+        if (shepherdNodes[req.query.id]) {
+            shepherdNodes[req.query.id].removeFromGroup(req.body.groupID, req.body.ieeeAddr, req.body.epID).then(result => {
+                res.status(200).send(JSON.stringify(result));
+            }).catch(err => {
+                res.status(500).send(err && err.message);
+            });
+        } else {
+            res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
+        }
     });
 
     RED.httpAdmin.get('/zigbee-shepherd/definitions', (req, res) => {
@@ -119,15 +149,19 @@ module.exports = function (RED) {
 
     RED.httpAdmin.get('/zigbee-shepherd/scan', (req, res) => {
         if (shepherdNodes[req.query.id]) {
-            shepherdNodes[req.query.id].shepherd.lqiScan(shepherdNodes[req.query.id].shepherd.controller._coord.ieeeAddr)
-                .then(topology => {
-                    res.status(200).json(topology);
-                })
-                .catch(err => {
-                    res.status(500).send('500 Internal Server Error: ' + err.message);
-                });
+            if (shepherdNodes[req.query.id]) {
+                shepherdNodes[req.query.id].shepherd.lqiScan(shepherdNodes[req.query.id].shepherd.controller._coord.ieeeAddr)
+                    .then(topology => {
+                        res.status(200).json(topology);
+                    })
+                    .catch(err => {
+                        res.status(500).send('500 Internal Server Error: ' + err.message);
+                    });
+            } else {
+                res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
+            }
         } else {
-            res.status(500).send('500 Internal Server Error: Unknown Herdsman Id');
+            res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
         }
     });
 
@@ -139,7 +173,7 @@ module.exports = function (RED) {
                 res.status(500).send(err.message);
             });
         } else {
-            res.status(500).send('500 Internal Server Error: Unknown Herdsman Id');
+            res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
         }
     });
 
@@ -151,7 +185,7 @@ module.exports = function (RED) {
                 res.status(500).send(err.message);
             });
         } else {
-            res.status(500).send('500 Internal Server Error: Unknown Herdsman Id');
+            res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
         }
     });
 
@@ -199,7 +233,7 @@ module.exports = function (RED) {
             shepherdNodes[req.query.id].report(req.body.ieeeAddr, req.body.shouldReport);
             res.status(200).send('');
         } else {
-            res.status(404).send('shepherd id ' + req.query.id + ' not found');
+            res.status(404).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
         }
     });
 
@@ -207,7 +241,7 @@ module.exports = function (RED) {
         if (shepherdNodes[req.query.id]) {
             res.status(200).send({permit: shepherdNodes[req.query.id].joinPermitted});
         } else {
-            res.status(404).send('shepherd id ' + req.query.id + ' not found');
+            res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
         }
     });
 
@@ -218,23 +252,27 @@ module.exports = function (RED) {
             }).catch(err => {
                 res.status(500).send(err && err.message);
             });
+        } else {
+            res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
         }
     });
 
     RED.httpAdmin.get('/zigbee-shepherd/join', (req, res) => {
         if (shepherdNodes[req.query.id]) {
             shepherdNodes[req.query.id].permitJoin(req.query.permit === 'true');
+            res.status(200).send('');
+        } else {
+            res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
         }
-
-        res.status(200).send('');
     });
 
     RED.httpAdmin.get('/zigbee-shepherd/soft-reset', (req, res) => {
         if (shepherdNodes[req.query.id]) {
             shepherdNodes[req.query.id].softReset();
+            res.status(200).send('');
+        } else {
+            res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
         }
-
-        res.status(200).send('');
     });
 
     RED.httpAdmin.post('/zigbee-shepherd/cmd', (req, res) => {
@@ -262,6 +300,8 @@ module.exports = function (RED) {
             });
 
             //shepherdNodes[req.query.id].proxy.queue(cmd);
+        } else {
+            res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
         }
     });
 
