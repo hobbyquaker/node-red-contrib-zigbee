@@ -188,13 +188,11 @@
                         }
 
                         if (device.meta.binds) {
-                            console.log('has binds', device.ieeeAddr, device.meta.binds);
                             device.meta.binds.forEach((bind, index) => {
                                 const {targetDevice} = bind;
                                 const tDevice = devices.find(d => d.ieeeAddr === targetDevice);
                                 const targetName = tDevice ? tDevice.meta.name : '';
                                 const data = {...bind, ieeeAddr: device.ieeeAddr, index, name: device.meta.name, targetName};
-                                console.log(data);
                                 if ($('ol#binds .bind-address[data-addr="' + device.ieeeAddr + '"][data-index="' + index + '"]').length === 0) {
                                     $('ol#binds').editableList('addItem', data);
                                 }
@@ -328,7 +326,6 @@
 
             $('ol#groups').on('click', '.group-remove', function () {
                 const groupID = parseInt($(this).data('groupid'), 10);
-                console.log('remove group', groupID);
                 $(this).addClass('disabled');
                 $.ajax({
                     type: 'POST',
@@ -361,14 +358,12 @@
 
             $('ol#members').on('click', '.member-remove', function () {
                 $(this).addClass('disabled');
-                console.log('remove member', selectedGroup, $(this).data('addr'));
                 $.ajax({
                     type: 'POST',
                     url: 'zigbee-shepherd/removeFromGroup?id=' + id,
                     contentType: 'application/json',
                     data: JSON.stringify({groupID: selectedGroup, ieeeAddr: $(this).data('addr'), epID: parseInt($(this).data('epid'), 10)}),
-                    success: res => {
-                        console.log(res);
+                    success: () => {
                         $(this).parent().parent().remove();
                         refreshGroups();
                     },
@@ -380,17 +375,13 @@
             });
 
             function refreshMembers() {
-                console.log('refreshMembers', selectedGroup);
                 $('ol#members').editableList('empty');
                 $('#selected-group').html('');
-                console.log('groups', groups);
                 const group = groups.find(group => group.groupID === selectedGroup);
                 if (!group) {
                     return;
                 }
 
-                console.log('group', group);
-                console.log('members', group.members);
                 const deviceList = [];
                 group.members.forEach(member => {
                     const device = devices.find(device => device.ieeeAddr === member.deviceIeeeAddress);
@@ -424,7 +415,7 @@
                 });
             }
 
-            refreshGroups();
+            refreshGroups.call(this);
 
             function autocompleteCluster() {
                 const ieeeAddr = $('#add-bind-device').val();
@@ -496,7 +487,6 @@
                         click() {
                             const ieeeAddr = $('#add-member-select').val();
                             const endpoint = parseInt($('#add-member-endpoint-select').val(), 10);
-                            console.log('add member', selectedGroup, ieeeAddr);
                             $.ajax({
                                 type: 'POST',
                                 url: 'zigbee-shepherd/addGroupMember?id=' + id,
@@ -537,15 +527,13 @@
                         click() {
                             const groupID = parseInt($('#add-group-id').val(), 10);
                             const name = $('#add-group-name').val();
-                            console.log('add group', groupID, name);
 
                             $.ajax({
                                 type: 'POST',
                                 url: 'zigbee-shepherd/createGroup?id=' + id,
                                 contentType: 'application/json',
                                 data: JSON.stringify({groupID, name}),
-                                success: res => {
-                                    console.log(res);
+                                success: () => {
                                     $(this).dialog('close');
                                     refreshGroups();
                                 },
@@ -568,7 +556,6 @@
 
             $('ol#binds').on('click', '.bind-remove', function () {
                 $(this).addClass('disabled');
-                console.log(this);
                 $.ajax({
                     type: 'POST',
                     url: 'zigbee-shepherd/unbind?id=' + id,
@@ -652,7 +639,6 @@
             });
         },
         oneditsave() {
-            console.log('oneditsave');
             clearInterval(this.statusInterval);
             clearInterval(this.refreshInterval);
             $.getJSON('zigbee-shepherd/join?id=' + this.id + '&permit=false');
@@ -686,7 +672,6 @@
                 const name = $(this).val();
                 const group = groups.find(group => group.groupID === groupID);
                 if (group.meta.name !== name) {
-                    console.log('rename', groupID, name);
                     $.ajax({
                         type: 'POST',
                         url: 'zigbee-shepherd/rename?id=' + id,
@@ -695,7 +680,7 @@
                     });
                 }
             });
-            $('ol#reporting .device-report').each(function () {
+            $('ol#reporting li .device-report').each(function () {
                 const ieeeAddr = $(this).data('addr');
                 const shouldReport = $(this).is(':checked');
                 const device = devices.find(dev => dev.ieeeAddr === ieeeAddr);
@@ -710,7 +695,6 @@
             });
         },
         oneditcancel() {
-            console.log('oneditcancel');
             clearInterval(this.statusInterval);
             clearInterval(this.refreshInterval);
             $.getJSON('zigbee-shepherd/join?id=' + this.id + '&permit=false');
