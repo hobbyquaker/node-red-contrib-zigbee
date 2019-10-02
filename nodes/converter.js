@@ -2,7 +2,7 @@ const herdsmanConverters = require('zigbee-herdsman-converters');
 const utils = require('../lib/utils.js');
 
 module.exports = function (RED) {
-    RED.httpAdmin.get('/zigbee-shepherd/converters', (req, res) => {
+    RED.httpAdmin.get('/zigbee-shepherd/converters', RED.auth.needsPermission('zigbee.read'), (req, res) => {
         const converters = herdsmanConverters.findByZigbeeModel(req.query.modelID);
         res.status(200).send(JSON.stringify({supports: converters.supports || ''}));
     });

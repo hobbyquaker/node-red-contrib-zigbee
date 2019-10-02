@@ -24,7 +24,7 @@ const convertersVersion = require(path.join(convertersPath, 'package.json')).ver
 const zclDefinitions = require(path.join(herdsmanPath, 'dist/zcl/definition/index.js'));
 
 module.exports = function (RED) {
-    RED.httpAdmin.get('/zigbee-shepherd/status', (req, res) => {
+    RED.httpAdmin.get('/zigbee-shepherd/status', RED.auth.needsPermission('zigbee.read'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
             res.status(200).send(shepherdNodes[req.query.id].joinPermitted ? 'join permitted' : (shepherdNodes[req.query.id].status || ''));
         } else {
@@ -32,7 +32,7 @@ module.exports = function (RED) {
         }
     });
 
-    RED.httpAdmin.get('/zigbee-shepherd/devices', (req, res) => {
+    RED.httpAdmin.get('/zigbee-shepherd/devices', RED.auth.needsPermission('zigbee.read'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
             res.status(200).send(JSON.stringify(shepherdNodes[req.query.id].herdsman.getDevices()));
         } else {
@@ -40,7 +40,7 @@ module.exports = function (RED) {
         }
     });
 
-    RED.httpAdmin.get('/zigbee-shepherd/groups', (req, res) => {
+    RED.httpAdmin.get('/zigbee-shepherd/groups', RED.auth.needsPermission('zigbee.read'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
             const result = [];
             shepherdNodes[req.query.id].herdsman.getGroups().forEach(group => {
@@ -48,7 +48,7 @@ module.exports = function (RED) {
                     databaseID: group.databaseID,
                     groupID: group.groupID,
                     meta: group.meta,
-                    members: group.getMembers()
+                    members: group.members
                 });
             });
             res.status(200).send(JSON.stringify(result));
@@ -57,7 +57,7 @@ module.exports = function (RED) {
         }
     });
 
-    RED.httpAdmin.post('/zigbee-shepherd/createGroup', (req, res) => {
+    RED.httpAdmin.post('/zigbee-shepherd/createGroup', RED.auth.needsPermission('zigbee.write'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
             shepherdNodes[req.query.id].createGroup(req.body.groupID, req.body.name).then(result => {
                 res.status(200).send(JSON.stringify(result));
@@ -69,7 +69,7 @@ module.exports = function (RED) {
         }
     });
 
-    RED.httpAdmin.post('/zigbee-shepherd/removeGroup', (req, res) => {
+    RED.httpAdmin.post('/zigbee-shepherd/removeGroup', RED.auth.needsPermission('zigbee.write'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
             shepherdNodes[req.query.id].removeGroup(req.body.groupID).then(result => {
                 res.status(200).send(JSON.stringify(result));
@@ -81,7 +81,7 @@ module.exports = function (RED) {
         }
     });
 
-    RED.httpAdmin.post('/zigbee-shepherd/bind', (req, res) => {
+    RED.httpAdmin.post('/zigbee-shepherd/bind', RED.auth.needsPermission('zigbee.write'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
             let promise;
             if (req.body.type === 'endpoint') {
@@ -100,7 +100,7 @@ module.exports = function (RED) {
         }
     });
 
-    RED.httpAdmin.post('/zigbee-shepherd/unbind', (req, res) => {
+    RED.httpAdmin.post('/zigbee-shepherd/unbind', RED.auth.needsPermission('zigbee.write'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
             let promise;
             if (req.body.type === 'endpoint') {
@@ -119,7 +119,7 @@ module.exports = function (RED) {
         }
     });
 
-    RED.httpAdmin.post('/zigbee-shepherd/addGroupMember', (req, res) => {
+    RED.httpAdmin.post('/zigbee-shepherd/addGroupMember', RED.auth.needsPermission('zigbee.write'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
             shepherdNodes[req.query.id].addGroupMember(req.body.groupID, req.body.ieeeAddr, req.body.endpoint).then(result => {
                 res.status(200).send(JSON.stringify(result));
@@ -131,7 +131,7 @@ module.exports = function (RED) {
         }
     });
 
-    RED.httpAdmin.post('/zigbee-shepherd/removeFromGroup', (req, res) => {
+    RED.httpAdmin.post('/zigbee-shepherd/removeFromGroup', RED.auth.needsPermission('zigbee.write'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
             shepherdNodes[req.query.id].removeFromGroup(req.body.groupID, req.body.ieeeAddr, req.body.epID).then(result => {
                 res.status(200).send(JSON.stringify(result));
@@ -143,7 +143,7 @@ module.exports = function (RED) {
         }
     });
 
-    RED.httpAdmin.get('/zigbee-shepherd/definitions', (req, res) => {
+    RED.httpAdmin.get('/zigbee-shepherd/definitions', RED.auth.needsPermission('zigbee.read'), (req, res) => {
         res.status(200).send(JSON.stringify(zclDefinitions));
     });
 
@@ -165,7 +165,7 @@ module.exports = function (RED) {
         }
     });
 
-    RED.httpAdmin.get('/zigbee-shepherd/getRoutingTable', (req, res) => {
+    RED.httpAdmin.get('/zigbee-shepherd/getRoutingTable', RED.auth.needsPermission('zigbee.read'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
             shepherdNodes[req.query.id].getRoutingTable(req.query.ieeeAddr).then(result => {
                 res.status(200).json(result);
@@ -177,7 +177,7 @@ module.exports = function (RED) {
         }
     });
 
-    RED.httpAdmin.get('/zigbee-shepherd/getLqi', (req, res) => {
+    RED.httpAdmin.get('/zigbee-shepherd/getLqi', RED.auth.needsPermission('zigbee.read'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
             shepherdNodes[req.query.id].getLqi(req.query.ieeeAddr).then(result => {
                 res.status(200).json(result);
@@ -219,7 +219,7 @@ module.exports = function (RED) {
         });
     });
 
-    RED.httpAdmin.post('/zigbee-shepherd/rename', (req, res) => {
+    RED.httpAdmin.post('/zigbee-shepherd/rename', RED.auth.needsPermission('zigbee.write'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
             shepherdNodes[req.query.id].rename(req.body);
             res.status(200).send('');
@@ -228,7 +228,7 @@ module.exports = function (RED) {
         }
     });
 
-    RED.httpAdmin.post('/zigbee-shepherd/report', (req, res) => {
+    RED.httpAdmin.post('/zigbee-shepherd/report', RED.auth.needsPermission('zigbee.write'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
             shepherdNodes[req.query.id].report(req.body.ieeeAddr, req.body.shouldReport);
             res.status(200).send('');
@@ -237,7 +237,7 @@ module.exports = function (RED) {
         }
     });
 
-    RED.httpAdmin.get('/zigbee-shepherd/joinPermitted', (req, res) => {
+    RED.httpAdmin.get('/zigbee-shepherd/joinPermitted', RED.auth.needsPermission('zigbee.read'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
             res.status(200).send({permit: shepherdNodes[req.query.id].joinPermitted});
         } else {
@@ -245,7 +245,7 @@ module.exports = function (RED) {
         }
     });
 
-    RED.httpAdmin.get('/zigbee-shepherd/remove', (req, res) => {
+    RED.httpAdmin.get('/zigbee-shepherd/remove', RED.auth.needsPermission('zigbee.write'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
             shepherdNodes[req.query.id].remove(req.query.ieeeAddr).then(() => {
                 res.status(200).send('');
@@ -257,7 +257,7 @@ module.exports = function (RED) {
         }
     });
 
-    RED.httpAdmin.get('/zigbee-shepherd/join', (req, res) => {
+    RED.httpAdmin.get('/zigbee-shepherd/join', RED.auth.needsPermission('zigbee.write'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
             shepherdNodes[req.query.id].permitJoin(req.query.permit === 'true');
             res.status(200).send('');
@@ -266,7 +266,7 @@ module.exports = function (RED) {
         }
     });
 
-    RED.httpAdmin.get('/zigbee-shepherd/soft-reset', (req, res) => {
+    RED.httpAdmin.get('/zigbee-shepherd/soft-reset', RED.auth.needsPermission('zigbee.write'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
             shepherdNodes[req.query.id].softReset();
             res.status(200).send('');
@@ -275,7 +275,7 @@ module.exports = function (RED) {
         }
     });
 
-    RED.httpAdmin.post('/zigbee-shepherd/cmd', (req, res) => {
+    RED.httpAdmin.post('/zigbee-shepherd/cmd', RED.auth.needsPermission('zigbee.write'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
             const cmd = JSON.parse(req.body.cmd);
             const {cmdType} = cmd;
@@ -523,7 +523,7 @@ module.exports = function (RED) {
                     const {revision} = data.meta;
                     const {type} = data;
                     this.log(`Coordinator: ${type} ${version} ${revision}`);
-                    const coordinator = this.herdsman.getDeviceByIeeeAddr(this.coordinatorEndpoint.deviceIeeeAddress);
+                    const coordinator = this.coordinatorEndpoint.getDevice();
                     coordinator.meta.version = version;
                     coordinator.meta.revision = revision;
                     coordinator.meta.type = type;
@@ -583,7 +583,7 @@ module.exports = function (RED) {
         }
 
         removeFromGroup(groupID, ieeeAddr, epID) {
-            console.log('removeFromGroup', groupID, ieeeAddr, epID, typeof epID);
+            //console.log('removeFromGroup', groupID, ieeeAddr, epID, typeof epID);
             return new Promise((resolve, reject) => {
                 const group = this.herdsman.getGroupByID(parseInt(groupID, 10));
                 this.herdsman.getDeviceByIeeeAddr(ieeeAddr).endpoints.find(ep => ep.ID === epID).removeFromGroup(group).then(result => {

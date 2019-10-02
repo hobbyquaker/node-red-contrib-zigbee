@@ -73,7 +73,7 @@ Send a command to a device endpoint or group.
 * [ ] Group support command node
 * [x] remove frontend debug output
 * [ ] per-device configurable ping
-* [ ] Secure shepherd node REST API, use Authentication
+* [x] Secure shepherd node REST API, use Authentication
 * [ ] Documentation
 
 
