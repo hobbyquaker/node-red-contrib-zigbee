@@ -161,6 +161,7 @@
                 this.refreshPending = true;
 
                 $.getJSON('zigbee-shepherd/devices?id=' + id, data => {
+                    console.log('devices', data);
                     this.devices = data;
                     devices = data;
                     const known = [];
@@ -384,7 +385,7 @@
 
                 const deviceList = [];
                 group.members.forEach(member => {
-                    const device = devices.find(device => device.ieeeAddr === member.deviceIeeeAddress);
+                    const device = devices.find(device => device.ieeeAddr === member.deviceIeeeAddr);
                     deviceList.push({device, endpoint: {ID: member.ID}});
                     $('ol#members').editableList('empty');
                     $('ol#members').editableList('addItems', deviceList);
@@ -403,6 +404,7 @@
 
             function refreshGroups() {
                 $.getJSON('zigbee-shepherd/groups?id=' + id, data => {
+                    console.log('groups', data);
                     groups = data;
                     this.groups = data;
                     $('#add-bind-group').html('');

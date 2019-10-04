@@ -7,6 +7,7 @@ const ZigbeeHerdsman = require('zigbee-herdsman');
 const shepherdConverters = require('zigbee-herdsman-converters');
 const utils = require('../lib/utils.js');
 const reporting = require('../lib/reporting.js');
+const toJson = require('../lib/json.js');
 
 const interval = require('../lib/interval.json');
 
@@ -34,7 +35,8 @@ module.exports = function (RED) {
 
     RED.httpAdmin.get('/zigbee-shepherd/devices', RED.auth.needsPermission('zigbee.read'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
-            res.status(200).send(JSON.stringify(shepherdNodes[req.query.id].herdsman.getDevices()));
+            const devices = shepherdNodes[req.query.id].herdsman.getDevices().map(d => toJson.deviceToJson(d));
+            res.status(200).send(JSON.stringify(devices));
         } else {
             res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
         }
@@ -42,16 +44,8 @@ module.exports = function (RED) {
 
     RED.httpAdmin.get('/zigbee-shepherd/groups', RED.auth.needsPermission('zigbee.read'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
-            const result = [];
-            shepherdNodes[req.query.id].herdsman.getGroups().forEach(group => {
-                result.push({
-                    databaseID: group.databaseID,
-                    groupID: group.groupID,
-                    meta: group.meta,
-                    members: group.members
-                });
-            });
-            res.status(200).send(JSON.stringify(result));
+            const groups = shepherdNodes[req.query.id].herdsman.getGroups().map(g => toJson.groupToJson(g));
+            res.status(200).send(JSON.stringify(groups));
         } else {
             res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
         }
@@ -473,9 +467,7 @@ module.exports = function (RED) {
                 this.proxy.emit('ready');
                 this.status = 'connected';
                 this.proxy.emit('nodeStatus', {fill: 'green', shape: 'dot', text: 'connected'});
-                if (this.led !== 'enabled') {
-                    this.herdsman.disableLED();
-                }
+                this.herdsman.setLED(this.led === 'enabled');
 
                 this.configure();
             }).catch(error => {
