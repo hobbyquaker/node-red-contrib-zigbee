@@ -5,7 +5,9 @@
         defaults: {
             shepherd: {value: '', type: 'zigbee-shepherd', required: true},
             name: {value: 'command'},
+            target: {value: 'endpoint'},
             cmdType: {value: 'command'},
+            group: {value: ''},
             ieeeAddr: {value: ''},
             ep: {value: ''},
             cid: {value: ''},
@@ -67,6 +69,7 @@
             let clusterCompl = [];
             let cmdCompl = [];
             let devices;
+            let groups;
 
             function autocompleteZclData() {
                 const cluster = $('#node-input-cid').val();
@@ -106,7 +109,7 @@
             });
 
             $('#node-input-cmd').on('focus', () => {
-                if (epCompl.length > 0) {
+                if (cmdCompl.length > 0) {
                     $('#node-input-cmd').autocomplete('search');
                 }
             });
@@ -127,21 +130,39 @@
             });
 
             $('#node-input-cid').on('focus', () => {
-                if (epCompl.length > 0) {
+                if (clusterCompl.length > 0) {
                     $('#node-input-cid').autocomplete('search');
                 }
             });
 
             function autocompleteCluster() {
-                const ieeeAddr = $('#node-input-ieeeAddr').val().split(' ')[0];
+                console.log('autocompleteCluster');
+                let ieeeAddr;
+                let group;
+                if ($('#node-input-target').val() === 'endpoint') {
+                    ieeeAddr = $('#node-input-ieeeAddr').val().split(' ')[0];
+                } else {
+                    const groupID = parseInt($('#node-input-group').val().split(' ')[0], 10);
+                    console.log('groupID', groupID);
+                    group = groups.find(g => g.groupID === groupID);
+                    ieeeAddr = group.members[0].deviceIeeeAddr;
+                    console.log('ieeeAddr', ieeeAddr);
+                }
+
                 const device = devices.filter(d => d.ieeeAddr === ieeeAddr)[0];
                 if (!device) {
                     $('#node-input-cid').autocomplete('option', 'source', []);
                     return;
                 }
 
-                const epId = parseInt($('#node-input-ep').val(), 10);
-                const endpoint = device.endpoints.filter(e => e.ID === epId)[0];
+                let endpoint;
+                if ($('#node-input-target').val() === 'endpoint') {
+                    const epId = parseInt($('#node-input-ep').val(), 10);
+                    endpoint = device.endpoints.filter(e => e.ID === epId)[0];
+                } else {
+                    endpoint = group.members[0];
+                }
+
                 if (!endpoint) {
                     $('#node-input-cid').autocomplete('option', 'source', []);
                     return;
@@ -231,19 +252,38 @@
                 });
             }
 
+            function getGroups(id) {
+                id = id || $('#node-input-shepherd').val();
+                if (id === '_ADD_') {
+                    return;
+                }
+
+                $.getJSON('zigbee-shepherd/groups?id=' + id, data => {
+                    const compl = [];
+                    groups = data;
+                    console.log(groups);
+                    groups.forEach(group => {
+                        const {groupID} = group;
+                        compl.push(groupID + ' ' + group.meta.name);
+                    });
+                    $('#node-input-group').autocomplete({
+                        source: compl,
+                        delay: 0,
+                        minLength: 0,
+                        close: () => {
+                            autocompleteCluster();
+                        }
+                    });
+                    $('#node-input-group').on('focus', () => {
+                        $('#node-input-group').autocomplete('search');
+                    });
+                });
+            }
+
             $('#node-input-shepherd').change(e => {
                 getDevices(e.target.value);
+                getGroups(e.target.value);
             });
-
-            $('#node-input-cmdType').change(function () {
-                const cmdType = $(this).val();
-                $('.cmd-type').hide();
-                $('.cmd-type.' + cmdType).show();
-                $('#node-input-destination').trigger('change');
-            });
-
-            $('#node-input-cmdType').val(this.cmdType || 'command');
-            $('#node-input-cmdType').trigger('change');
 
             $('#node-input-destination').change(function () {
                 switch (($('#node-input-cmdType').val() || '').endsWith('bind') && $(this).val()) {
@@ -260,7 +300,20 @@
                         $('.bind-endpoint').hide();
                 }
             });
-            $('#node-input-destination').trigger('change');
+
+            $('#node-input-cmdType').change(function () {
+                const cmdType = $(this).val();
+                $('.cmd-type').hide();
+                $('.cmd-type.' + cmdType).show();
+                $('#node-input-destination').trigger('change');
+            });
+
+            $('#node-input-target').change(function () {
+                const targetType = $(this).val();
+                $('.target').hide();
+                $('.target.' + targetType).show();
+                $('#node-input-cmdType').val('command').trigger('change');
+            });
 
             $('#execute').click(() => {
                 let payload;
@@ -268,7 +321,9 @@
                 let attributesWrite;
 
                 const cmdType = $('#node-input-cmdType').val();
+                const target = $('#node-input-target').val();
                 const ieeeAddr = ($('#node-input-ieeeAddr').val() || '').split(' ')[0];
+                const groupID = ($('#node-input-group').val() || '').split(' ')[0];
                 const ep = Number($('#node-input-ep').val());
                 const cid = $('#node-input-cid').val();
                 const cmd = $('#node-input-cmd').val();
@@ -287,6 +342,7 @@
 
                         obj = {
                             cmdType,
+                            groupID,
                             ieeeAddr,
                             ep,
                             cid,
@@ -335,12 +391,25 @@
 
                 const id = $('#node-input-shepherd').val();
                 $('#response').html('...');
-                $.post('zigbee-shepherd/cmd?id=' + id, {cmd: JSON.stringify(obj)}, data => {
-                    $('#response').html(JSON.stringify(data));
-                }, 'json').fail(jqXHR => {
-                    $('#response').html('Error: ' + jqXHR.responseText);
-                });
+
+                if (target === 'endpoint') {
+                    $.post('zigbee-shepherd/cmd?id=' + id, {cmd: JSON.stringify(obj)}, data => {
+                        $('#response').html(JSON.stringify(data));
+                    }, 'json').fail(jqXHR => {
+                        $('#response').html('Error: ' + jqXHR.responseText);
+                    });
+                } else {
+                    $.post('zigbee-shepherd/groupcmd?id=' + id, {cmd: JSON.stringify(obj)}, data => {
+                        $('#response').html(JSON.stringify(data));
+                    }, 'json').fail(jqXHR => {
+                        $('#response').html('Error: ' + jqXHR.responseText);
+                    });
+                }
             });
+
+            $('#node-input-target').val(this.target || 'endpoint');
+            $('#node-input-cmdType').val(this.cmdType || 'command');
+            //$('#node-input-target').trigger('change');
         },
         oneditsave() {
             if (this.dataType === 'num') {
@@ -365,23 +434,33 @@
     </div>
 
     <div class="form-row">
-        <label for="node-input-cmdType"><i class="icon-pencil"></i> cmdType</label>
-        <select id="node-input-cmdType">
-            <option>command</option>
-            <option>read</option>
-            <option>write</option>
+        <label for="node-input-target"><i class="icon-pencil"></i> target</label>
+        <select id="node-input-target">
+            <option selected>endpoint</option>
+            <option>group</option>
         </select>
     </div>
-    <div class="form-row cmd-type command report read write dump bind unbind">
+    <div class="form-row">
+        <label for="node-input-cmdType"><i class="icon-pencil"></i> cmdType</label>
+        <select id="node-input-cmdType">
+            <option selected>command</option>
+            <option class="target endpoint">read</option>
+            <option class="target endpoint">write</option>
+        </select>
+    </div>
+    <div class="form-row target endpoint">
         <label for="node-input-cmdType"><i class="icon-pencil"></i> ieeeAddr</label>
         <input type="text" id="node-input-ieeeAddr">
     </div>
-    <div class="form-row cmd-type command report read write dump bind unbind">
+    <div class="form-row target endpoint">
         <label for="node-input-ep"><i class="icon-pencil"></i> endpoint</label>
         <input type="number" id="node-input-ep">
     </div>
-
-    <div class="form-row cmd-type command read write report bind">
+    <div class="form-row target group">
+        <label for="node-input-group"><i class="icon-pencil"></i> group</label>
+        <input type="text" id="node-input-group">
+    </div>
+    <div class="form-row cmd-type command read write">
         <label for="node-input-cid"><i class="icon-pencil"></i> cluster</label>
         <input type="text" id="node-input-cid">
     </div>

@@ -5,7 +5,7 @@
         defaults: {
             shepherd: {value: '', type: 'zigbee-shepherd', required: true},
             topic: {value: 'hue/status/lights/${name}', require: true},
-            settopic: {value: 'hue/set/lights/${name}/${attribute}', require: true},
+            settopic: {value: 'hue/set/${type}/${name}/${attribute}', require: true},
             payload: {value: 'json'}
         },
         inputs: 1,

@@ -69,8 +69,8 @@ Send a command to a device endpoint or group.
 ## Todo
 
 * [ ] Group support converter node
-* [ ] Group support hue node
-* [ ] Group support command node
+* [x] Group support hue node
+* [x] Group support command node
 * [x] remove frontend debug output
 * [ ] per-device configurable ping
 * [x] Secure shepherd node REST API, use Authentication

@@ -299,6 +299,19 @@ module.exports = function (RED) {
         }
     });
 
+    RED.httpAdmin.post('/zigbee-shepherd/groupcmd', RED.auth.needsPermission('zigbee.write'), (req, res) => {
+        if (shepherdNodes[req.query.id]) {
+            const cmd = JSON.parse(req.body.cmd);
+            shepherdNodes[req.query.id].groupCommand(cmd.groupID, cmd.cid, cmd.cmd, cmd.payload).then(result => {
+                res.status(200).send(result || {});
+            }).catch(err => {
+                res.status(500).send(err.message);
+            });
+        } else {
+            res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
+        }
+    });
+
     class HerdsmanProxy extends EventEmitter {
         constructor(shepherdNode) {
             super();
@@ -622,6 +635,24 @@ module.exports = function (RED) {
                 } else {
                     reject(new Error('Endpoint not found'));
                 }
+            });
+        }
+
+        groupCommand(groupID, cluster, command, payload) {
+            return new Promise((resolve, reject) => {
+                const group = this.herdsman.getGroupByID(groupID);
+                if (!group) {
+                    reject(new Error(`Group ${groupID} not found`));
+                    return;
+                }
+
+                group.command(cluster, command, payload).then(result => {
+                    this.debug(`group command successful ${groupID} ${group.meta.name} ${cluster} ${command} ${JSON.stringify(payload)}`);
+                    resolve(result);
+                }).catch(err => {
+                    this.debug(`group command failed ${groupID} ${group.meta.name} ${cluster} ${command} ${err.message}`);
+                    reject(err);
+                });
             });
         }
 

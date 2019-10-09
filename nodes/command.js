@@ -43,7 +43,9 @@ module.exports = function (RED) {
 
             this.on('input', msg => {
                 const cmdType = msg.cmdType || config.cmdType;
+                const target = msg.target || config.target;
                 const ieeeAddr = msg.ieeeAddr || ((config.ieeeAddr || '').split(' ')[0]);
+                const group = msg.group || ((config.group || '').split(' ')[0]);
                 const ep = parseInt(msg.endpoint || msg.ep || config.ep, 10);
                 const cid = msg.cluster || msg.cid || config.cid;
                 const cmd = msg.command || msg.cmd || config.cmd;
@@ -56,7 +58,12 @@ module.exports = function (RED) {
                 let promise;
                 switch (cmdType) {
                     case 'command':
-                        promise = shepherdNode.command(ieeeAddr, ep, cid, cmd, zclData);
+                        if (target === 'endpoint') {
+                            promise = shepherdNode.command(ieeeAddr, ep, cid, cmd, zclData);
+                        } else {
+                            promise = shepherdNode.groupCommand(group, cid, cmd, zclData);
+                        }
+
                         break;
                     case 'write':
                         promise = shepherdNode.write(ieeeAddr, ep, cid, attributesWrite);

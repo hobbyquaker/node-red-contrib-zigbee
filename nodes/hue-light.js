@@ -26,6 +26,7 @@ module.exports = function (RED) {
 
             const readyHandler = () => {
                 this.devices = shepherdNode.herdsman.getDevices();
+                this.groups = shepherdNode.herdsman.getGroups();
                 this.devices.forEach(device => {
                     this.initLight(device);
                 });
@@ -130,20 +131,41 @@ module.exports = function (RED) {
                 for (const [i, element] of topic.entries()) {
                     const match = settopic[i].match(/\${([^}]+)}/);
                     if (match) {
-                        topicAttrs[match[1]] = element;
+                        topicAttrs[match[1].toLowerCase()] = element;
                     } else if (element !== settopic[i]) {
                         this.debug('topic mismatch ' + msg.topic + ' ' + config.settopic);
                         return;
                     }
                 }
 
-                const search = topicAttrs.name || topicAttrs.index || topicAttrs.ieeeAddr;
+                const type = topicAttrs.type || 'lights';
 
-                const device = this.searchDevice(search);
+                let search;
+                let group;
+                let device;
 
-                if (!device) {
-                    this.warn('unknown light ' + JSON.stringify(topicAttrs));
-                    return;
+                switch (type) {
+                    case 'lights':
+                        search = topicAttrs.name || topicAttrs.index || topicAttrs.id || topicAttrs.ieeeAddr;
+                        device = this.searchDevice(search);
+                        if (!device) {
+                            this.warn('unknown light ' + JSON.stringify(topicAttrs));
+                            return;
+                        }
+
+                        break;
+                    case 'groups':
+                        search = topicAttrs.name || topicAttrs.index || topicAttrs.id || topicAttrs.ieeeAddr;
+                        group = this.searchGroup(search);
+                        if (!group) {
+                            this.warn('unknown group ' + JSON.stringify(topicAttrs));
+                            return;
+                        }
+
+                        break;
+                    default:
+                        this.error(`unknown type ${type}`);
+                        return;
                 }
 
                 let cmd = {};
@@ -175,7 +197,7 @@ module.exports = function (RED) {
                     cmd.on = false;
                 } else {
                     const bri = parseInt(msg.payload, 10) || 0;
-                    if (bri > 0 && !device.meta.hue.type.startsWith('On/off')) {
+                    if (type === 'groups' || (bri > 0 && !device.meta.hue.type.startsWith('On/off'))) {
                         cmd.bri = bri;
                     }
 
@@ -186,7 +208,7 @@ module.exports = function (RED) {
                     //cmd.transitiontime = 4;
                 }
 
-                this.putLightsState({topic: 'lights/' + device.ID + '/state', payload: cmd});
+                this.putLightsState({topic: type + '/' + (type === 'lights' ? device.ID : group.groupID) + '/state', payload: cmd});
             });
         }
 
@@ -195,6 +217,13 @@ module.exports = function (RED) {
                 return device.meta.name === search ||
                     device.ieeeAddr === search ||
                     device.ID === parseInt(search, 10);
+            });
+        }
+
+        searchGroup(search) {
+            return this.groups.find(group => {
+                return group.meta.name === search ||
+                    group.groupID === parseInt(search, 10);
             });
         }
 
@@ -258,13 +287,30 @@ module.exports = function (RED) {
             // ct_inc -65534-65534
             // xy_inc [] 0.5 0.5
 
-            const lightIndex = msg.topic.match(/lights\/(\d+)\/state/)[1];
+            const [, type, index] = msg.topic.match(/([a-z]+)\/(\d+)\/state/);
+            let group;
+            let device;
 
-            const device = this.searchDevice(lightIndex);
+            switch (type) {
+                case 'lights':
+                    device = this.searchDevice(index);
+                    if (!device) {
+                        this.warn('unknown light ' + index);
+                        return;
+                    }
 
-            if (!device) {
-                this.error('putLightState unknown light ' + lightIndex);
-                return;
+                    break;
+                case 'groups':
+                    group = this.searchGroup(index);
+                    if (!group) {
+                        this.warn('unknown group ' + index);
+                        return;
+                    }
+
+                    break;
+                default:
+                    this.error(`unknown type ${type}`);
+                    return;
             }
 
             const cmds = [];
@@ -272,9 +318,6 @@ module.exports = function (RED) {
             if (typeof msg.payload.on !== 'undefined' && typeof msg.payload.bri === 'undefined') {
                 if (msg.payload.transitiontime) {
                     cmds.push({
-                        ieeeAddr: device.ieeeAddr,
-                        ep: device.endpoints[0],
-
                         cid: 'genLevelCtrl',
                         cmd: 'moveToLevelWithOnOff',
                         zclData: {
@@ -286,9 +329,6 @@ module.exports = function (RED) {
                     });
                 } else {
                     cmds.push({
-                        ieeeAddr: device.ieeeAddr,
-                        ep: device.endpoints[0],
-
                         cid: 'genOnOff',
                         cmd: msg.payload.on ? 'on' : 'off',
                         zclData: {},
@@ -307,9 +347,6 @@ module.exports = function (RED) {
                 }
 
                 cmds.push({
-                    ieeeAddr: device.ieeeAddr,
-                    ep: device.endpoints[0],
-
                     cid: 'genLevelCtrl',
                     // Todo: clarify - bri 1 sets off?
                     cmd: 'moveToLevelWithOnOff',
@@ -323,9 +360,6 @@ module.exports = function (RED) {
                 //}
             } else if (typeof msg.payload.bri_inc !== 'undefined') {
                 cmds.push({
-                    ieeeAddr: device.ieeeAddr,
-                    ep: device.endpoints[0],
-
                     cid: 'genLevelCtrl',
                     cmd: 'step',
                     zclData: {
@@ -342,9 +376,6 @@ module.exports = function (RED) {
 
             if (typeof msg.payload.xy !== 'undefined') {
                 cmds.push({
-                    ieeeAddr: device.ieeeAddr,
-                    ep: device.endpoints[0],
-
                     cid: 'lightingColorCtrl',
                     cmd: 'moveToColor',
                     zclData: {
@@ -357,8 +388,6 @@ module.exports = function (RED) {
                 });
             } else if (typeof msg.payload.xy_inc !== 'undefined') {
                 cmds.push({
-                    ieeeAddr: device.ieeeAddr,
-                    ep: device.endpoints[0],
 
                     cid: 'lightingColorCtrl',
                     cmd: 'stepColor',
@@ -371,9 +400,6 @@ module.exports = function (RED) {
                 });
             } else if (typeof msg.payload.ct !== 'undefined') {
                 cmds.push({
-                    ieeeAddr: device.ieeeAddr,
-                    ep: device.endpoints[0],
-
                     cid: 'lightingColorCtrl',
                     cmd: 'moveToColorTemp',
                     zclData: {
@@ -386,9 +412,6 @@ module.exports = function (RED) {
                 // Todo - clarify: it seems there is no stepColorTemperature cmd - need to know the current ct value?
             } else if (typeof msg.payload.hue !== 'undefined' && typeof msg.payload.sat !== 'undefined') {
                 cmds.push({
-                    ieeeAddr: device.ieeeAddr,
-                    ep: device.endpoints[0],
-
                     cid: 'lightingColorCtrl',
                     cmd: 'enhancedMoveToHueAndSaturation',
                     zclData: {
@@ -401,9 +424,6 @@ module.exports = function (RED) {
             } else if (typeof msg.payload.hue === 'undefined') {
                 if (typeof msg.payload.sat !== 'undefined') {
                     cmds.push({
-                        ieeeAddr: device.ieeeAddr,
-                        ep: device.endpoints[0],
-
                         cid: 'lightingColorCtrl',
                         cmd: 'moveToSaturation',
                         zclData: {
@@ -421,9 +441,6 @@ module.exports = function (RED) {
                 }
             } else {
                 cmds.push({
-                    ieeeAddr: device.ieeeAddr,
-                    ep: device.endpoints[0],
-
                     cid: 'lightingColorCtrl',
                     cmd: 'enhancedMoveToHue',
                     zclData: {
@@ -451,9 +468,6 @@ module.exports = function (RED) {
                 }
 
                 cmds.push({
-                    ieeeAddr: device.ieeeAddr,
-                    ep: device.endpoints[0],
-
                     cid: 'genIdentify',
                     cmd: 'triggerEffect',
                     zclData: {
@@ -470,27 +484,52 @@ module.exports = function (RED) {
             let update = false;
             let todo = cmds.length;
 
-            this.lastState[device.ID] = oe.clone(device.meta.hue.state);
+            switch (type) {
+                case 'lights':
+                    this.lastState[device.ID] = oe.clone(device.meta.hue.state);
 
-            this.debug(`putLightState ${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(msg.payload)}`);
+                    this.debug(`putLightState ${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(msg.payload)}`);
 
-            cmds.forEach(cmd => {
-                //console.log(cmd);
-                this.shepherdNode.command(cmd.ieeeAddr, cmd.ep.ID, cmd.cid, cmd.cmd, cmd.zclData, cmd.options)
-                    .then(() => {
-                        if (cmd.attributes) {
-                            const data = {};
-                            cmd.attributes.forEach(attr => {
-                                data[attr] = msg.payload[attr];
+                    cmds.forEach(cmd => {
+                        this.shepherdNode.command(device.ieeeAddr, device.endpoints[0].ID, cmd.cid, cmd.cmd, cmd.zclData, cmd.options)
+                            .then(() => {
+                                if (cmd.attributes) {
+                                    const data = {};
+                                    cmd.attributes.forEach(attr => {
+                                        data[attr] = msg.payload[attr];
+                                    });
+                                    update = update || oe.extend(device.meta.hue.state, data);
+                                }
+                            }).catch(() => {}).finally(() => {
+                                if (--todo === 0 && update) {
+                                    this.publishLightState(device);
+                                }
                             });
-                            update = update || oe.extend(device.meta.hue.state, data);
-                        }
-                    }).catch(() => {}).finally(() => {
-                        if (--todo === 0 && update) {
-                            this.publishLightState(device);
-                        }
                     });
-            });
+                    break;
+
+                case 'groups':
+                    this.debug(`putGroupState ${group.groupID} ${JSON.stringify(msg.payload)}`);
+                    cmds.forEach(cmd => {
+                        this.shepherdNode.groupCommand(group.groupID, cmd.cid, cmd.cmd, cmd.zclData, cmd.options)
+                            .then(() => {
+                                if (cmd.attributes) {
+                                    const data = {};
+                                    cmd.attributes.forEach(attr => {
+                                        data[attr] = msg.payload[attr];
+                                    });
+                                    update = update || oe.extend(device.meta.hue.state, data);
+                                }
+                            }).catch(() => {}).finally(() => {
+                                if (--todo === 0 && update) {
+                                    //this.publishLightState(device);
+                                }
+                            });
+                    });
+                    break;
+
+                default:
+            }
         }
 
         publishLightState(device) {
