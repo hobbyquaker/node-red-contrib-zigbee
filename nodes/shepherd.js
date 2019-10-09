@@ -482,6 +482,10 @@ module.exports = function (RED) {
                 this.proxy.emit('nodeStatus', {fill: 'green', shape: 'dot', text: 'connected'});
                 this.herdsman.setLED(this.led === 'enabled');
 
+                this.checkOverdueInterval = setInterval(() => {
+                    this.checkOverdue();
+                }, 60000);
+
                 this.configure();
             }).catch(error => {
                 this.status = error.message;
@@ -489,13 +493,9 @@ module.exports = function (RED) {
                 this.error(error.message);
             });
 
-            const checkOverdueInterval = setInterval(() => {
-                this.checkOverdue();
-            }, 60000);
-
             this.on('close', done => {
                 this.debug('stopping');
-                clearInterval(checkOverdueInterval);
+                clearInterval(this.checkOverdueInterval);
                 this.status = 'closing';
                 this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'ring', text: 'closing'});
 
