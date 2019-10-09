@@ -35,8 +35,8 @@ module.exports = function (RED) {
                             this.send({topic: msg.topic, payload: result});
                         });
                         break;
-                    case 'softReset':
-                        this.herdsman.softReset().then(result => {
+                    case 'reset':
+                        this.herdsman.reset(String(msg.payload).toLowerCase() === 'hard' ? 'hard' : 'soft').then(result => {
                             this.send({topic: msg.topic, payload: result});
                         });
                         break;
