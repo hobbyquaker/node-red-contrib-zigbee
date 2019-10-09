@@ -188,17 +188,27 @@
                             }
                         }
 
-                        if (device.meta.binds) {
-                            device.meta.binds.forEach((bind, index) => {
-                                const {targetDevice} = bind;
-                                const tDevice = devices.find(d => d.ieeeAddr === targetDevice);
-                                const targetName = tDevice ? tDevice.meta.name : '';
-                                const data = {...bind, ieeeAddr: device.ieeeAddr, index, name: device.meta.name, targetName};
+                        let index = 0;
+                        device.endpoints.filter(e => e.binds.length > 0).forEach(e => {
+                            e.binds.forEach(b => {
+                                const tDevice = devices.find(d => d.ieeeAddr === b.target.deviceIeeeAddress);
+                                const data = {
+                                    index,
+                                    ieeeAddr: device.ieeeAddr,
+                                    name: device.meta.name,
+                                    endpoint: e.ID,
+                                    cluster: clusters[b.cluster],
+                                    targetDevice: tDevice.ieeeAddr,
+                                    targetName: tDevice.meta.name,
+                                    targetEndpoint: b.target.ID
+                                };
                                 if ($('ol#binds .bind-address[data-addr="' + device.ieeeAddr + '"][data-index="' + index + '"]').length === 0) {
                                     $('ol#binds').editableList('addItem', data);
                                 }
+
+                                index += 1;
                             });
-                        }
+                        });
                     });
                     $('ol#devices li .device-name').each(function () {
                         const addr = $(this).data('addr');

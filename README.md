@@ -71,6 +71,7 @@ Send a command to a device endpoint or group.
 * [ ] Group support converter node
 * [x] Group support hue node
 * [x] Group support command node
+* [ ] Group bind support
 * [x] remove frontend debug output
 * [ ] per-device configurable ping
 * [x] Secure shepherd node REST API, use Authentication

@@ -760,21 +760,6 @@ module.exports = function (RED) {
 
                 endpoint.bind(cluster, targetEndpoint).then(() => {
                     this.log(`bind ${device.ieeeAddr} ${device.meta.name} ${epid} ${cluster} to ${targetDevice.ieeeAddr} ${targetDevice.meta.name} ${targetEpid} successful`);
-                    if (!device.meta.binds) {
-                        device.meta.binds = [];
-                    }
-
-                    const bind = {endpoint: epid, cluster, targetDevice: targetDevice.ieeeAddr, targetEndpoint: targetEpid};
-                    if (!device.meta.binds.find(b => {
-                        return b.endpoint === bind.endpoint &&
-                                b.cluster === bind.cluster &&
-                                b.targetDevice === bind.targetDevice &&
-                                b.targetEndpoint === bind.targetEndpoint;
-                    })) {
-                        device.meta.binds.push(bind);
-                        device.save();
-                    }
-
                     resolve();
                 }).catch(error => {
                     this.error(`bind ${device.ieeeAddr} ${device.meta.name} ${epid} ${cluster} to ${targetDevice.ieeeAddr} ${targetDevice.meta.name} ${targetEpid} error`);
@@ -794,23 +779,6 @@ module.exports = function (RED) {
 
                 endpoint.unbind(cluster, targetEndpoint).then(() => {
                     this.log(`unbind ${device.ieeeAddr} ${device.meta.name} ${epid} ${cluster} to ${targetDevice.ieeeAddr} ${targetDevice.meta.name} ${targetEpid} successful`);
-                    if (!device.meta.binds) {
-                        device.meta.binds = [];
-                    }
-
-                    const bind = {endpoint: epid, cluster, targetDevice: targetDevice.ieeeAddr, targetEndpoint: targetEpid};
-                    const index = device.meta.binds.findIndex(b => {
-                        return b.endpoint === bind.endpoint &&
-                                b.cluster === bind.cluster &&
-                                b.targetDevice === bind.targetDevice &&
-                                b.targetEndpoint === bind.targetEndpoint;
-                    });
-
-                    if (index !== -1) {
-                        device.meta.binds.splice(index, 1);
-                        device.save();
-                    }
-
                     resolve();
                 }).catch(error => {
                     this.error(`unbind ${device.ieeeAddr} ${device.meta.name} ${epid} ${cluster} to ${targetDevice.ieeeAddr} ${targetDevice.meta.name} ${targetEpid} error`);
