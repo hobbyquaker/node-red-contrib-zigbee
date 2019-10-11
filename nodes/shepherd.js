@@ -100,7 +100,7 @@ module.exports = function (RED) {
             if (req.body.type === 'endpoint') {
                 promise = shepherdNodes[req.query.id].unbind(req.body.device, req.body.endpoint, req.body.cluster, req.body.targetDevice, req.body.targetEndpoint);
             } else {
-                promise = shepherdNodes[req.query.id].unbindGroup(req.body.device, req.body.endpoint, req.body.cluster, req.body.group);
+                promise = shepherdNodes[req.query.id].unbindGroup(req.body.device, req.body.endpoint, req.body.cluster, req.body.targetDevice);
             }
 
             promise.then(result => {
@@ -773,6 +773,28 @@ module.exports = function (RED) {
             });
         }
 
+        bindGroup(ieeeAddr, epid, cluster, groupID) {
+            return new Promise((resolve, reject) => {
+                const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
+                const endpoint = device.getEndpoint(epid);
+                const group = this.herdsman.getGroupByID(groupID);
+
+                if (!group) {
+                    reject(new Error(`cannot find group ${groupID}`));
+                    return;
+                }
+
+                endpoint.bind(cluster, group).then(() => {
+                    this.log(`bind ${device.ieeeAddr} ${device.meta.name} ${epid} ${cluster} to group ${groupID} ${group.meta.name} successful`);
+                    resolve();
+                }).catch(error => {
+                    this.error(`bind ${device.ieeeAddr} ${device.meta.name} ${epid} ${cluster} to group ${groupID} ${group.meta.name} error`);
+                    this.error(error.message);
+                    reject(error);
+                });
+            });
+        }
+
         unbind(ieeeAddr, epid, cluster, targetIeeeAddr, targetEpid) {
             return new Promise((resolve, reject) => {
                 const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
@@ -782,10 +804,28 @@ module.exports = function (RED) {
                 const targetEndpoint = targetDevice.getEndpoint(targetEpid);
 
                 endpoint.unbind(cluster, targetEndpoint).then(() => {
-                    this.log(`unbind ${device.ieeeAddr} ${device.meta.name} ${epid} ${cluster} to ${targetDevice.ieeeAddr} ${targetDevice.meta.name} ${targetEpid} successful`);
+                    this.log(`unbind ${device.ieeeAddr} ${device.meta.name} ${epid} ${cluster} from ${targetDevice.ieeeAddr} ${targetDevice.meta.name} ${targetEpid} successful`);
                     resolve();
                 }).catch(error => {
-                    this.error(`unbind ${device.ieeeAddr} ${device.meta.name} ${epid} ${cluster} to ${targetDevice.ieeeAddr} ${targetDevice.meta.name} ${targetEpid} error`);
+                    this.error(`unbind ${device.ieeeAddr} ${device.meta.name} ${epid} ${cluster} from ${targetDevice.ieeeAddr} ${targetDevice.meta.name} ${targetEpid} error`);
+                    this.error(error.message);
+                    reject(error);
+                });
+            });
+        }
+
+        unbindGroup(ieeeAddr, epid, cluster, groupID) {
+            return new Promise((resolve, reject) => {
+                const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
+                const endpoint = device.getEndpoint(epid);
+
+                const targetGroup = this.herdsman.getGroupByID(groupID);
+
+                endpoint.unbind(cluster, targetGroup).then(() => {
+                    this.log(`unbind ${device.ieeeAddr} ${device.meta.name} ${epid} ${cluster} from group ${groupID} ${targetGroup.meta.name} successful`);
+                    resolve();
+                }).catch(error => {
+                    this.error(`unbind ${device.ieeeAddr} ${device.meta.name} ${epid} ${cluster} from group ${groupID} ${targetGroup.meta.name} error`);
                     this.error(error.message);
                     reject(error);
                 });

@@ -191,17 +191,36 @@
                         let index = 0;
                         device.endpoints.filter(e => e.binds.length > 0).forEach(e => {
                             e.binds.forEach(b => {
-                                const tDevice = devices.find(d => d.ieeeAddr === b.target.deviceIeeeAddress);
-                                const data = {
-                                    index,
-                                    ieeeAddr: device.ieeeAddr,
-                                    name: device.meta.name,
-                                    endpoint: e.ID,
-                                    cluster: clusters[b.cluster],
-                                    targetDevice: tDevice.ieeeAddr,
-                                    targetName: tDevice.meta.name,
-                                    targetEndpoint: b.target.ID
-                                };
+                                let data;
+                                if (b.target.groupID) {
+                                    const tGroup = groups.find(g => g.groupID === b.target.groupID);
+                                    console.log('group bind!', b, tGroup);
+                                    data = {
+                                        index,
+                                        ieeeAddr: device.ieeeAddr,
+                                        name: device.meta.name,
+                                        endpoint: e.ID,
+                                        cluster: clusters[b.cluster],
+                                        targetDevice: tGroup.groupID,
+                                        targetName: tGroup.meta.name,
+                                        targetEndpoint: '',
+                                        type: 'group'
+                                    };
+                                } else {
+                                    const tDevice = devices.find(d => d.ieeeAddr === b.target.deviceIeeeAddress);
+                                    data = {
+                                        index,
+                                        ieeeAddr: device.ieeeAddr,
+                                        name: device.meta.name,
+                                        endpoint: e.ID,
+                                        cluster: clusters[b.cluster],
+                                        targetDevice: tDevice.ieeeAddr,
+                                        targetName: tDevice.meta.name,
+                                        targetEndpoint: b.target.ID,
+                                        type: 'endpoint'
+                                    };
+                                }
+
                                 if ($('ol#binds .bind-address[data-addr="' + device.ieeeAddr + '"][data-index="' + index + '"]').length === 0) {
                                     $('ol#binds').editableList('addItem', data);
                                 }
@@ -240,11 +259,11 @@
                         <span class="bind-name">${data.name}</span>
                         <br>
                         <span class="bind-title">Target:</span>
-                        <span class="bind-targetIeeeAddr">${data.targetDevice}</span>
+                        <span class="bind-targetIeeeAddr">${data.type === 'group' ? 'Group ' : ''}${data.targetDevice}</span>
                         <span class="bind-targetEndpoint">${data.targetEndpoint}</span>
                         <span class="bind-cluster"></span>
                         <span class="bind-targetName">${data.targetName}</span>
-                        <a href="#" data-device="${data.ieeeAddr}" data-endpoint="${data.endpoint}" data-cluster="${data.cluster}" data-target-device="${data.targetDevice}" data-target-endpoint="${data.targetEndpoint}" data-index="${data.index}" class="bind-remove red-ui-editableList-item-remove editor-button editor-button-small"><i class="fa fa-remove"></i></a>
+                        <a href="#" data-type="${data.type}" data-device="${data.ieeeAddr}" data-endpoint="${data.endpoint}" data-cluster="${data.cluster}" data-target-device="${data.targetDevice}" data-target-endpoint="${data.targetEndpoint}" data-index="${data.index}" class="bind-remove red-ui-editableList-item-remove editor-button editor-button-small"><i class="fa fa-remove"></i></a>
                     `);
                 },
                 addButton: false,
@@ -321,8 +340,6 @@
                 $('#network-map').hide();
                 stopMap = true;
             });
-
-            refreshDevices(true);
 
             // Groups
 
@@ -434,6 +451,7 @@
             }
 
             refreshGroups.call(this);
+            refreshDevices(true);
 
             function autocompleteCluster() {
                 const ieeeAddr = $('#add-bind-device').val();
@@ -1302,7 +1320,7 @@
                     <label for="add-bind-type">Target</label>
                     <select id="add-bind-type">
                         <option value="endpoint">Endpoint</option>
-                        <option disabled value="group">Group</option>
+                        <option value="group">Group</option>
                     </select>
                 </div>
                 <div class="bind-to-endpoint">
