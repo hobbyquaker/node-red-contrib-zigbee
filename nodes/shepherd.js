@@ -486,7 +486,11 @@ module.exports = function (RED) {
                     this.checkOverdue();
                 }, 60000);
 
-                this.configure();
+                devices.forEach(device => {
+                    if (device.type === 'Router') {
+                        this.configure(device);
+                    }
+                });
             }).catch(error => {
                 this.status = error.message;
                 this.proxy.emit('nodeStatus', {fill: 'red', shape: 'ring', text: error.message + ', retrying'});

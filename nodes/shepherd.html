@@ -307,13 +307,19 @@
                 clearInterval(this.refreshInterval);
             });
 
-            $('#topology-link').attr('href', 'zigbee-shepherd/map/index.html?id=' + id);
+            $('#network-map').appendTo(document.body);
 
-            $('#topology').click(() => {
-                $('#topology-view').show();
+            let stopMap = false;
+
+            $('#show-network-map').click(() => {
+                $('#network-map').show();
+                stopMap = false;
+                networkMap(this.id);
             });
-            $('#topology-close').click(() => {
-                $('#topology-view').hide();
+
+            $('#hide-network-map').click(() => {
+                $('#network-map').hide();
+                stopMap = true;
             });
 
             refreshDevices(true);
@@ -455,6 +461,7 @@
                     return;
                 }
 
+                console.log('autocompleteEndpoint', device);
                 $('#add-bind-endpoint').html(device.endpoints.map(e => `<option value="${e.ID}">${e.ID}</option>`));
                 autocompleteCluster();
             }
@@ -649,6 +656,258 @@
                     $('.bind-to-group').show();
                 }
             });
+
+            function networkMap(shepherdId) {
+                const container = document.querySelector('#map');
+
+                let devices;
+                const routes = [];
+                const routesMap = {};
+
+                const knownDevices = [];
+
+                const $status = document.querySelector('#map-status');
+
+                $.getJSON('zigbee-shepherd/devices?id=' + shepherdId, data => {
+                    devices = data;
+                    devices.forEach(device => {
+                        knownDevices.push(device.ieeeAddr);
+                    });
+                    console.log('devices', devices);
+                    getRtg()
+                        .then(getLqi)
+                        .catch(err => {
+                            container.innerHTML = err.message;
+                        })
+                        .finally(() => {
+                            document.querySelector('#map-loader').remove();
+                            createGraph();
+                        });
+                });
+
+                function getRtg() {
+                    return new Promise(resolve => {
+                        const tasks = [];
+                        devices.forEach(device => {
+                            if (device.type === 'EndDevice') {
+                                return;
+                            }
+
+                            tasks.push(() => {
+                                return new Promise(resolve => {
+                                    console.log('get routing table of ' + device.ieeeAddr + ' ' + device.meta.name);
+                                    $status.innerHTML = 'get routing table of ' + device.ieeeAddr + ' ' + device.meta.name;
+
+                                    $.getJSON('zigbee-shepherd/getRoutingTable?id=' + shepherdId + '&ieeeAddr=' + device.ieeeAddr, data => {
+                                        console.log('getRoutingTable', device.ieeeAddr, data);
+                                        data.forEach(route => {
+                                            const id = device.ieeeAddr + '|' + route.nextHop;
+                                            if (routesMap[id]) {
+                                                routesMap[id].count += 1;
+                                                routesMap[id].status = route.status;
+                                            } else {
+                                                routesMap[id] = {
+                                                    sourceIeeeAddr: device.ieeeAddr,
+                                                    targetIeeeAddr: getIeeeAddr(route.nextHop === 65534 ? route.destinationAddress : route.nextHop),
+                                                    routeStatus: route.routeStatus,
+                                                    count: 1
+                                                };
+                                            }
+                                        });
+                                    }).always(() => resolve());
+                                });
+                            });
+                        });
+
+                        function shiftTasks() {
+                            if (stopMap) {
+                                return;
+                            }
+
+                            if (tasks.length > 0) {
+                                const task = tasks.shift();
+                                task().then(shiftTasks);
+                            } else {
+                                console.log('routesMap', routesMap);
+                                resolve();
+                            }
+                        }
+
+                        shiftTasks();
+                    });
+                }
+
+                function getLqi() {
+                    return new Promise(resolve => {
+                        const tasks = [];
+                        devices.forEach(device => {
+                            if (device.type === 'EndDevice') {
+                                return;
+                            }
+
+                            tasks.push(() => {
+                                return new Promise(resolve => {
+                                    console.log('get lqi list of ' + device.ieeeAddr + ' ' + device.meta.name);
+                                    $status.innerHTML = 'get lqi list of ' + device.ieeeAddr + ' ' + device.meta.name;
+
+                                    $.getJSON('zigbee-shepherd/getLqi?id=' + shepherdId + '&ieeeAddr=' + device.ieeeAddr, data => {
+                                        console.log('getLqi', device.ieeeAddr, data);
+                                        data.forEach(neighbour => {
+                                            const id = device.ieeeAddr + '|' + neighbour.networkAddress;
+                                            if (routesMap[id]) {
+                                                if (knownDevices.includes(neighbour.ieeeAddr)) {
+                                                    routesMap[id].count += 1;
+                                                }
+
+                                                routesMap[id].lqi = neighbour.linkquality;
+                                                routesMap[id].depth = neighbour.depth;
+                                                routesMap[id].relationship = neighbour.relationship;
+                                            } else {
+                                                routesMap[id] = {
+                                                    sourceIeeeAddr: device.ieeeAddr,
+                                                    targetIeeeAddr: neighbour.ieeeAddr,
+                                                    routeStatus: 0,
+                                                    relationship: neighbour.relationship,
+                                                    depth: neighbour.depth,
+                                                    lqi: neighbour.linkquality,
+                                                    count: 1
+                                                };
+                                            }
+                                        });
+                                    }).always(() => resolve());
+                                });
+                            });
+                        });
+
+                        function shiftTasks() {
+                            if (stopMap) {
+                                return;
+                            }
+
+                            if (tasks.length > 0) {
+                                const task = tasks.shift();
+                                task().then(shiftTasks);
+                            } else {
+                                console.log('routesMap', routesMap);
+                                Object.keys(routesMap).forEach(id => {
+                                    routes.push(routesMap[id]);
+                                });
+                                resolve();
+                            }
+                        }
+
+                        shiftTasks();
+                    });
+                }
+
+                function getIeeeAddr(nwkAddr) {
+                    const devs = devices.filter(device => device.networkAddress === nwkAddr);
+                    if (devs.length === 1) {
+                        return devs[0].ieeeAddr;
+                    }
+                }
+
+                function createGraph() {
+                    //let coordAddr;
+                    console.log('routes', routes);
+                    const routesData = routes.map(route => {
+                        return {
+                            to: route.targetIeeeAddr,
+                            from: route.sourceIeeeAddr,
+                            label: rssi(route.lqi),
+                            arrows: 'from',
+                            dashes: typeof route.lqi === 'undefined',
+                            color: {inherit: 'to'},
+                            font: {
+                                color: 'rgba(0,0,0,0)'
+                            },
+                            chosen: {
+                                label: values => {
+                                    values.color = {inherit: 'to'};
+                                    values.mod = 'bold';
+                                }
+                            }
+                        };
+                    });
+
+                    console.log(routesData);
+
+                    const data = {
+                        nodes: new vis.DataSet(devices.map(dev => {
+                            const isCoord = dev.type === 'Coordinator';
+                            const isBattery = dev.powerSource === 'Battery';
+                            const id = dev.ieeeAddr;
+
+                            const isOffline = dev.meta.offline === true;
+                            const children = routes.filter(pair => pair.sourceIeeeAddr === dev.ieeeAddr).length;
+                            const label = [
+                                dev.meta.name,
+                                dev.type,
+                                dev.ieeeAddr,
+                                dev.manufacturerName,
+                                dev.modelID,
+                                dev.powerSource,
+                                children ? 'Children: ' + children + (isCoord ? (' (' + devices.length + ')') : '') : ''
+                            ].filter(v => v).join('\n');
+
+                            return {
+                                id,
+                                label,
+                                shape: children ? 'circle' : 'box',
+                                shapeProperties: {
+                                    borderDashes: isOffline
+                                },
+                                color: {
+                                    background: dev.foreign ? '#eee' : isCoord ? '#B2DC96' : (isBattery ? '#E5F2FF' : '#D2E5FF'),
+                                    border: dev.foreign ? '#ccc' : isCoord ? '#028C76' : (isBattery ? '#3386E9' : '#2B7CE9'),
+                                    highlight: {
+                                        background: dev.foreign ? '#eee' : isCoord ? '#B2DC96' : (isBattery ? '#D2E5FF' : '#D2E5FF'),
+                                        border: dev.foreign ? '#aaa' : isCoord ? '#028C76' : (isBattery ? '#2B7CE9' : '#2B7CE9')
+                                    }
+                                }
+                                //mass: isCoord ? 1.0 : (isRouter ? 1.02 : (isOffline ? 1.035 : 1.025))
+
+                            };
+                        })),
+
+                        edges: new vis.DataSet(routesData)
+                    };
+
+                    const options = {
+                        layout: {
+                            //hierarchical: true
+                        },
+                        physics: {
+                            stabilization: true,
+                            solver: 'forceAtlas2Based',
+                            forceAtlas2Based: {
+                                avoidOverlap: 0.00005
+                            },
+                            barnesHut: {
+                                gravitationalConstant: -2000,
+                                centralGravity: 0.37,
+                                springLength: 89,
+                                springConstant: 0.02,
+                                damping: 0.09,
+                                avoidOverlap: 0.25
+                            }
+                        }
+                    };
+
+                    const network = new vis.Network(container, data, options); // eslint-disable-line no-unused-vars
+                }
+
+                /*
+                    lqi => rssi
+                    https://e2e.ti.com/support/wireless-connectivity/zigbee-and-thread/f/158/t/555076?How-to-get-rssi-value-from-Z-Stack-Linux-Gateway-
+                    RSSI = MIN_ED+LinkQuality*( MAX_ED-MIN_ED)/255
+                    Default values for MIN_ED and MAX_ED are -87 and 10 respectively.
+                 */
+                function rssi(lqi) {
+                    const rssi = Math.round(-87 + (lqi * 97 / 255));
+                    return lqi ? `${rssi} dBm\n(${lqi})` : '';
+                }
+            }
         },
         oneditsave() {
             clearInterval(this.statusInterval);
@@ -786,7 +1045,9 @@
             display: inline-block;
             width: 130px;
             margin-left: 12px;
-
+            overflow: hidden;
+            text-overflow: ellipsis;
+            vertical-align: bottom;
         }
         #device-details {
             width: 420px;
@@ -883,6 +1144,28 @@
 
         <div id="zigbee-shepherd-tab-devices" style="display:none">
             <style>
+                #network-map {
+                    display: none;
+                    position: absolute;
+                    width: 100%;
+                    height: 100%;
+                    top: 0;
+                    left: 0;
+                    background-color: white;
+                    z-index: 100000;
+                }
+
+                #network-map h4 {
+                    margin: 6px;
+                }
+                #network-map #map {
+                    height: calc(100% - 30px);
+                }
+                #network-map #map-loader {
+                    position: absolute;
+                    top: 50px;
+                    left: calc(50% - 64px);
+                }
                 .device-address, .device-type, .device-model {
                     display: inline-block !important;
                     overflow: hidden;
@@ -940,38 +1223,19 @@
                     white-space: pre;
                 }
             </style>
-            <div class="form-row"><h4>join</h4></div>
             <div class="form-row">
-                <input id="join-permit" type="button" value="permit">
-                <input id="join-stop" type="button" value="stop">
-                <!--
-                <input id="soft-reset" type="button" value="soft-reset z-stack">
+                <input id="join-permit" type="button" value="Permit Join">
+                <input id="join-stop" type="button" value="Stop Join">
+                <button id="show-network-map">Network Map</button>
 
-                <select id="join-type">
-                    <option value="all">Coordinator and Routers</option>
-                    <option value="coord">Coordinator only</option>
-                </select>
+            </div>
 
-                -->
-                <span id="join-time"></span>
-            </div>
-             <div class="form-row">
-                <a href="zigbee-herdsman/graphviz" target="_blank" id="topology-link">Network Map</a>
-             </div>
-            <!--
-            <div class="form-row">
-                <input id="topology" type="button" value="topology">
-            </div>
-            -->
             <div class="form-row"><h4>devices</h4></div>
 
             <div class="form-row">
                 <ol id="devices"></ol>
             </div>
 
-            <div id="topology-view" style="position:fixed;top:0;left:0;height:100vh;width:100vw;background-color:grey; display: none;">
-                <button id="topology-close">close</button>
-            </div>
         </div>
 
         <div id="zigbee-shepherd-tab-reporting" style="display:none">
@@ -1065,6 +1329,14 @@
 
         <div id="error-dialog" title="Error" dialog>
             <div id="error-message"></div>
+        </div>
+
+        <div id="network-map">
+            <h4>ZigBee Network Map <button id="hide-network-map">Close</button></h4>
+            <div id="map-loader"><img src="zigbee-shepherd/map/loader.gif" id="map-loader-progress"><br><span id="map-status"></span></div>
+            <div id="map"></div><h4>Network Map</h4>
+            <script type="text/javascript" src="zigbee-shepherd/vis/vis.min.js"></script>
+            <link href="zigbee-shepherd/vis/vis.min.css" type="text/css"/>
         </div>
 
     </div>
