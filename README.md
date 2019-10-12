@@ -68,9 +68,10 @@ Send a command to a device endpoint or group.
 
 ## Todo
 
-* [ ] Group support converter node
-* [x] Group support hue node
-* [x] Group support command node
+* [ ] Converter node: Group support 
+* [ ] Converter node: Get command
+* [x] Hue node: Group support
+* [x] Command node: Group support
 * [x] Group bind support
 * [x] remove frontend debug output
 * [ ] per-device configurable ping
