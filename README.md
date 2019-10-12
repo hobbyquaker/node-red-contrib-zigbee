@@ -80,6 +80,7 @@ Send a command to a device endpoint or group.
 * [ ] per-device configurable ping
 * [x] Secure shepherd node REST API, use Authentication
 * [ ] Documentation
+* [ ] Adapt to Node-RED 1.0 message API
 
 
 ## License
