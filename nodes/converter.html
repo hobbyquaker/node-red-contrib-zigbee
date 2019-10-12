@@ -7,6 +7,7 @@
             name: {value: ''},
             topic: {value: 'zigbee/${ieeeAddr}'},
             settopic: {value: 'zigbee/${ieeeAddr}/set'},
+            gettopic: {value: 'zigbee/${ieeeAddr}/get'},
             device: {value: ''},
             attribute: {value: ''},
             payload: {value: 'json'}
@@ -89,6 +90,10 @@
     <div class="form-row">
         <label for="node-input-settopic"><i class="icon-global"></i> set topic</label>
         <input type="text" id="node-input-settopic">
+    </div>
+    <div class="form-row">
+        <label for="node-input-gettopic"><i class="icon-global"></i> get topic</label>
+        <input type="text" id="node-input-gettopic">
     </div>
 
     <div class="form-row">

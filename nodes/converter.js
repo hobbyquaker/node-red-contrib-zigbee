@@ -44,23 +44,42 @@ module.exports = function (RED) {
             this.on('input', msg => {
                 const topic = (msg.topic || '').split('/');
                 const settopic = (config.settopic || '').split('/');
-                const topicAttrs = {};
+                const gettopic = (config.gettopic || '').split('/');
+                const settopicAttrs = {};
+                const gettopicAttrs = {};
+                let topicAttrs;
+
+                let isGet = true;
+                let isSet = true;
 
                 for (const [i, element] of topic.entries()) {
-                    const match = settopic[i].match(/\${([^}]+)}/);
-                    if (match) {
-                        topicAttrs[match[1]] = element;
+                    const setmatch = settopic[i].match(/\${([^}]+)}/);
+                    if (setmatch) {
+                        settopicAttrs[setmatch[1]] = element;
                     } else if (element !== settopic[i]) {
-                        if (!config.device) {
-                            this.warn('topic mismatch ' + msg.topic + ' ' + config.settopic);
-                        }
+                        isSet = false;
+                    }
+
+                    const getmatch = gettopic[i].match(/\${([^}]+)}/);
+                    if (getmatch) {
+                        gettopicAttrs[getmatch[1]] = element;
+                    } else if (element !== gettopic[i]) {
+                        isGet = false;
                     }
                 }
 
-                // TODO group support
-                // TODO get support
+                if (isSet) {
+                    topicAttrs = settopicAttrs;
+                } else if (isGet) {
+                    topicAttrs = gettopicAttrs;
+                } else {
+                    this.warn('topic mismatch ' + msg.topic);
+                    return;
+                }
 
-                const ieeeAddr = config.device || topicAttrs.ieeeAddr || (topicAttrs.name && this.names[topicAttrs.name].ieeeAddr);
+                // TODO group support
+
+                const ieeeAddr = config.device || topicAttrs.ieeeAddr || (topicAttrs.name && this.names[topicAttrs.name] && this.names[topicAttrs.name].ieeeAddr);
                 const device = this.ieeeAddresses[ieeeAddr];
                 const name = topicAttrs.name || (device && device.meta.name);
                 const attribute = config.attribute || topicAttrs.attribute;
@@ -70,20 +89,6 @@ module.exports = function (RED) {
                 if (!device) {
                     this.error('device unknown ' + name + ' ' + ieeeAddr);
                     return;
-                }
-
-                let payload;
-
-                if (attribute) {
-                    payload = {};
-                    payload[attribute] = msg.payload;
-                } else if (typeof msg.payload === 'object') {
-                    payload = msg.payload;
-                } else if (typeof msg.payload === 'string') {
-                    // No attribute supplied, payload not an object - assume state.
-                    payload = {state: msg.payload};
-                } else {
-                    payload = {state: msg.payload ? 'ON' : 'OFF'};
                 }
 
                 let model;
@@ -101,6 +106,34 @@ module.exports = function (RED) {
                     return;
                 }
 
+                /*
+                // TODO understand postfix
+                let endpoint;
+                // Determine endpoint to publish to.
+                if (model.hasOwnProperty('endpoint')) {
+                    const eps = model.endpoint(device);
+                    endpoint = eps.hasOwnProperty(isSet ? 'set' : 'get') ? eps[isSet ? 'set' : 'get'] : null;
+                    if (endpoint === null && eps.hasOwnProperty('default')) {
+                        endpoint = eps['default'];
+                    }
+                }
+                console.log('determined endpoint', endpoint);
+                */
+
+                let payload;
+
+                if (attribute) {
+                    payload = {};
+                    payload[attribute] = msg.payload;
+                } else if (typeof msg.payload === 'object') {
+                    payload = msg.payload;
+                } else if (typeof msg.payload === 'string') {
+                    // No attribute supplied, payload not an object - assume state.
+                    payload = {state: msg.payload};
+                } else {
+                    payload = {state: msg.payload ? 'ON' : 'OFF'};
+                }
+
                 // For each key in the JSON message find the matching converter.
                 Object.keys(payload).forEach(key => {
                     const converter = model.toZigbee.find(c => c.key.includes(key));
@@ -109,16 +142,26 @@ module.exports = function (RED) {
                         return;
                     }
 
-                    // TODO gain understanding of endpoints. Currently just using the first one due to missing knowledge.
-                    converter.convertSet(device.endpoints[0], key, payload[key], {message: payload, options: {}}).then(result => {
-                        shepherdNode.reachable(device, true);
-                        // TODO handle readAfterWrite
-                        // TODO output new state
-                        this.debug(`${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(result)}`);
-                    }).catch(err => {
-                        this.error(`${device.ieeeAddr} ${device.meta.name} ${err.message}`);
-                        shepherdNode.reachable(device, false);
-                    });
+                    if (isSet) {
+                        // TODO gain understanding of endpoints. Currently just using the first one due to missing knowledge.
+                        converter.convertSet(device.endpoints[0], key, payload[key], {message: payload, options: {}}).then(result => {
+                            shepherdNode.reachable(device, true);
+                            // TODO handle readAfterWrite
+                            // TODO output new state
+                            this.debug(`${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(result)}`);
+                        }).catch(err => {
+                            this.error(`${device.ieeeAddr} ${device.meta.name} ${err.message}`);
+                            shepherdNode.reachable(device, false);
+                        });
+                    } else if (isGet) {
+                        converter.convertGet(device.endpoints[0], key, payload[key], {message: payload, options: {}}).then(result => {
+                            shepherdNode.reachable(device, true);
+                            this.debug(`${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(result)}`);
+                        }).catch(err => {
+                            this.error(`${device.ieeeAddr} ${device.meta.name} ${err.message}`);
+                            shepherdNode.reachable(device, false);
+                        });
+                    }
                 });
             });
 
@@ -195,7 +238,6 @@ module.exports = function (RED) {
                 let wait = converters.length;
 
                 const publish = convertedPayload => {
-                    //console.log('publish', convertedPayload);
                     wait -= 1;
                     if (config.payload === 'plain') {
                         Object.keys(convertedPayload).forEach(key => {
