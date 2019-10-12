@@ -66,6 +66,11 @@ This Node outputs events as received from zigbee-herdsman.
 Send a command to a device endpoint or group. 
 
 
+#### controller
+
+Call methods of the herdsman controller
+
+
 ## Todo
 
 * [ ] Converter node: readAfterWrite
