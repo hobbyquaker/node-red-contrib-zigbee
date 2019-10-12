@@ -36,7 +36,8 @@
         paletteLabel: 'herdsman',
         oneditprepare() {
             const {id} = this;
-
+            let groups;
+            let selectedGroup;
             const clusters = {};
 
             $.getJSON('zigbee-shepherd/definitions', data => {
@@ -166,8 +167,18 @@
                     devices = data;
                     const known = [];
                     const deviceSelect = [];
-                    data.forEach(device => {
-                        deviceSelect.push(`<option value="${device.ieeeAddr}">${device.ieeeAddr} ${device.meta.name}</option>`);
+                    data.sort((a, b) => {
+                        if (a.meta.name === 'Coordinator') {
+                            return -1;
+                        }
+
+                        if (b.meta.name === 'Coordinator') {
+                            return 1;
+                        }
+
+                        return String(a.meta.name).localeCompare(b.meta.name);
+                    }).forEach(device => {
+                        deviceSelect.push(`<option value="${device.ieeeAddr}">${device.meta.name} ${device.ieeeAddr}</option>`);
                         if ($('.device-select').find('option[value="' + device.ieeeAddr + '"]').length === 0) {
                             const desc = (device.meta.name || '') + ' ' + device.ieeeAddr;
                             $('.device-select').append(`<option value="${device.ieeeAddr}">${desc}</option>`);
@@ -343,9 +354,6 @@
 
             // Groups
 
-            let groups;
-            let selectedGroup;
-
             $('ol#groups').editableList({
                 addItem(row, index, data) {
                     $(row).html(`<div class="group-row ${data.selected ? 'selected' : ''}" data-groupid="${data.groupID}" data-name="${data.name}">
@@ -432,6 +440,7 @@
                 $('ol#groups .group-row').removeClass('selected');
                 $(this).addClass('selected');
                 selectedGroup = groupID;
+                console.log('selectedGroup', selectedGroup);
                 refreshMembers();
             });
 
@@ -524,6 +533,7 @@
                         click() {
                             const ieeeAddr = $('#add-member-select').val();
                             const endpoint = parseInt($('#add-member-endpoint-select').val(), 10);
+                            console.log('Add member selectedGroup', selectedGroup);
                             $.ajax({
                                 type: 'POST',
                                 url: 'zigbee-shepherd/addGroupMember?id=' + id,
