@@ -5,9 +5,9 @@
         defaults: {
             shepherd: {value: '', type: 'zigbee-shepherd', required: true},
             name: {value: ''},
-            topic: {value: 'zigbee/${ieeeAddr}'},
-            settopic: {value: 'zigbee/${ieeeAddr}/set'},
-            gettopic: {value: 'zigbee/${ieeeAddr}/get'},
+            topic: {value: 'zigbee/${name}'},
+            settopic: {value: 'zigbee/${name}/set'},
+            gettopic: {value: 'zigbee/${name}/get'},
             device: {value: ''},
             attribute: {value: ''},
             payload: {value: 'json'}
@@ -121,5 +121,10 @@
 
 
 <script type="text/x-red" data-help-name="zigbee-converter">
+    <h4>Placeholders for Topic Configuration</h4>
+    <ul>
+        <li><code>${ieeeAddr}</code></li>
+        <li><code>${name}</code></li>
+    </ul>
 
 </script>

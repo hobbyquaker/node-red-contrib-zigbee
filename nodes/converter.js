@@ -23,7 +23,6 @@ module.exports = function (RED) {
             this.ieeeAddresses = {};
             this.names = {};
 
-            /*
             const groupConverters = [
                 herdsmanConverters.toZigbeeConverters.light_onoff_brightness,
                 herdsmanConverters.toZigbeeConverters.light_colortemp,
@@ -31,10 +30,10 @@ module.exports = function (RED) {
                 herdsmanConverters.toZigbeeConverters.light_alert,
                 herdsmanConverters.toZigbeeConverters.ignore_transition
             ];
-            */
 
             const devicesHandler = () => {
                 const devices = this.herdsman.getDevices();
+                this.groups = this.herdsman.getGroups();
                 devices.forEach(device => {
                     this.ieeeAddresses[device.ieeeAddr] = device;
                     this.names[device.meta.name] = device;
@@ -51,6 +50,7 @@ module.exports = function (RED) {
 
                 let isGet = true;
                 let isSet = true;
+                let isGroup = false;
 
                 for (const [i, element] of topic.entries()) {
                     const setmatch = settopic[i].match(/\${([^}]+)}/);
@@ -83,27 +83,41 @@ module.exports = function (RED) {
                 const device = this.ieeeAddresses[ieeeAddr];
                 const name = topicAttrs.name || (device && device.meta.name);
                 const attribute = config.attribute || topicAttrs.attribute;
+                let group;
 
                 this.debug('topic=' + msg.topic + ' name=' + name + ' ieeeAddr=' + ieeeAddr + ' attribute=' + attribute + ' payload=' + JSON.stringify(msg.payload));
 
                 if (!device) {
-                    this.error('device unknown ' + name + ' ' + ieeeAddr);
-                    return;
+                    group = this.groups.find(g => g.meta.name === topicAttrs.name);
+                    if (group) {
+                        isGroup = true;
+                    } else {
+                        this.error('device unknown ' + name + ' ' + ieeeAddr);
+                        return;
+                    }
                 }
 
                 let model;
-                // Map device to a model
-                if (this.models.has(device.modelID)) {
-                    model = this.models.get(device.modelID);
-                } else {
-                    model = herdsmanConverters.findByZigbeeModel(device.modelID);
-                    this.models.set(device.modelID, model);
-                }
+                let converters;
 
-                if (!model) {
-                    this.warn(`Device with modelID '${device.modelID}' is not supported.`);
-                    this.warn('Please see: https://koenkk.github.io/zigbee2mqtt/how_tos/how_to_support_new_devices.html');
-                    return;
+                if (isGroup) {
+                    converters = groupConverters;
+                } else {
+                    // Map device to a model
+                    if (this.models.has(device.modelID)) {
+                        model = this.models.get(device.modelID);
+                    } else {
+                        model = herdsmanConverters.findByZigbeeModel(device.modelID);
+                        this.models.set(device.modelID, model);
+                    }
+
+                    if (!model) {
+                        this.warn(`Device with modelID '${device.modelID}' is not supported.`);
+                        this.warn('Please see: https://koenkk.github.io/zigbee2mqtt/how_tos/how_to_support_new_devices.html');
+                        return;
+                    }
+
+                    converters = model.toZigbee;
                 }
 
                 /*
@@ -135,19 +149,25 @@ module.exports = function (RED) {
                 }
 
                 // For each key in the JSON message find the matching converter.
-                Object.keys(payload).forEach(key => {
-                    const converter = model.toZigbee.find(c => c.key.includes(key));
+                Object.keys(payload).sort(a => (['state', 'brightness'].includes(a) ? -1 : 1)).forEach(key => {
+                    const converter = converters.find(c => c.key.includes(key));
                     if (!converter) {
                         this.error(`No converter available for '${key}' (${payload[key]})`);
                         return;
                     }
 
-                    if (isSet) {
+                    if (isSet && isGroup) {
+                        converter.convertSet(group, key, payload[key], {message: payload, options: {}}).then(result => {
+                            this.debug(`${group.groupID} ${group.meta.name} ${JSON.stringify(result)}`);
+                        }).catch(err => {
+                            this.error(`${group.groupID} ${group.meta.name} ${err.message}`);
+                        });
+                    } else if (isSet) {
                         // TODO gain understanding of endpoints. Currently just using the first one due to missing knowledge.
                         converter.convertSet(device.endpoints[0], key, payload[key], {message: payload, options: {}}).then(result => {
                             shepherdNode.reachable(device, true);
                             // TODO handle readAfterWrite
-                            // TODO output new state
+                            // TODO output new state?
                             this.debug(`${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(result)}`);
                         }).catch(err => {
                             this.error(`${device.ieeeAddr} ${device.meta.name} ${err.message}`);

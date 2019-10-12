@@ -68,7 +68,7 @@ Send a command to a device endpoint or group.
 
 ## Todo
 
-* [ ] Converter node: Group support 
+* [x] Converter node: Group support 
 * [x] Converter node: Get command
 * [x] Hue node: Group support
 * [x] Command node: Group support
