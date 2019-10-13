@@ -231,6 +231,24 @@ module.exports = function (RED) {
         }
     });
 
+    RED.httpAdmin.post('/zigbee-shepherd/configure', RED.auth.needsPermission('zigbee.write'), (req, res) => {
+        if (shepherdNodes[req.query.id]) {
+            shepherdNodes[req.query.id].setConfigure(req.body.ieeeAddr, req.body.shouldConfigure);
+            res.status(200).send('');
+        } else {
+            res.status(404).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
+        }
+    });
+
+    RED.httpAdmin.post('/zigbee-shepherd/ping', RED.auth.needsPermission('zigbee.write'), (req, res) => {
+        if (shepherdNodes[req.query.id]) {
+            shepherdNodes[req.query.id].setPing(req.body.ieeeAddr, req.body.shouldPing);
+            res.status(200).send('');
+        } else {
+            res.status(404).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
+        }
+    });
+
     RED.httpAdmin.get('/zigbee-shepherd/joinPermitted', RED.auth.needsPermission('zigbee.read'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
             res.status(200).send({permit: shepherdNodes[req.query.id].joinPermitted});
@@ -365,6 +383,7 @@ module.exports = function (RED) {
             this.dbPath = path.join(this.persistPath, 'dev.db');
             this.backupPath = path.join(this.persistPath, 'backup.db');
             this.led = config.led;
+            this.pingTime = 30 * 1000;
 
             try {
                 this.names = require(this.namesPath);
@@ -470,6 +489,20 @@ module.exports = function (RED) {
                         return;
                     }
 
+                    const mappedDevice = shepherdConverters.findByZigbeeModel(device.modelID);
+                    if (mappedDevice && mappedDevice.configure) {
+                        device.meta.isConfigurable = true;
+                        console.log('isConfigurable', device.ieeeAddr, device.meta.name);
+                    }
+
+                    if (device.type === 'Router' && device.modelID !== 'lumi.router') {
+                        device.meta.isReportable = true;
+                    }
+
+                    if (device.type === 'Router') {
+                        device.meta.isPingable = true;
+                    }
+
                     delete device.meta.offline;
                     this.log(`${device.ieeeAddr} ${device.meta.name} (${device.type} ${device.manufacturerName} ${device.modelID})`);
                     if (this.names[device.ieeeAddr] && typeof device.meta.name === 'undefined') {
@@ -484,7 +517,11 @@ module.exports = function (RED) {
 
                 this.checkOverdueInterval = setInterval(() => {
                     this.checkOverdue();
-                }, 60000);
+                }, 60 * 1000);
+
+                this.pingInterval = setInterval(() => {
+                    this.ping();
+                }, this.pingTime);
 
                 devices.forEach(device => {
                     if (device.type === 'Router') {
@@ -500,6 +537,7 @@ module.exports = function (RED) {
             this.on('close', done => {
                 this.debug('stopping');
                 clearInterval(this.checkOverdueInterval);
+                clearInterval(this.pingInterval);
                 this.status = 'closing';
                 this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'ring', text: 'closing'});
 
@@ -626,7 +664,7 @@ module.exports = function (RED) {
                         clearTimeout(this.offlineTimeouts[ieeeAddr]);
                         this.offlineTimeouts[ieeeAddr] = setTimeout(() => {
                             delete this.offlineTimeouts[ieeeAddr];
-                        });
+                        }, 10 * 1000);
                         resolve(result);
                     }).catch(err => {
                         this.debug(`command failed ${ieeeAddr} ${device.meta.name} ${endpoint} ${cluster} ${command} ${err.message}`);
@@ -662,8 +700,14 @@ module.exports = function (RED) {
 
         read(ieeeAddr, endpoint, cluster, payload, options) {
             return new Promise((resolve, reject) => {
-                this.log(`read ${ieeeAddr} ${endpoint} ${cluster} ${JSON.stringify(payload)} ${JSON.stringify(options)}`);
-                const ep = this.herdsman.getDeviceByIeeeAddr(ieeeAddr).getEndpoint(endpoint);
+                const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
+                if (!device) {
+                    reject(new Error(`Device ${ieeeAddr} not found`));
+                    return;
+                }
+
+                this.debug(`read ${ieeeAddr} ${device.meta.name} ${endpoint} ${cluster} ${JSON.stringify(payload)} ${options ? JSON.stringify(options) : ''}`);
+                const ep = device.getEndpoint(endpoint);
                 if (ep) {
                     ep.read(cluster, payload, options).then(result => {
                         this.reachable(this.herdsman.getDeviceByIeeeAddr(ieeeAddr), true);
@@ -680,7 +724,13 @@ module.exports = function (RED) {
 
         write(ieeeAddr, endpoint, cluster, attributes, options) {
             return new Promise((resolve, reject) => {
-                this.log(`write ${ieeeAddr} ${endpoint} ${cluster} ${JSON.stringify(attributes)} ${JSON.stringify(options)}`);
+                const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
+                if (!device) {
+                    reject(new Error(`Device ${ieeeAddr} not found`));
+                    return;
+                }
+
+                this.debug(`write ${ieeeAddr} ${device.meta.name} ${endpoint} ${cluster} ${JSON.stringify(attributes)} ${options ? JSON.stringify(options) : ''}`);
                 const ep = this.herdsman.getDeviceByIeeeAddr(ieeeAddr).getEndpoint(endpoint);
                 if (ep) {
                     ep.write(cluster, attributes, options).then(result => {
@@ -732,6 +782,35 @@ module.exports = function (RED) {
                 device.meta.shouldReport = shouldReport;
                 device.save();
                 this.configureReport(device);
+            }
+        }
+
+        setConfigure(ieeeAddr, shouldConfigure) {
+            const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
+            if (device) {
+                device.meta.shouldConfigure = shouldConfigure;
+                device.save();
+                this.configure(device);
+            }
+        }
+
+        setPing(ieeeAddr, shouldPing) {
+            const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
+            if (device) {
+                device.meta.shouldPing = shouldPing;
+                device.save();
+            }
+        }
+
+        ping() {
+            const devices = this.herdsman.getDevices().filter(d => d.meta.shouldPing);
+            if (devices.length > 0) {
+                const pause = this.pingTime / devices.length;
+                devices.forEach((d, i) => {
+                    setTimeout(() => {
+                        this.read(d.ieeeAddr, d.endpoints[0].ID, 'genBasic', ['zclVersion']).catch(err => this.debug(`ping ${d.ieeeAddr} ${d.meta.name} ${err.message}`));
+                    }, i * pause);
+                });
             }
         }
 
@@ -840,7 +919,7 @@ module.exports = function (RED) {
 
         configure(dev) {
             const doConfigure = device => {
-                if (!device || device.type === 'Coordinator' || configured.has(device.ieeeAddr) || configuring.has(device.ieeeAddr)) {
+                if (!device || !device.meta.shouldConfigure || device.type === 'Coordinator' || configured.has(device.ieeeAddr) || configuring.has(device.ieeeAddr)) {
                     return;
                 }
 

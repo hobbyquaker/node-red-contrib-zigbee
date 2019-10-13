@@ -63,7 +63,7 @@
             });
             tabs.addTab({
                 id: 'zigbee-shepherd-tab-reporting',
-                label: 'Reporting'
+                label: 'DevConfig'
             });
             tabs.addTab({
                 id: 'zigbee-shepherd-tab-groups',
@@ -143,14 +143,6 @@
                 }
             });
 
-            function isRouter(device) {
-                return device.type === 'Router'; //&& !forceEndDevice.includes(device.modelID),
-            }
-
-            function isBatteryPowered(device) {
-                device.powerSource && device.powerSource === 'Battery';
-            }
-
             // Tab Devices
             let devices = [];
 
@@ -194,7 +186,7 @@
                         }
 
                         if ($('ol#reporting .device-report[data-addr="' + device.ieeeAddr + '"]').length === 0) {
-                            if (isRouter(device) && !isBatteryPowered(device) && device.modelID !== 'lumi.router') {
+                            if (device.type !== 'Coordinator') {
                                 $('ol#reporting').editableList('addItem', device);
                             }
                         }
@@ -282,12 +274,23 @@
             });
 
             $('ol#reporting').editableList({
+                height: '100%',
+                header: $('<div>').append($.parseHTML(`<span class="device-address"></span>
+                    <span class="device-model"></span>
+                    <span class="checkbox-reporting">Report</span>
+                    <span class="checkbox-configure">Config</span>
+                    </span><span class="checkbox-ping">Ping</span>
+                    <span class="member-name"></span>`)),
                 addItem(row, index, device) {
-                    $(row).html(`<span data-addr="${device.ieeeAddr}" class="device-address">${device.ieeeAddr}<br>${device.type}</span>
-                        <span class="device-model">${device.manufacturerName}<br>${device.modelID}</span>
-                        <span class="checkbox-reporting"><input data-addr="${device.ieeeAddr}" class="device-report" type="checkbox" ${device.meta.shouldReport ? 'checked' : ''}></span>
-                        <span class="member-name">${device.meta.name}</span>
-                    `);
+                    const html = `<span data-addr="${device.ieeeAddr}" class="device-address">${device.ieeeAddr}<br>${device.type}</span>
+                        <span class="device-model">${device.manufacturerName}<br>${device.modelID}</span><span class="checkbox-reporting">
+                        <input data-addr="${device.ieeeAddr}" class="device-report" type="checkbox" ${device.meta.shouldReport ? 'checked' : ''} ${device.meta.isReportable ? '' : 'disabled'}>
+                        </span><span class="checkbox-configure">
+                        <input data-addr="${device.ieeeAddr}" class="device-configure" type="checkbox" ${device.meta.shouldConfigure ? 'checked' : ''} ${device.meta.isConfigurable ? '' : 'disabled'}>
+                        </span><span class="checkbox-ping">
+                        <input data-addr="${device.ieeeAddr}" class="device-ping" type="checkbox" ${device.meta.shouldPing ? 'checked' : ''} ${device.meta.isPingable ? '' : 'disabled'}>
+                        </span><span class="member-name">${device.meta.name}</span>`;
+                    $(row).html(html);
                 },
                 addButton: false,
                 removable: false
@@ -1008,6 +1011,32 @@
                     });
                 }
             });
+            $('ol#reporting li .device-ping').each(function () {
+                const ieeeAddr = $(this).data('addr');
+                const shouldPing = $(this).is(':checked');
+                const device = devices.find(dev => dev.ieeeAddr === ieeeAddr);
+                if (Boolean(device.meta.shouldPing) !== shouldPing) {
+                    $.ajax({
+                        type: 'POST',
+                        url: 'zigbee-shepherd/ping?id=' + id,
+                        contentType: 'application/json',
+                        data: JSON.stringify({ieeeAddr, shouldPing})
+                    });
+                }
+            });
+            $('ol#reporting li .device-configure').each(function () {
+                const ieeeAddr = $(this).data('addr');
+                const shouldConfigure = $(this).is(':checked');
+                const device = devices.find(dev => dev.ieeeAddr === ieeeAddr);
+                if (Boolean(device.meta.shouldConfigure) !== shouldConfigure) {
+                    $.ajax({
+                        type: 'POST',
+                        url: 'zigbee-shepherd/configure?id=' + id,
+                        contentType: 'application/json',
+                        data: JSON.stringify({ieeeAddr, shouldConfigure})
+                    });
+                }
+            });
         },
         oneditcancel() {
             clearInterval(this.statusInterval);
@@ -1069,12 +1098,16 @@
             text-align: right;
             padding-right: 12px;
         }
-        .checkbox-reporting {
+        .checkbox-reporting, .checkbox-configure, .checkbox-ping {
             vertical-align: top;
-            margin-right: 20px;
+            display: inline-block;
+            width: 44px;
+            margin-right: 8px;
+            text-align: center;
         }
-        .checkbox-reporting input {
+        .checkbox-reporting input, .checkbox-configure input, .checkbox-ping input {
             width: auto;
+
         }
         ol#reporting .member-name {
             vertical-align: 8px;
@@ -1283,9 +1316,6 @@
         </div>
 
         <div id="zigbee-shepherd-tab-reporting" style="display:none">
-            <div class="form-row">
-                <h4>Reporting</h4>
-            </div>
             <div class="form-row">
                 <ol id="reporting"></ol>
             </div>

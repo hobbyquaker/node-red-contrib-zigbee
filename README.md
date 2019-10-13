@@ -82,7 +82,8 @@ Call methods of the herdsman controller
 * [x] Command node: Group support
 * [x] Group bind support
 * [x] remove frontend debug output
-* [ ] per-device configurable ping
+* [x] per-device configurable ping
+* [x] per-device configurable configure
 * [x] Secure shepherd node REST API, use Authentication
 * [ ] Documentation
 * [ ] Adapt to Node-RED 1.0 message API
