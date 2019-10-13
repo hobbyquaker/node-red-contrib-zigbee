@@ -660,16 +660,17 @@ module.exports = function (RED) {
                 if (ep) {
                     ep.command(cluster, command, payload, options).then(result => {
                         this.debug(`command successful ${ieeeAddr} ${device.meta.name} ${endpoint} ${cluster} ${command} ${JSON.stringify(payload)} ${Object.keys(options || {}).length > 0 ? JSON.stringify(options) : ''}`);
-                        this.reachable(this.herdsman.getDeviceByIeeeAddr(ieeeAddr), true);
+                        this.reachable(device, true);
                         clearTimeout(this.offlineTimeouts[ieeeAddr]);
                         this.offlineTimeouts[ieeeAddr] = setTimeout(() => {
                             delete this.offlineTimeouts[ieeeAddr];
                         }, 10 * 1000);
                         resolve(result);
+                        this.configure(device);
                     }).catch(err => {
                         this.debug(`command failed ${ieeeAddr} ${device.meta.name} ${endpoint} ${cluster} ${command} ${err.message}`);
                         if (!this.offlineTimeouts[ieeeAddr]) {
-                            this.reachable(this.herdsman.getDeviceByIeeeAddr(ieeeAddr), false);
+                            this.reachable(device, false);
                         }
 
                         reject(err);
@@ -919,12 +920,12 @@ module.exports = function (RED) {
 
         configure(dev) {
             const doConfigure = device => {
-                if (!device || !device.meta.shouldConfigure || device.type === 'Coordinator' || configured.has(device.ieeeAddr) || configuring.has(device.ieeeAddr)) {
+                if (!device || device.type === 'Coordinator') {
                     return;
                 }
 
                 const mappedDevice = shepherdConverters.findByZigbeeModel(device.modelID);
-                if (mappedDevice && mappedDevice.configure) {
+                if (mappedDevice && mappedDevice.configure && device.meta.shouldConfigure && !configured.has(device.ieeeAddr) && !configuring.has(device.ieeeAddr)) {
                     this.debug(`configure ${device.ieeeAddr} ${device.meta.name}`);
                     configuring.add(device.ieeeAddr);
                     mappedDevice.configure(device, this.coordinatorEndpoint).then(() => {
