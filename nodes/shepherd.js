@@ -939,12 +939,26 @@ module.exports = function (RED) {
                 }
 
                 this.debug(`get lqi ${this.logName(device)}`);
+
+                let timedOut = false;
+                const timeout = setTimeout(() => {
+                    timedOut = true;
+                    reject(new Error('Timeout'));
+                    this.error(`get lqi timeout ${this.logName(device)}`);
+                }, 5000);
+
                 device.lqi().then(result => {
-                    this.debug(`lqi ${this.logName(device)} has ${result.neighbors.length} neighbors`);
-                    resolve(result.neighbors);
+                    clearTimeout(timeout);
+                    if (!timedOut) {
+                        this.debug(`lqi ${this.logName(device)} has ${result.neighbors.length} neighbors`);
+                        resolve(result.neighbors);
+                    }
                 }).catch(err => {
-                    this.error(err.message);
-                    reject(err);
+                    clearTimeout(timeout);
+                    if (!timedOut) {
+                        this.error(err.message);
+                        reject(err);
+                    }
                 });
             });
         }
@@ -958,12 +972,26 @@ module.exports = function (RED) {
                 }
 
                 this.debug(`get routingTable ${this.logName(device)}`);
+
+                let timedOut = false;
+                const timeout = setTimeout(() => {
+                    timedOut = true;
+                    reject(new Error('Timeout'));
+                    this.error(`get routingTable timeout ${this.logName(device)}`);
+                }, 5000);
+
                 device.routingTable().then(result => {
-                    this.debug(`routingTable ${this.logName(device)} has ${result.table.length} routes`);
-                    resolve(result.table);
+                    clearTimeout(timeout);
+                    if (!timedOut) {
+                        this.debug(`routingTable ${this.logName(device)} has ${result.table.length} routes`);
+                        resolve(result.table);
+                    }
                 }).catch(err => {
-                    this.error(err.message);
-                    reject(err);
+                    clearTimeout(timeout);
+                    if (!timedOut) {
+                        this.error(err.message);
+                        reject(err);
+                    }
                 });
             });
         }

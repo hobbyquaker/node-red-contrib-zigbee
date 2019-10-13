@@ -729,17 +729,31 @@
                                     $.getJSON('zigbee-shepherd/getRoutingTable?id=' + shepherdId + '&ieeeAddr=' + device.ieeeAddr, data => {
                                         console.log('getRoutingTable', device.ieeeAddr, data);
                                         data.forEach(route => {
-                                            const id = device.ieeeAddr + '|' + route.nextHop;
-                                            if (routesMap[id]) {
-                                                routesMap[id].count += 1;
-                                                routesMap[id].status = route.status;
-                                            } else {
-                                                routesMap[id] = {
-                                                    sourceIeeeAddr: device.ieeeAddr,
-                                                    targetIeeeAddr: getIeeeAddr(route.nextHop === 65534 ? route.destinationAddress : route.nextHop),
-                                                    routeStatus: route.routeStatus,
-                                                    count: 1
-                                                };
+                                            const id = device.networkAddress + '|' + route.nextHop;
+                                            if (route.nextHop !== 65534) {
+                                                if (routesMap[id]) {
+                                                    routesMap[id].count += 1;
+                                                    routesMap[id].status = route.status;
+                                                } else {
+                                                    routesMap[id] = {
+                                                        sourceIeeeAddr: device.ieeeAddr,
+                                                        targetIeeeAddr: getIeeeAddr(route.nextHop),
+                                                        status: route.status,
+                                                        count: 1
+                                                    };
+                                                }
+                                            }
+
+                                            if (route.destinationAddress !== route.nextHop) {
+                                                const nid = route.nextHop + '|' + route.destinationAddress;
+                                                if (!routesMap[nid]) {
+                                                    routesMap[nid] = {
+                                                        sourceIeeeAddr: getIeeeAddr(route.nextHop),
+                                                        targetIeeeAddr: getIeeeAddr(route.destinationAddress),
+                                                        status: 'UNKNOWN',
+                                                        count: 0
+                                                    };
+                                                }
                                             }
                                         });
                                     }).always(() => resolve());
@@ -781,7 +795,7 @@
                                     $.getJSON('zigbee-shepherd/getLqi?id=' + shepherdId + '&ieeeAddr=' + device.ieeeAddr, data => {
                                         console.log('getLqi', device.ieeeAddr, data);
                                         data.forEach(neighbour => {
-                                            const id = device.ieeeAddr + '|' + neighbour.networkAddress;
+                                            const id = device.networkAddress + '|' + neighbour.networkAddress;
                                             if (routesMap[id]) {
                                                 if (knownDevices.includes(neighbour.ieeeAddr)) {
                                                     routesMap[id].count += 1;
@@ -794,7 +808,7 @@
                                                 routesMap[id] = {
                                                     sourceIeeeAddr: device.ieeeAddr,
                                                     targetIeeeAddr: neighbour.ieeeAddr,
-                                                    routeStatus: 0,
+                                                    status: '',
                                                     relationship: neighbour.relationship,
                                                     depth: neighbour.depth,
                                                     lqi: neighbour.linkquality,
@@ -843,8 +857,9 @@
                             to: route.targetIeeeAddr,
                             from: route.sourceIeeeAddr,
                             label: rssi(route.lqi),
+                            width: (route.count + 1),
                             arrows: 'from',
-                            dashes: typeof route.lqi === 'undefined',
+                            dashes: route.status !== 'ACTIVE',
                             color: {inherit: 'to'},
                             font: {
                                 color: 'rgba(0,0,0,0)'
@@ -864,6 +879,7 @@
                         nodes: new vis.DataSet(devices.map(dev => {
                             const isCoord = dev.type === 'Coordinator';
                             const isBattery = dev.powerSource === 'Battery';
+                            const isRouter = dev.type === 'Router';
                             const id = dev.ieeeAddr;
 
                             const isOffline = dev.meta.offline === true;
@@ -873,7 +889,7 @@
                                 dev.type,
                                 dev.ieeeAddr,
                                 dev.manufacturerName,
-                                dev.modelID,
+                                String(dev.modelID).length > 20 ? (String(dev.modelID).substr(0, 17) + '...') : dev.modelID,
                                 dev.powerSource,
                                 children ? 'Children: ' + children + (isCoord ? (' (' + devices.length + ')') : '') : ''
                             ].filter(v => v).join('\n');
@@ -881,7 +897,7 @@
                             return {
                                 id,
                                 label,
-                                shape: children ? 'circle' : 'box',
+                                shape: (isRouter || isCoord) ? 'circle' : 'box',
                                 shapeProperties: {
                                     borderDashes: isOffline
                                 },
@@ -909,7 +925,7 @@
                             stabilization: true,
                             solver: 'forceAtlas2Based',
                             forceAtlas2Based: {
-                                avoidOverlap: 0.00005
+                                avoidOverlap: 0.00007
                             },
                             barnesHut: {
                                 gravitationalConstant: -2000,
