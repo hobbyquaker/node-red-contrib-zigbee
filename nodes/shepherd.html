@@ -225,12 +225,18 @@
                                 }
 
                                 if ($('ol#binds .bind-address[data-addr="' + device.ieeeAddr + '"][data-index="' + index + '"]').length === 0) {
-                                    $('ol#binds').editableList('addItem', data);
+                                    if (data.targetName !== 'Coordinator' || $('#show-coord-binds').is(':checked')) {
+                                        $('ol#binds').editableList('addItem', data);
+                                    }
                                 }
 
                                 index += 1;
                             });
                         });
+                    });
+                    $('#show-coord-binds').change(() => {
+                        $('ol#binds').editableList('empty');
+                        refreshDevices();
                     });
                     $('ol#devices li .device-name').each(function () {
                         const addr = $(this).data('addr');
@@ -1356,6 +1362,7 @@
 
         <div id="zigbee-shepherd-tab-binds" style="display:none">
             <div class="form-row">
+                <label style="width: 240px;">Show Coordinator Binds <input type="checkbox" id="show-coord-binds" style="width: 30px; vertical-align: top;"></label>
                 <ol id="binds"></ol>
                 <a href="#" id="add-bind" class="editor-button editor-button-small red-ui-editableList-addButton" style="margin-top: 4px;"><i class="fa fa-plus"></i> add bind</a>
             </div>
