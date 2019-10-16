@@ -39,6 +39,37 @@
 </script>
 
 <script type="text/x-red" data-help-name="zigbee-controller">
-    <b>Call Herdsman Controller methods</b>
-    <p>see <a href="https://github.com/Koenkk/zigbee-herdsman/blob/master/docs/api.md#Controller">https://github.com/Koenkk/zigbee-herdsman/blob/master/docs/api.md#Controller</a>
+  <b>Call Herdsman Controller methods</b>
+
+  <h3>Inputs</h3>
+  <dl class="message-properties">
+    <dt>topic
+        <span class="property-type">string</span>
+    </dt>
+    <dd> Name of the Herdsmann Controller methods </dd>
+    <dt class="optional">payload <span class="property-type"> different types</span></dt>
+    <dd>passing arguments to the function</dd>
+  </dl>
+
+  <h3>Outputs</h3>
+
+  <h3>Details</h3>
+  Available commands (<code>msg.topic</code>):
+  <ul>
+      <li>permitJoin(bool)</li>
+      <li>getPermitJoin()</li>
+      <li>reset(string "hard" or "soft")</li>
+      <li>getCoordinatorVersion()</li>
+      <li>getNetworkParameters()</li>
+      <li>getDevices()</li>
+      <li>getGroups()</li>
+      <li>enableLED()</li>
+      <li>disableLED()</li>
+  </ul>
+
+  <h3>References</h3>
+  <ul>
+      <li><a <href="https://github.com/Koenkk/zigbee-herdsman/blob/master/docs/api/classes/_controller_controller_.controller.md">zigbee-herdsman controller api</a></li>
+  </ul>
+
 </script>
