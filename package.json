@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-zigbee",
-  "version": "0.13.2",
+  "version": "0.14.0",
   "keywords": [
     "node-red",
     "zigbee",
@@ -24,8 +24,8 @@
     "mkdirp": "^0.5.1",
     "obj-ease": "^1.0.1",
     "vis": "^4.21.0",
-    "zigbee-herdsman": "0.9.2",
-    "zigbee-herdsman-converters": "11.1.22"
+    "zigbee-herdsman": "0.10.6",
+    "zigbee-herdsman-converters": "11.1.26"
   },
   "engines": {
     "node": ">= 10.0.0"
