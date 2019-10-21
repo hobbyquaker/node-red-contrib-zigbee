@@ -549,7 +549,7 @@ module.exports = function (RED) {
 
             if (this.lastState[lightIndex].reachable !== newState.reachable) {
                 change = true;
-                if (this.config.payload !== 'json') {
+                if (this.config.payload.includes('plain')) {
                     this.send({topic: topic + '/reachable', payload: newState.reachable, retain: true});
                 }
 
@@ -575,7 +575,7 @@ module.exports = function (RED) {
                     )
                 ) {
                     change = true;
-                    if (this.config.payload !== 'json') {
+                    if (this.config.payload.includes('plain')) {
                         this.send({topic: topic + '/' + attr, payload: newState[attr], retain: true});
                     }
 
@@ -583,13 +583,22 @@ module.exports = function (RED) {
                 }
             });
 
-            if (change && (this.config.payload !== 'plain')) {
+            if (change && (this.config.payload.includes('mqttsh'))) {
                 this.send({
                     topic,
                     payload: {
                         val: newState.on ? newState.bri : 0,
                         hue_state: newState /* eslint-disable-line camelcase */
                     },
+                    name: device.meta.hue.name,
+                    index: lightIndex,
+                    ieeeAddr: device.ieeeAddr,
+                    retain: true
+                });
+            } else if (change && (this.config.payload.includes('json'))) {
+                this.send({
+                    topic,
+                    payload: newState,
                     name: device.meta.hue.name,
                     index: lightIndex,
                     ieeeAddr: device.ieeeAddr,
