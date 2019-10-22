@@ -13,8 +13,11 @@
             cid: {value: ''},
             cmd: {value: ''},
             zclData: {value: '{}'},
+            zclDataType: {value: 'json'},
             attributesRead: {value: '[]'},
+            attributesReadType: {value: 'json'},
             attributesWrite: {value: '{}'},
+            attributesWriteType: {value: 'json'},
             manufSpec: {value: 0},
             disableDefaultRsp: {value: 0}
         },
@@ -312,7 +315,6 @@
                 const targetType = $(this).val();
                 $('.target').hide();
                 $('.target.' + targetType).show();
-                $('#node-input-cmdType').val('command').trigger('change');
             });
 
             $('#execute').click(() => {
@@ -419,6 +421,8 @@
             if (this.attrIdType === 'num') {
                 this.attrId = Number(this.attrId);
             }
+
+            console.log('save', this);
         }
     });
 </script>
@@ -443,13 +447,13 @@
     <div class="form-row">
         <label for="node-input-cmdType"><i class="icon-pencil"></i> cmdType</label>
         <select id="node-input-cmdType">
-            <option selected>command</option>
-            <option class="target endpoint">read</option>
-            <option class="target endpoint">write</option>
+            <option value="command">command</option>
+            <option value="read" class="target endpoint">read</option>
+            <option value="write" class="target endpoint">write</option>
         </select>
     </div>
     <div class="form-row target endpoint">
-        <label for="node-input-cmdType"><i class="icon-pencil"></i> ieeeAddr</label>
+        <label for="node-input-ieeeAddr"><i class="icon-pencil"></i> ieeeAddr</label>
         <input type="text" id="node-input-ieeeAddr">
     </div>
     <div class="form-row target endpoint">
@@ -474,13 +478,13 @@
     </div>
 
     <div class="form-row cmd-type read">
-        <label for="node-input-attrId"><i class="icon-pencil"></i> attributes</label>
+        <label for="node-input-attributesRead"><i class="icon-pencil"></i> attributes</label>
         <input type="text" id="node-input-attributesRead">
         <input type="hidden" id="node-input-attributesReadType">
     </div>
 
     <div class="form-row cmd-type write">
-        <label for="node-input-attrId"><i class="icon-pencil"></i> attributes</label>
+        <label for="node-input-attributesWrite"><i class="icon-pencil"></i> attributes</label>
         <input type="text" id="node-input-attributesWrite">
         <input type="hidden" id="node-input-attributesWriteType">
     </div>

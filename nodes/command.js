@@ -29,14 +29,14 @@ module.exports = function (RED) {
 
             let configAttributesRead;
             try {
-                configAttributesRead = JSON.parse(config.configAttributesRead);
+                configAttributesRead = JSON.parse(config.attributesRead);
             } catch (_) {
                 configAttributesRead = {};
             }
 
             let configAttributesWrite;
             try {
-                configAttributesWrite = JSON.parse(config.configAttributesWrite);
+                configAttributesWrite = JSON.parse(config.attributesWrite);
             } catch (_) {
                 configAttributesWrite = {};
             }
@@ -54,7 +54,6 @@ module.exports = function (RED) {
                 const attributesWrite = msg.attributes || configAttributesWrite;
                 //const manufSpec = msg.manufSpec || config.manufSpec;
                 //const disableDefaultRsp = msg.disableDefaultRsp || config.disableDefaultRsp;
-
                 let promise;
                 switch (cmdType) {
                     case 'command':
