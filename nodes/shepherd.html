@@ -37,7 +37,6 @@
         oneditprepare() {
             const {id} = this;
             let groups;
-            let selectedGroup;
             const clusters = {};
 
             $.getJSON('zigbee-shepherd/definitions', data => {
@@ -384,7 +383,7 @@
                     contentType: 'application/json',
                     data: JSON.stringify({groupID}),
                     success: () => {
-                        selectedGroup = null;
+                        $('#selected-group-id').val('');
                         refreshGroups();
                     },
                     error: xhr => {
@@ -409,6 +408,7 @@
 
             $('ol#members').on('click', '.member-remove', function () {
                 $(this).addClass('disabled');
+                const selectedGroup = parseInt($('#selected-group-id').val(), 10);
                 $.ajax({
                     type: 'POST',
                     url: 'zigbee-shepherd/removeFromGroup?id=' + id,
@@ -428,6 +428,7 @@
             function refreshMembers() {
                 $('ol#members').editableList('empty');
                 $('#selected-group').html('');
+                const selectedGroup = parseInt($('#selected-group-id').val(), 10);
                 const group = groups.find(group => group.groupID === selectedGroup);
                 if (!group) {
                     return;
@@ -448,8 +449,9 @@
                 $('#add-member').removeClass('disabled');
                 $('ol#groups .group-row').removeClass('selected');
                 $(this).addClass('selected');
-                selectedGroup = groupID;
-                console.log('selectedGroup', selectedGroup);
+                $('#selected-group-id').val(groupID);
+
+                console.log('selectedGroup', $('#selected-group-id').val());
                 refreshMembers();
             });
 
@@ -460,6 +462,7 @@
                     this.groups = data;
                     $('#add-bind-group').html('');
                     $('ol#groups').editableList('empty');
+                    const selectedGroup = parseInt($('#selected-group-id').val(), 10);
                     groups.forEach(group => {
                         $('#add-bind-group').append(`<option value="${group.groupID}">${group.groupID} ${group.meta.name}</option>`);
                         $('ol#groups').editableList('addItem', {groupID: group.groupID, name: group.meta.name, members: group.members, selected: selectedGroup === group.groupID});
@@ -538,10 +541,11 @@
                 buttons: [
                     {
                         text: 'Add Member',
-                        id: 'add-member',
+                        id: 'add-member-to-group',
                         click() {
                             const ieeeAddr = $('#add-member-select').val();
                             const endpoint = parseInt($('#add-member-endpoint-select').val(), 10);
+                            const selectedGroup = parseInt($('#selected-group-id').val(), 10);
                             console.log('Add member selectedGroup', selectedGroup);
                             $.ajax({
                                 type: 'POST',
@@ -1348,6 +1352,7 @@
             </div>
             <div class="form-row">
                <span id="selected-group"></span>
+               <input type="hidden" id="selected-group-id">
             </div>
             <div class="form-row">
                 <ol id="members"></ol>
