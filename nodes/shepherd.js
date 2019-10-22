@@ -596,7 +596,7 @@ module.exports = function (RED) {
             return new Promise((resolve, reject) => {
                 const group = this.herdsman.getGroupByID(groupID);
                 if (group) {
-                    if (group.members.size === 0) {
+                    if (group.members.length === 0) {
                         group.removeFromDatabase();
                         this.log('group removeFromDatabase ' + groupID);
                         resolve();
