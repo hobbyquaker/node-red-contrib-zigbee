@@ -53,14 +53,14 @@ module.exports = function (RED) {
                 let isGroup = false;
 
                 for (const [i, element] of topic.entries()) {
-                    const setmatch = settopic[i].match(/\${([^}]+)}/);
+                    const setmatch = String(settopic[i]).match(/\${([^}]+)}/);
                     if (setmatch) {
                         settopicAttrs[setmatch[1]] = element;
                     } else if (element !== settopic[i]) {
                         isSet = false;
                     }
 
-                    const getmatch = gettopic[i].match(/\${([^}]+)}/);
+                    const getmatch = String(gettopic[i]).match(/\${([^}]+)}/);
                     if (getmatch) {
                         gettopicAttrs[getmatch[1]] = element;
                     } else if (element !== gettopic[i]) {
