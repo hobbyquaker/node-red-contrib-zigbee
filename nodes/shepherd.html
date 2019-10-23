@@ -193,16 +193,16 @@
                         let index = 0;
                         device.endpoints.filter(e => e.binds.length > 0).forEach(e => {
                             e.binds.forEach(b => {
+                                console.log('bind', b);
                                 let data;
                                 if (b.target.groupID) {
                                     const tGroup = groups.find(g => g.groupID === b.target.groupID);
-                                    console.log('group bind!', b, tGroup);
                                     data = {
                                         index,
                                         ieeeAddr: device.ieeeAddr,
                                         name: device.meta.name,
                                         endpoint: e.ID,
-                                        cluster: clusters[b.cluster],
+                                        cluster: b.cluster.name,
                                         targetDevice: tGroup.groupID,
                                         targetName: tGroup.meta.name,
                                         targetEndpoint: '',
@@ -215,7 +215,7 @@
                                         ieeeAddr: device.ieeeAddr,
                                         name: device.meta.name,
                                         endpoint: e.ID,
-                                        cluster: clusters[b.cluster],
+                                        cluster: b.cluster.name,
                                         targetDevice: tDevice.ieeeAddr,
                                         targetName: tDevice.meta.name,
                                         targetEndpoint: b.target.ID,
