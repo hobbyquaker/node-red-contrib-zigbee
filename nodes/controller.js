@@ -31,9 +31,7 @@ module.exports = function (RED) {
                         herdsmanNode.permitJoin(Boolean(msg.payload));
                         break;
                     case 'getPermitJoin':
-                        this.herdsman.getPermitJoin().then(result => {
-                            this.send({topic: msg.topic, payload: result});
-                        });
+                        this.send({topic: msg.topic, payload: this.herdsman.getPermitJoin()});
                         break;
                     case 'reset':
                         this.herdsman.reset(String(msg.payload).toLowerCase() === 'hard' ? 'hard' : 'soft').then(result => {
