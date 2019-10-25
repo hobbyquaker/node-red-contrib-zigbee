@@ -153,7 +153,6 @@
                 this.refreshPending = true;
 
                 $.getJSON('zigbee-shepherd/devices?id=' + id, data => {
-                    console.log('devices', data);
                     this.devices = data;
                     devices = data;
                     const known = [];
@@ -193,7 +192,6 @@
                         let index = 0;
                         device.endpoints.filter(e => e.binds.length > 0).forEach(e => {
                             e.binds.forEach(b => {
-                                console.log('bind', b);
                                 let data;
                                 if (b.target.groupID) {
                                     const tGroup = groups.find(g => g.groupID === b.target.groupID);
@@ -451,13 +449,11 @@
                 $(this).addClass('selected');
                 $('#selected-group-id').val(groupID);
 
-                console.log('selectedGroup', $('#selected-group-id').val());
                 refreshMembers();
             });
 
             function refreshGroups() {
                 $.getJSON('zigbee-shepherd/groups?id=' + id, data => {
-                    console.log('groups', data);
                     groups = data;
                     this.groups = data;
                     $('#add-bind-group').html('');
@@ -500,7 +496,6 @@
                     return;
                 }
 
-                console.log('autocompleteEndpoint', device);
                 $('#add-bind-endpoint').html(device.endpoints.map(e => `<option value="${e.ID}">${e.ID}</option>`));
                 autocompleteCluster();
             }
@@ -546,7 +541,6 @@
                             const ieeeAddr = $('#add-member-select').val();
                             const endpoint = parseInt($('#add-member-endpoint-select').val(), 10);
                             const selectedGroup = parseInt($('#selected-group-id').val(), 10);
-                            console.log('Add member selectedGroup', selectedGroup);
                             $.ajax({
                                 type: 'POST',
                                 url: 'zigbee-shepherd/addGroupMember?id=' + id,
@@ -714,7 +708,6 @@
                     devices.forEach(device => {
                         knownDevices.push(device.ieeeAddr);
                     });
-                    console.log('devices', devices);
                     getRtg()
                         .then(getLqi)
                         .catch(err => {
@@ -740,7 +733,7 @@
                                     $status.innerHTML = 'get routing table of ' + device.ieeeAddr + ' ' + device.meta.name;
 
                                     $.getJSON('zigbee-shepherd/getRoutingTable?id=' + shepherdId + '&ieeeAddr=' + device.ieeeAddr, data => {
-                                        console.log('getRoutingTable', device.ieeeAddr, data);
+                                        routesRaw[device.ieeeAddr] = data;
                                         data.forEach(route => {
                                             const id = device.networkAddress + '|' + route.nextHop;
                                             if (route.nextHop !== 65534) {
@@ -783,7 +776,6 @@
                                 const task = tasks.shift();
                                 task().then(shiftTasks);
                             } else {
-                                console.log('routesMap', routesMap);
                                 resolve();
                             }
                         }
@@ -806,7 +798,7 @@
                                     $status.innerHTML = 'get lqi list of ' + device.ieeeAddr + ' ' + device.meta.name;
 
                                     $.getJSON('zigbee-shepherd/getLqi?id=' + shepherdId + '&ieeeAddr=' + device.ieeeAddr, data => {
-                                        console.log('getLqi', device.ieeeAddr, data);
+                                        lqiRaw[device.ieeeAddr] = data;
                                         data.forEach(neighbour => {
                                             const id = device.networkAddress + '|' + neighbour.networkAddress;
                                             if (routesMap[id]) {
@@ -843,7 +835,6 @@
                                 const task = tasks.shift();
                                 task().then(shiftTasks);
                             } else {
-                                console.log('routesMap', routesMap);
                                 Object.keys(routesMap).forEach(id => {
                                     routes.push(routesMap[id]);
                                 });
@@ -864,7 +855,6 @@
 
                 function createGraph() {
                     //let coordAddr;
-                    console.log('routes', routes);
                     const routesData = routes.map(route => {
                         return {
                             to: route.targetIeeeAddr,
@@ -885,8 +875,6 @@
                             }
                         };
                     });
-
-                    console.log(routesData);
 
                     const data = {
                         nodes: new vis.DataSet(devices.map(dev => {
