@@ -157,6 +157,20 @@ module.exports = function (RED) {
                     payload = {state: msg.payload ? 'ON' : 'OFF'};
                 }
 
+                const meta = {
+                    options: {},
+                    message: payload,
+                    mapped: model,
+                    state: {},
+                    logger: {
+                        debug: this.debug,
+                        log: this.log,
+                        info: this.log,
+                        warn: this.warn,
+                        error: this.error
+                    }
+                };
+
                 // For each key in the JSON message find the matching converter.
                 Object.keys(payload).sort(a => (['state', 'brightness'].includes(a) ? -1 : 1)).forEach(key => {
                     const converter = converters.find(c => c.key.includes(key));
@@ -166,17 +180,31 @@ module.exports = function (RED) {
                     }
 
                     if (isSet && isGroup) {
-                        converter.convertSet(group, key, payload[key], {message: payload, options: {}}).then(result => {
+                        converter.convertSet(group, key, payload[key], meta).then(result => {
                             this.debug(`${group.groupID} ${group.meta.name} ${JSON.stringify(result)}`);
+                            done();
                         }).catch(err => {
-                            this.error(`${group.groupID} ${group.meta.name} ${err.message}`);
+                            done(new Error(`${group.groupID} ${group.meta.name} ${err.message}`));
                         });
                     } else if (isSet) {
                         converter.convertSet(endpoint, key, payload[key], meta).then(result => {
                             shepherdNode.reachable(device, true);
-                            // TODO handle readAfterWrite
-                            // TODO output new state?
                             this.debug(`${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(result)}`);
+
+                            // Todo clarify why converterGet doesnt set readAfterWriteTime when state==OFF
+                            if (typeof result.readAferWriteTime === 'undefined' && !device.meta.reporting && result.state && result.state.state === 'OFF') {
+                                result.readAfterWriteTime = 0;
+                            }
+
+                            if (typeof result.readAfterWriteTime !== 'undefined' && !device.meta.reporting) {
+                                setTimeout(() => {
+                                    this.debug(`readAfterWrite ${device.ieeeAddr} ${device.meta.name}`);
+                                    converter.convertGet(endpoint, key, meta);
+                                    done();
+                                }, result.readAfterWriteTime);
+                            } else {
+                                done();
+                            }
                         }).catch(err => {
                             done(new Error(`${device.ieeeAddr} ${device.meta.name} ${err.message}`));
                             shepherdNode.reachable(device, false);
@@ -187,7 +215,6 @@ module.exports = function (RED) {
                             this.debug(`${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(result)}`);
                             done();
                         }).catch(err => {
-                            this.error(`${device.ieeeAddr} ${device.meta.name} ${err.message}`);
                             shepherdNode.reachable(device, false);
                             done(new Error(`${device.ieeeAddr} ${device.meta.name} ${err.message}`));
                         });

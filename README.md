@@ -73,7 +73,7 @@ Call methods of the herdsman controller
 
 ## Todo
 
-* [ ] Converter node: readAfterWrite
+* [x] Converter node: readAfterWrite
 * [ ] Hue node: readAfterWrite
 * [x] Converter node: Determine endpoint
 * [x] Converter node: Group support 
