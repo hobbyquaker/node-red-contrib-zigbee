@@ -86,7 +86,7 @@ Call methods of the herdsman controller
 * [x] per-device configurable configure
 * [x] Secure shepherd node REST API, use Authentication
 * [ ] Documentation
-* [ ] Adapt to Node-RED 1.0 message API
+* [x] Adapt to Node-RED 1.0 message API
 
 
 ## License
