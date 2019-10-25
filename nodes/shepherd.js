@@ -384,6 +384,7 @@ module.exports = function (RED) {
             this.backupPath = path.join(this.persistPath, 'backup.db');
             this.led = config.led;
             this.pingTime = 30 * 1000;
+            this.maxConfigureTries = 6;
 
             try {
                 this.names = require(this.namesPath);
@@ -524,8 +525,13 @@ module.exports = function (RED) {
                 }, this.pingTime);
 
                 devices.forEach(device => {
-                    if (device.type === 'Router') {
-                        this.configure(device);
+                    if (device.meta.isConfigurable) {
+                        device.meta.configureFails = 0;
+                        //this.configure(device);
+                    }
+
+                    if (device.meta.isReportable) {
+                        device.meta.reportingFails = 0;
                     }
                 });
             }).catch(error => {
@@ -924,15 +930,23 @@ module.exports = function (RED) {
                     return;
                 }
 
+                if (device.meta.configureFails === this.maxConfigureTries) {
+                    this.warn(`configure last try ${device.meta.name} ${device.ieeeAddr} after ${device.meta.configureFails} fails`);
+                } else if (device.meta.configureFails > this.maxConfigureTries) {
+                    this.debug(`configure max tries exceeded for ${device.meta.name} ${device.ieeeAddr}`);
+                    return;
+                }
+
                 const mappedDevice = shepherdConverters.findByZigbeeModel(device.modelID);
                 if (mappedDevice && mappedDevice.configure && device.meta.shouldConfigure && !configured.has(device.ieeeAddr) && !configuring.has(device.ieeeAddr)) {
-                    this.debug(`configure ${device.ieeeAddr} ${device.meta.name}`);
+                    this.debug(`configure ${device.ieeeAddr} ${device.meta.name} (try ${device.meta.configureFails})`);
                     configuring.add(device.ieeeAddr);
                     mappedDevice.configure(device, this.coordinatorEndpoint).then(() => {
                         this.log(`successfully configured ${this.logName(device)}`);
                         configured.add(device.ieeeAddr);
                     }).catch(err => {
                         this.warn(`configure failed ${this.logName(device)} ${err && err.message}`);
+                        device.meta.configureFails += 1;
                     }).finally(() => {
                         configuring.delete(device.ieeeAddr);
                         this.configureReport(device);
