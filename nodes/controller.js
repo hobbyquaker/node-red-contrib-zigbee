@@ -71,11 +71,10 @@ module.exports = function (RED) {
                         send({topic: msg.topic, payload: this.herdsman.getGroups()});
                         done();
                         break;
-                    case 'enableLED':
-                        this.herdsman.enableLED();
-                        break;
-                    case 'disableLED':
-                        this.herdsman.disableLED();
+                    case 'setLED':
+                        this.herdsman.setLED(Boolean(msg.payload)).then(() => {
+                            done();
+                        });
                         break;
                     default:
                         done(new Error(`Unknown command ${msg.payload}`));
