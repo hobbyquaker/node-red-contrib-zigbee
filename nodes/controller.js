@@ -25,34 +25,51 @@ module.exports = function (RED) {
 
             this.herdsman = herdsmanNode.herdsman;
 
-            this.on('input', msg => {
+            this.on('input', (msg, send, done) => {
+                send = send || this.send.bind(this);
+
+                if (!done) {
+                    done = err => {
+                        if (err) {
+                            this.error(err.message);
+                        }
+                    };
+                }
+
                 switch (msg.topic) {
                     case 'permitJoin':
                         herdsmanNode.permitJoin(Boolean(msg.payload));
+                        done();
                         break;
                     case 'getPermitJoin':
-                        this.send({topic: msg.topic, payload: this.herdsman.getPermitJoin()});
+                        send({topic: msg.topic, payload: this.herdsman.getPermitJoin()});
+                        done();
                         break;
                     case 'reset':
                         this.herdsman.reset(String(msg.payload).toLowerCase() === 'hard' ? 'hard' : 'soft').then(result => {
-                            this.send({topic: msg.topic, payload: result});
+                            send({topic: msg.topic, payload: result});
+                            done();
                         });
                         break;
                     case 'getCoordinatorVersion':
                         this.herdsman.getCoordinatorVersion().then(result => {
-                            this.send({topic: msg.topic, payload: result});
+                            send({topic: msg.topic, payload: result});
+                            done();
                         });
                         break;
                     case 'getNetworkParameters':
                         this.herdsman.getNetworkParameters().then(result => {
-                            this.send({topic: msg.topic, payload: result});
+                            send({topic: msg.topic, payload: result});
+                            done();
                         });
                         break;
                     case 'getDevices':
-                        this.send({topic: msg.topic, payload: this.herdsman.getDevices()});
+                        send({topic: msg.topic, payload: this.herdsman.getDevices()});
+                        done();
                         break;
                     case 'getGroups':
-                        this.send({topic: msg.topic, payload: this.herdsman.getGroups()});
+                        send({topic: msg.topic, payload: this.herdsman.getGroups()});
+                        done();
                         break;
                     case 'enableLED':
                         this.herdsman.enableLED();
@@ -61,7 +78,7 @@ module.exports = function (RED) {
                         this.herdsman.disableLED();
                         break;
                     default:
-                        this.error(`Unknown command ${msg.payload}`);
+                        done(new Error(`Unknown command ${msg.payload}`));
                 }
             });
         }

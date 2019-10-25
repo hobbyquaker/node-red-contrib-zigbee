@@ -124,7 +124,15 @@ module.exports = function (RED) {
                 this.proxy.removeListener('offline', offlineHandler);
             });
 
-            this.on('input', msg => {
+            this.on('input', (msg, send, done) => {
+                if (!done) {
+                    done = err => {
+                        if (err) {
+                            this.error(err.message);
+                        }
+                    };
+                }
+
                 const topic = (msg.topic || '').split('/');
                 const settopic = config.settopic.split('/');
                 const topicAttrs = {};
@@ -134,6 +142,8 @@ module.exports = function (RED) {
                         topicAttrs[match[1].toLowerCase()] = element;
                     } else if (element !== settopic[i]) {
                         this.debug('topic mismatch ' + msg.topic + ' ' + config.settopic);
+                        // TODO clarify - should this be an error?
+                        done();
                         return;
                     }
                 }
@@ -149,7 +159,7 @@ module.exports = function (RED) {
                         search = topicAttrs.name || topicAttrs.index || topicAttrs.id || topicAttrs.ieeeAddr;
                         device = this.searchDevice(search);
                         if (!device) {
-                            this.warn('unknown light ' + JSON.stringify(topicAttrs));
+                            done(new Error('unknown light ' + JSON.stringify(topicAttrs)));
                             return;
                         }
 
@@ -158,13 +168,13 @@ module.exports = function (RED) {
                         search = topicAttrs.name || topicAttrs.index || topicAttrs.id || topicAttrs.ieeeAddr;
                         group = this.searchGroup(search);
                         if (!group) {
-                            this.warn('unknown group ' + JSON.stringify(topicAttrs));
+                            done(new Error('unknown group ' + JSON.stringify(topicAttrs)));
                             return;
                         }
 
                         break;
                     default:
-                        this.error(`unknown type ${type}`);
+                        done(new Error(`unknown type ${type}`));
                         return;
                 }
 
@@ -184,7 +194,7 @@ module.exports = function (RED) {
                         msg.payload = JSON.parse(msg.payload);
                         cmd = msg.payload;
                     } catch (err) {
-                        this.error('json parse failed ' + err.message + ' ' + msg.payload);
+                        done(new Error('json parse failed ' + err.message + ' ' + msg.payload));
                         return;
                     }
                 } else if (typeof msg.payload === 'object') {
@@ -208,7 +218,7 @@ module.exports = function (RED) {
                     //cmd.transitiontime = 4;
                 }
 
-                this.putLightsState({topic: type + '/' + (type === 'lights' ? device.ID : group.groupID) + '/state', payload: cmd});
+                this.putLightsState({topic: type + '/' + (type === 'lights' ? device.ID : group.groupID) + '/state', payload: cmd}, send, done);
             });
         }
 
@@ -266,7 +276,14 @@ module.exports = function (RED) {
             }
         }
 
-        putLightsState(msg) {
+        putLightsState(msg, send, done) {
+            if (!done) {
+                done = err => {
+                    if (err) {
+                        this.error(err.message);
+                    }
+                };
+            }
             // xy > ct > hs
             // on bool
             // bri uint8 0-254
@@ -295,7 +312,7 @@ module.exports = function (RED) {
                 case 'lights':
                     device = this.searchDevice(index);
                     if (!device) {
-                        this.warn('unknown light ' + index);
+                        done(new Error('unknown light ' + index));
                         return;
                     }
 
@@ -303,13 +320,13 @@ module.exports = function (RED) {
                 case 'groups':
                     group = this.searchGroup(index);
                     if (!group) {
-                        this.warn('unknown group ' + index);
+                        done(new Error('unknown group ' + index));
                         return;
                     }
 
                     break;
                 default:
-                    this.error(`unknown type ${type}`);
+                    done(new Error(`unknown type ${type}`));
                     return;
             }
 
@@ -502,7 +519,7 @@ module.exports = function (RED) {
                                 }
                             }).catch(() => {}).finally(() => {
                                 if (--todo === 0 && update) {
-                                    this.publishLightState(device);
+                                    this.publishLightState(device, send, done);
                                 }
                             });
                     });
@@ -532,7 +549,17 @@ module.exports = function (RED) {
             }
         }
 
-        publishLightState(device) {
+        publishLightState(device, send, done) {
+            send = send || this.send.bind(this);
+
+            if (!done) {
+                done = err => {
+                    if (err) {
+                        this.error(err.message);
+                    }
+                };
+            }
+
             const topic = this.topicReplace(this.config.topic, {
                 name: device.meta.name,
                 ieeeAddr: device.ieeeAddr,
@@ -550,7 +577,7 @@ module.exports = function (RED) {
             if (this.lastState[lightIndex].reachable !== newState.reachable) {
                 change = true;
                 if (this.config.payload.includes('plain')) {
-                    this.send({topic: topic + '/reachable', payload: newState.reachable, retain: true});
+                    send({topic: topic + '/reachable', payload: newState.reachable, retain: true});
                 }
 
                 this.lastState[lightIndex].reachable = newState.reachable;
@@ -576,7 +603,7 @@ module.exports = function (RED) {
                 ) {
                     change = true;
                     if (this.config.payload.includes('plain')) {
-                        this.send({topic: topic + '/' + attr, payload: newState[attr], retain: true});
+                        send({topic: topic + '/' + attr, payload: newState[attr], retain: true});
                     }
 
                     this.lastState[lightIndex][attr] = newState[attr];
@@ -584,7 +611,7 @@ module.exports = function (RED) {
             });
 
             if (change && (this.config.payload.includes('mqttsh'))) {
-                this.send({
+                send({
                     topic,
                     payload: {
                         val: newState.on ? newState.bri : 0,
@@ -596,7 +623,7 @@ module.exports = function (RED) {
                     retain: true
                 });
             } else if (change && (this.config.payload.includes('json'))) {
-                this.send({
+                send({
                     topic,
                     payload: newState,
                     name: device.meta.hue.name,
@@ -605,6 +632,8 @@ module.exports = function (RED) {
                     retain: true
                 });
             }
+
+            done();
         }
 
         topicReplace(topic, msg) {

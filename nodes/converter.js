@@ -40,7 +40,15 @@ module.exports = function (RED) {
                 });
             };
 
-            this.on('input', msg => {
+            this.on('input', (msg, send, done) => {
+                if (!done) {
+                    done = err => {
+                        if (err) {
+                            this.error(err.message);
+                        }
+                    };
+                }
+
                 const topic = (msg.topic || '').split('/');
                 const settopic = (config.settopic || '').split('/');
                 const gettopic = (config.gettopic || '').split('/');
@@ -170,16 +178,18 @@ module.exports = function (RED) {
                             // TODO output new state?
                             this.debug(`${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(result)}`);
                         }).catch(err => {
-                            this.error(`${device.ieeeAddr} ${device.meta.name} ${err.message}`);
+                            done(new Error(`${device.ieeeAddr} ${device.meta.name} ${err.message}`));
                             shepherdNode.reachable(device, false);
                         });
                     } else if (isGet) {
                         converter.convertGet(device.endpoints[0], key, payload[key], {message: payload, options: {}}).then(result => {
                             shepherdNode.reachable(device, true);
                             this.debug(`${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(result)}`);
+                            done();
                         }).catch(err => {
                             this.error(`${device.ieeeAddr} ${device.meta.name} ${err.message}`);
                             shepherdNode.reachable(device, false);
+                            done(new Error(`${device.ieeeAddr} ${device.meta.name} ${err.message}`));
                         });
                     }
                 });

@@ -41,7 +41,7 @@ module.exports = function (RED) {
                 configAttributesWrite = {};
             }
 
-            this.on('input', msg => {
+            this.on('input', (msg, send, done) => {
                 const cmdType = msg.cmdType || config.cmdType;
                 const target = msg.target || config.target;
                 const ieeeAddr = msg.ieeeAddr || ((config.ieeeAddr || '').split(' ')[0]);
@@ -75,10 +75,24 @@ module.exports = function (RED) {
                 }
 
                 promise.then(result => {
-                    this.send({topic: msg.topic, payload: result});
+                    if (send) {
+                        send({topic: msg.topic, payload: result});
+                    } else {
+                        this.send({topic: msg.topic, payload: result});
+                    }
+
+                    if (done) {
+                        done();
+                    }
+
                     this.status(nodeStatus);
                 }).catch(err => {
-                    this.error(err.message);
+                    if (done) {
+                        done(err);
+                    } else {
+                        this.error(err.message);
+                    }
+
                     this.status({fill: 'red', shape: 'dot', text: err.message});
                 });
             });
