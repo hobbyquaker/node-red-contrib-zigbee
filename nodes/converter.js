@@ -121,7 +121,7 @@ module.exports = function (RED) {
 
                     if (!model) {
                         this.warn(`Device with modelID '${device.modelID}' is not supported.`);
-                        this.warn('Please see: https://koenkk.github.io/zigbee2mqtt/how_tos/how_to_support_new_devices.html');
+                        this.warn('Please see: https://www.zigbee2mqtt.io/how_tos/how_to_support_new_devices.html');
                         return;
                     }
 
