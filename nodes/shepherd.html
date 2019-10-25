@@ -354,6 +354,10 @@
             });
 
             $('#hide-network-map').click(() => {
+                if (networkMap && networkMap.destroy) {
+                    networkMap.destroy();
+                }
+
                 $('#network-map').hide();
                 stopMap = true;
             });
@@ -694,14 +698,17 @@
 
             function networkMap(shepherdId) {
                 const container = document.querySelector('#map');
+                $('#map-loader').show();
 
                 let devices;
                 const routes = [];
                 const routesMap = {};
 
-                const knownDevices = [];
+                const routesRaw = {};
+                const lqiRaw = {};
 
-                const $status = document.querySelector('#map-status');
+                const knownDevices = [];
+                let networkMap;
 
                 $.getJSON('zigbee-shepherd/devices?id=' + shepherdId, data => {
                     devices = data;
@@ -714,7 +721,7 @@
                             container.innerHTML = err.message;
                         })
                         .finally(() => {
-                            document.querySelector('#map-loader').remove();
+                            $('#map-loader').hide();
                             createGraph();
                         });
                 });
@@ -729,8 +736,7 @@
 
                             tasks.push(() => {
                                 return new Promise(resolve => {
-                                    console.log('get routing table of ' + device.ieeeAddr + ' ' + device.meta.name);
-                                    $status.innerHTML = 'get routing table of ' + device.ieeeAddr + ' ' + device.meta.name;
+                                    $('#map-status').html('get routing table of ' + device.ieeeAddr + ' ' + device.meta.name);
 
                                     $.getJSON('zigbee-shepherd/getRoutingTable?id=' + shepherdId + '&ieeeAddr=' + device.ieeeAddr, data => {
                                         routesRaw[device.ieeeAddr] = data;
@@ -794,8 +800,7 @@
 
                             tasks.push(() => {
                                 return new Promise(resolve => {
-                                    console.log('get lqi list of ' + device.ieeeAddr + ' ' + device.meta.name);
-                                    $status.innerHTML = 'get lqi list of ' + device.ieeeAddr + ' ' + device.meta.name;
+                                    $('#map-status').html('get lqi list of ' + device.ieeeAddr + ' ' + device.meta.name);
 
                                     $.getJSON('zigbee-shepherd/getLqi?id=' + shepherdId + '&ieeeAddr=' + device.ieeeAddr, data => {
                                         lqiRaw[device.ieeeAddr] = data;
@@ -853,7 +858,7 @@
                     }
                 }
 
-                function createGraph() {
+                function createGraph(anonymized) {
                     //let coordAddr;
                     const routesData = routes.map(route => {
                         return {
@@ -886,9 +891,9 @@
                             const isOffline = dev.meta.offline === true;
                             const children = routes.filter(pair => pair.sourceIeeeAddr === dev.ieeeAddr).length;
                             const label = [
-                                dev.meta.name,
+                                anonymized ? '...' : dev.meta.name,
                                 dev.type,
-                                dev.ieeeAddr,
+                                anonymized ? ('0x...' + dev.ieeeAddr.substr(-3)) : dev.ieeeAddr,
                                 dev.manufacturerName,
                                 String(dev.modelID).length > 20 ? (String(dev.modelID).substr(0, 17) + '...') : dev.modelID,
                                 dev.powerSource,
@@ -939,8 +944,117 @@
                         }
                     };
 
-                    const network = new vis.Network(container, data, options); // eslint-disable-line no-unused-vars
+                    networkMap = new vis.Network(container, data, options);
+
+                    networkMap.on('selectNode', data => {
+                        nodeInfo(data.nodes[0]);
+                    });
+
+                    networkMap.on('deselectNode', () => {
+                        $('#node-info').hide();
+                    });
+
+                    if (!anonymized) {
+                        $('#anonymize-map').show();
+                    }
+
+                    $('#redraw-map').show();
                 }
+
+                function nodeInfo(addr) {
+                    $('#node-selected').val(addr);
+                    const dev = devices.find(dev => dev.ieeeAddr === addr);
+
+                    $('#node-addr').html(addr);
+                    $('#node-name').html(dev.meta.name);
+
+                    $('#node-device').html('');
+
+                    [
+                        'type',
+                        'manufacturerName',
+                        'modelID',
+                        'applicationVersion',
+                        'hardwareVersion',
+                        'dateCode',
+                        'powerSource',
+                        'softwareBuildID',
+                        'stackVersion',
+                        'zclVersion',
+                        'interviewCompleted',
+                        'lastSeen',
+                        'networkAddress'
+                    ].forEach(key => {
+                        $('#node-device').append(`<tr><td>${key}</td><td>${dev[key]}</td></tr>`);
+                    });
+
+                    [
+                        'offline',
+                        'reporting',
+                        'shouldConfigure',
+                        'shouldReport',
+                        'isPingable',
+                        'configureFails',
+                        'reportingFails'
+                    ].forEach(key => {
+                        $('#node-device').append(`<tr><td>${key}</td><td>${dev.meta[key]}</td></tr>`);
+                    });
+
+                    let lqiHtml = '<tr><th>ieeeAddr</th><th>name</th><th>LQI</th><th>depth</th><th>relationship</th></tr>';
+
+                    if (lqiRaw[addr]) {
+                        lqiRaw[addr].forEach(entry => {
+                            const entryDev = devices.find(d => d.ieeeAddr === entry.ieeeAddr);
+                            const name = (entryDev && entryDev.meta.name) || '';
+                            lqiHtml += `<tr><td class="dev-link" data-addr="${entry.ieeeAddr}">${entry.ieeeAddr}</td><td>${name}</td><td>${rssi(entry.linkquality)}</td><td>${entry.depth}</td><td>${entry.relationship}</td></tr>`;
+                        });
+                    }
+
+                    $('#node-lqi').html(lqiHtml);
+
+                    let routesHtml = '<tr><th colspan="2">destination</th><th colspan="2">nexthop</th><th></th></tr>';
+                    routesHtml += '<tr><th>ieeeAddr</th><th>name</th><th>ieeeAddr</th><th>name</th><th>status</th></tr>';
+
+                    if (routesRaw[addr]) {
+                        routesRaw[addr].forEach(route => {
+                            const destDev = devices.find(d => d.networkAddress === route.destinationAddress) || {meta: {name: ''}};
+                            const hopDev = devices.find(d => d.networkAddress === route.nextHop) || {meta: {name: ''}};
+                            routesHtml += `<tr><td class="dev-link" data-addr="${destDev.ieeeAddr}">${destDev.ieeeAddr}</td><td>${destDev.meta.name}</td><td class="dev-link" data-addr="${hopDev.ieeeAddr}">${hopDev.ieeeAddr}</td><td>${hopDev.meta.name}</td><td>${route.status}</td></tr>`;
+                        });
+                    }
+
+                    $('#node-routes').html(routesHtml);
+
+                    $('.dev-link').click(function () {
+                        nodeInfo($(this).data('addr'));
+                        networkMap.selectNodes([$(this).data('addr')]);
+                    });
+
+                    $('.dev-link').hover(
+                        function () {
+                            $(this).addClass('dev-link-hover');
+                        },
+                        function () {
+                            $(this).removeClass('dev-link-hover');
+                        }
+                    );
+
+                    $('#node-info').show();
+                }
+
+                $('#node-info-close').click(() => {
+                    $('#node-info').hide();
+                });
+
+                $('#anonymize-map').click(() => {
+                    networkMap.destroy();
+                    createGraph(true);
+                });
+
+                $('#redraw-map').click(() => {
+                    networkMap.destroy();
+                    createGraph();
+                });
 
                 /*
                     lqi => rssi
@@ -1299,9 +1413,9 @@
                 }
             </style>
             <div class="form-row">
-                <input id="join-permit" type="button" value="Permit Join">
-                <input id="join-stop" type="button" value="Stop Join">
-                <button id="show-network-map">Network Map</button>
+                <button id="join-permit">PermitJoin</button>
+                <button id="join-stop">StopJoin</button>
+                <button id="show-network-map">NetworkMap</button>
 
             </div>
 
@@ -1407,10 +1521,47 @@
             <div id="error-message"></div>
         </div>
 
+        <style>
+            #network-map {
+                font-family: monospace;
+            }
+            #map-container {
+                flex-grow: 1;
+                height: 100%;
+            }
+            #map {
+                height: 100%;
+            }
+            #node-routes, #node-lqi, #node-device {
+                font-size: 11px;
+                border-collapse: collapse
+            }
+            .dev-link-hover {
+                background-color: lightgrey;
+            }
+        </style>
+
         <div id="network-map">
-            <h4>ZigBee Network Map <button id="hide-network-map">Close</button></h4>
+
             <div id="map-loader"><img src="zigbee-shepherd/map/loader.gif" id="map-loader-progress"><br><span id="map-status"></span></div>
-            <div id="map"></div><h4>Network Map</h4>
+
+            <div style="display: flex; height: 100%;">
+                <div id="map-container">
+                    <h4>ZigBee Network Map <button id="hide-network-map">Close</button> <button style="display:none" id="redraw-map">Redraw</button> <button style="display:none" id="anonymize-map">Anonymize</button></h4>
+                    <div id="map"></div>
+                </div>
+                <div id="node-info" style="flex-shrink: 0; display: none; height: 100%; width: 586px; border-left: 3px solid grey; padding: 3px;">
+                    <input type="hidden" id="node-selected">
+                    <h4><span id="node-name"></span> (<span id="node-addr"></span>) <button id="node-info-close">close</button></h4>
+                    <table id="node-device" border="1"></table>
+                    <h4>Routes</h4>
+                    <!--<button id="refresh-routes">Refresh</button>-->
+                    <table id="node-routes" border="1"></table>
+                    <h4>LQI</h4>
+                    <!--<button id="refresh-lqi">Refresh</button>-->
+                    <table id="node-lqi" border="1"></table>
+                </div>
+            </div>
             <script type="text/javascript" src="zigbee-shepherd/vis/vis.min.js"></script>
             <link href="zigbee-shepherd/vis/vis.min.css" type="text/css"/>
         </div>
