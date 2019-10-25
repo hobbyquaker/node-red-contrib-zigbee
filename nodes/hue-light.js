@@ -35,7 +35,7 @@ module.exports = function (RED) {
             const publishTimeouts = {};
 
             const messageHandler = message => {
-                if (message.type === 'attributeReport' && message.device.meta.hue) {
+                if (['attributeReport', 'readResponse'].includes(message.type) && message.device.meta.hue) {
                     const {device} = message;
 
                     device.meta.hue.state.reachable = true;
