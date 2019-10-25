@@ -145,6 +145,12 @@ module.exports = function (RED) {
 
                 let payload;
 
+                if (typeof msg.payload === 'string' && msg.payload.startsWith('{')) {
+                    try {
+                        msg.payload = JSON.parse(msg.payload);
+                    } catch (_) { }
+                }
+
                 if (attribute) {
                     payload = {};
                     payload[attribute] = msg.payload;
