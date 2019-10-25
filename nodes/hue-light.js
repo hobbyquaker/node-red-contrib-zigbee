@@ -332,6 +332,10 @@ module.exports = function (RED) {
 
             const cmds = [];
 
+            if (msg.payload.on === false) {
+                delete msg.payload.bri;
+            }
+
             if (typeof msg.payload.on !== 'undefined' && typeof msg.payload.bri === 'undefined') {
                 if (msg.payload.transitiontime) {
                     cmds.push({
