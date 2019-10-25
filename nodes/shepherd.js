@@ -428,7 +428,9 @@ module.exports = function (RED) {
                     this.log(`deviceAnnounce ${data.device.ieeeAddr} ${data.device.meta.name || ''}`);
                     if (data.device.interviewCompleted) {
                         this.reachable(data.device, true);
-                        this.configure(data.device);
+                        setTimeout(() => {
+                            this.configure(data.device);
+                        }, 5000);
                         this.proxy.emit('devices');
                     }
                 },
@@ -449,7 +451,9 @@ module.exports = function (RED) {
                         this.log(`deviceInterview successful ${data.device.ieeeAddr} ${data.device.manufacturerName} ${data.device.modelID}`);
                         this.reachable(data.device, true);
                         this.proxy.emit('devices');
-                        this.configure(data.device);
+                        setTimeout(() => {
+                            this.configure(data.device);
+                        }, 5000);
                     } else {
                         this.log(`deviceInterview ${data.status} ${data.device.ieeeAddr}`);
                     }
@@ -672,7 +676,9 @@ module.exports = function (RED) {
                             delete this.offlineTimeouts[ieeeAddr];
                         }, 10 * 1000);
                         resolve(result);
-                        this.configure(device);
+                        setTimeout(() => {
+                            this.configure(device);
+                        }, 5000);
                     }).catch(err => {
                         this.debug(`command failed ${ieeeAddr} ${device.meta.name} ${endpoint} ${cluster} ${command} ${err.message}`);
                         if (!this.offlineTimeouts[ieeeAddr]) {
@@ -974,9 +980,9 @@ module.exports = function (RED) {
                 delete this.offlineTimeouts[message.device.ieeeAddr];
             });
             this.reachable(message.device, true);
-            if (message.device.interviewCompleted) {
+            setTimeout(() => {
                 this.configure(message.device);
-            }
+            }, 5000);
         }
 
         remove(ieeeAddr) {
