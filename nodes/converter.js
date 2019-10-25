@@ -128,19 +128,20 @@ module.exports = function (RED) {
                     converters = model.toZigbee;
                 }
 
-                /*
                 // TODO understand postfix
                 let endpoint;
                 // Determine endpoint to publish to.
-                if (model.hasOwnProperty('endpoint')) {
+                if (typeof model.endpoint !== 'undefined') {
                     const eps = model.endpoint(device);
-                    endpoint = eps.hasOwnProperty(isSet ? 'set' : 'get') ? eps[isSet ? 'set' : 'get'] : null;
-                    if (endpoint === null && eps.hasOwnProperty('default')) {
-                        endpoint = eps['default'];
+                    endpoint = typeof eps[isSet ? 'set' : 'get'] === 'undefined' ? null : eps[isSet ? 'set' : 'get'];
+                    if (endpoint === null && typeof eps.default !== 'undefined') {
+                        endpoint = eps.default;
                     }
                 }
-                console.log('determined endpoint', endpoint);
-                */
+
+                if (!endpoint) {
+                    endpoint = device.endpoints[0];
+                }
 
                 let payload;
 
@@ -171,8 +172,7 @@ module.exports = function (RED) {
                             this.error(`${group.groupID} ${group.meta.name} ${err.message}`);
                         });
                     } else if (isSet) {
-                        // TODO gain understanding of endpoints. Currently just using the first one due to missing knowledge.
-                        converter.convertSet(device.endpoints[0], key, payload[key], {message: payload, options: {}}).then(result => {
+                        converter.convertSet(endpoint, key, payload[key], meta).then(result => {
                             shepherdNode.reachable(device, true);
                             // TODO handle readAfterWrite
                             // TODO output new state?
@@ -182,7 +182,7 @@ module.exports = function (RED) {
                             shepherdNode.reachable(device, false);
                         });
                     } else if (isGet) {
-                        converter.convertGet(device.endpoints[0], key, payload[key], {message: payload, options: {}}).then(result => {
+                        converter.convertGet(endpoint, key, payload[key], meta).then(result => {
                             shepherdNode.reachable(device, true);
                             this.debug(`${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(result)}`);
                             done();

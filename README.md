@@ -75,7 +75,7 @@ Call methods of the herdsman controller
 
 * [ ] Converter node: readAfterWrite
 * [ ] Hue node: readAfterWrite
-* [ ] Converter node: Determine endpoint
+* [x] Converter node: Determine endpoint
 * [x] Converter node: Group support 
 * [x] Converter node: Get command
 * [x] Hue node: Group support
