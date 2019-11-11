@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-zigbee",
-  "version": "0.16.0",
+  "version": "0.16.1",
   "keywords": [
     "node-red",
     "zigbee",
@@ -21,11 +21,12 @@
   "description": "Node-RED Nodes for Zigbee Devices",
   "repository": "https://github.com/hobbyquaker/node-red-contrib-zigbee",
   "dependencies": {
+    "debug": "^4.1.1",
     "mkdirp": "^0.5.1",
     "obj-ease": "^1.0.1",
     "vis": "^4.21.0",
-    "zigbee-herdsman": "0.12.3",
-    "zigbee-herdsman-converters": "11.1.40"
+    "zigbee-herdsman": "0.12.4",
+    "zigbee-herdsman-converters": "^11.1.41"
   },
   "engines": {
     "node": ">= 10.0.0"
