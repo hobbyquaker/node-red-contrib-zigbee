@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const {EventEmitter} = require('events');
 
+const debug = require('debug');
 const mkdirp = require('mkdirp');
 const ZigbeeHerdsman = require('zigbee-herdsman');
 const shepherdConverters = require('zigbee-herdsman-converters');
@@ -10,6 +11,8 @@ const reporting = require('../lib/reporting.js');
 const toJson = require('../lib/json.js');
 
 const interval = require('../lib/interval.json');
+
+debug.enable('zigbee-herdsman:adapter:zStack:startZnp');
 
 const configured = new Set();
 const configuring = new Set();
@@ -367,6 +370,8 @@ module.exports = function (RED) {
         constructor(config) {
             RED.nodes.createNode(this, config);
 
+            this.config = config;
+
             this.persistPath = path.join(RED.settings.userDir, 'zigbee', this.id);
 
             this.log('Herdsman   version: v' + herdsmanVersion);
@@ -394,15 +399,23 @@ module.exports = function (RED) {
 
             shepherdNodes[this.id] = this;
 
-            let precfgkey;
-            if (this.credentials.precfgkey) {
-                const bytes = this.credentials.precfgkey.match(/[0-9a-fA-F]{2}/gi);
-                precfgkey = bytes.map(t => parseInt(t, 16));
-            }
+            console.log('...?', this.credentials);
 
             let panID = 0xFFFF;
             if (this.credentials.panId) {
                 panID = parseInt(this.credentials.panId, 16);
+            }
+
+            let extendedPanID = [0xDD, 0xDD, 0xDD, 0xDD, 0xDD, 0xDD, 0xDD, 0xDD];
+            if (this.credentials.extPanId) {
+                const bytes = this.credentials.extPanId.match(/[0-9a-fA-F]{2}/gi);
+                extendedPanID = bytes.map(t => parseInt(t, 16));
+            }
+
+            let precfgkey;
+            if (this.credentials.precfgkey) {
+                const bytes = this.credentials.precfgkey.match(/[0-9a-fA-F]{2}/gi);
+                precfgkey = bytes.map(t => parseInt(t, 16));
             }
 
             this.herdsmanOptions = {
@@ -413,6 +426,7 @@ module.exports = function (RED) {
                 },
                 network: {
                     panID,
+                    extendedPanID,
                     networkKey: precfgkey,
                     channelList: config.channelList
                 },
@@ -420,10 +434,12 @@ module.exports = function (RED) {
                 backupPath: this.backupPath
             };
 
+            console.log(this.herdsmanOptions);
+
             this.reportingConfiguring = new Set();
             this.offlineTimeouts = {};
 
-            const listeners = {
+            this.listeners = {
                 deviceAnnounce: data => {
                     this.log(`deviceAnnounce ${data.device.ieeeAddr} ${data.device.meta.name || ''}`);
                     if (data.device.interviewCompleted) {
@@ -442,6 +458,9 @@ module.exports = function (RED) {
                     this.status = 'adapterDisconnected';
                     this.proxy.emit('nodeStatus', {fill: 'red', shape: 'ring', text: 'adapterDisconnected'});
                     this.error('adapterDisconnected ' + data);
+                    setTimeout(() => {
+                        this.connect();
+                    });
                 },
                 deviceJoined: data => {
                     this.log(`deviceJoined ${data.device.ieeeAddr}`);
@@ -469,18 +488,56 @@ module.exports = function (RED) {
             }
 
             this.herdsman = herdsmanInstances[this.id];
-
             this.proxy = new HerdsmanProxy(this);
 
-            this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'dot', text: 'starting'});
+            this.connect();
+
+            this.on('close', done => {
+                this.debug('stopping');
+                clearInterval(this.checkOverdueInterval);
+                clearInterval(this.pingInterval);
+                this.status = 'closing';
+                this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'ring', text: 'closing'});
+
+                this.removeListeners();
+                this.herdsman.stop().then(() => {
+                    this.debug('stopped shepherd');
+                }).catch(err => {
+                    this.error(`stop ${err.message}`);
+                }).finally(() => {
+                    this.status = '';
+                    this.proxy.emit('nodeStatus', {});
+                    setTimeout(() => {
+                        this.proxy.removeAllListeners();
+                        this.debug('removed proxy event listeners');
+                        done();
+                    }, 100);
+                });
+            });
+        }
+
+        removeListeners() {
+            Object.keys(this.listeners).forEach(event => {
+                this.herdsman.removeListener(event, this.listeners[event]);
+                this.debug(`removed ${event} listener`);
+            });
+        }
+
+        connect() {
+            if (this.connecting) {
+                return;
+            }
+
+            this.removeListeners();
+            this.connecting = true;
+            this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'dot', text: 'connecting'});
             this.status = 'starting';
-            this.log('connecting ' + config.path + ' ' + JSON.stringify(this.herdsmanOptions.sp));
+            this.log('connecting ' + this.config.path + ' ' + JSON.stringify(this.herdsmanOptions.sp));
             this.herdsman.start().then(() => {
                 this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'dot', text: 'connecting'});
-                this.logStartupInfo();
 
-                Object.keys(listeners).forEach(event => {
-                    this.herdsman.addListener(event, listeners[event]);
+                Object.keys(this.listeners).forEach(event => {
+                    this.herdsman.addListener(event, this.listeners[event]);
                     this.debug(`add ${event} listener`);
                 });
 
@@ -497,7 +554,6 @@ module.exports = function (RED) {
                     const mappedDevice = shepherdConverters.findByZigbeeModel(device.modelID);
                     if (mappedDevice && mappedDevice.configure) {
                         device.meta.isConfigurable = true;
-                        console.log('isConfigurable', device.ieeeAddr, device.meta.name);
                     }
 
                     if (device.type === 'Router' && device.modelID !== 'lumi.router') {
@@ -514,11 +570,18 @@ module.exports = function (RED) {
                         this.rename({ieeeAddr: device.ieeeAddr, name: this.names[device.ieeeAddr].name});
                     }
                 });
+
+                this.logStartupInfo();
+
                 // TODO remove obsolete names.json file
                 this.proxy.emit('ready');
                 this.status = 'connected';
                 this.proxy.emit('nodeStatus', {fill: 'green', shape: 'dot', text: 'connected'});
-                this.herdsman.setLED(this.led === 'enabled');
+                this.herdsman.setLED(this.led === 'enabled').then(() => {
+                    this.debug(`setLED successfully set ${this.led}`);
+                }).catch(error => {
+                    this.error(`setLED failed to set ${this.led} ${error.message}`);
+                });
 
                 this.checkOverdueInterval = setInterval(() => {
                     this.checkOverdue();
@@ -542,32 +605,11 @@ module.exports = function (RED) {
                 this.status = error.message;
                 this.proxy.emit('nodeStatus', {fill: 'red', shape: 'ring', text: error.message + ', retrying'});
                 this.error(error.message);
-            });
-
-            this.on('close', done => {
-                this.debug('stopping');
-                clearInterval(this.checkOverdueInterval);
-                clearInterval(this.pingInterval);
-                this.status = 'closing';
-                this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'ring', text: 'closing'});
-
-                Object.keys(listeners).forEach(event => {
-                    this.herdsman.removeListener(event, listeners[event]);
-                    this.debug(`removed ${event} listener`);
-                });
-                this.herdsman.stop().then(() => {
-                    this.debug('stopped shepherd');
-                }).catch(err => {
-                    this.error(`stop ${err.message}`);
-                }).finally(() => {
-                    this.status = '';
-                    this.proxy.emit('nodeStatus', {});
-                    setTimeout(() => {
-                        this.proxy.removeAllListeners();
-                        this.debug('removed proxy event listeners');
-                        done();
-                    }, 100);
-                });
+                setTimeout(() => {
+                    this.connect();
+                }, 10000);
+            }).finally(() => {
+                this.connecting = false;
             });
         }
 
@@ -580,6 +622,7 @@ module.exports = function (RED) {
                     const {revision} = data.meta;
                     const {type} = data;
                     this.log(`Coordinator: ${type} ${version} ${revision}`);
+
                     const coordinator = this.coordinatorEndpoint.getDevice();
                     coordinator.meta.version = version;
                     coordinator.meta.revision = revision;
@@ -1100,7 +1143,8 @@ module.exports = function (RED) {
     RED.nodes.registerType('zigbee-shepherd', ZigbeeShepherd, {
         credentials: {
             panId: {type: 'text'},
-            precfgkey: {type: 'text'}
+            precfgkey: {type: 'text'},
+            extPanId: {type: 'text'}
         }
     });
 };

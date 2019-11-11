@@ -4,7 +4,7 @@
         credentials: {
             panId: {
                 type: 'text',
-                value: 'FFFF',
+                value: 'ffff',
                 validate(v) {
                     if (!/[0-9a-fA-F]{4}/.test(v)) {
                         return false;
@@ -14,11 +14,18 @@
                     return v === 65535 || (v >= 0 && v <= 16383);
                 }
             },
+            extPanId: {
+                type: 'text',
+                value: 'dddddddddddddddd',
+                validate(v) {
+                    return /^[0-9a-fA-F]{16}$/.test(v);
+                }
+            },
             precfgkey: {
                 type: 'text',
                 value: '01030507090B0D0F00020406080A0C0D',
                 validate(v) {
-                    return /[0-9a-fA-F]{32}/.test(v);
+                    return /^[0-9a-fA-F]{32}$/.test(v);
                 }
             }
         },
@@ -35,6 +42,8 @@
         },
         paletteLabel: 'herdsman',
         oneditprepare() {
+            console.log('oneditprepare creds', this.credentials);
+
             const {id} = this;
             let groups;
             const clusters = {};
@@ -129,11 +138,15 @@
             $('#rtscts').trigger('change');
 
             if (!this.credentials.panId) {
-                $('#node-config-input-panId').val('FFFF');
+                $('#node-config-input-panId').val('ffff');
             }
 
             if (!this.credentials.precfgkey) {
                 $('#node-config-input-precfgkey').val('01030507090B0D0F00020406080A0C0D');
+            }
+
+            if (!this.credentials.extPanId) {
+                $('#node-config-input-extPanId').val('dddddddddddddddd');
             }
 
             this.channelList.forEach(channel => {
@@ -1069,6 +1082,8 @@
             }
         },
         oneditsave() {
+            console.log('oneditsave creds', this.credentials);
+
             clearInterval(this.statusInterval);
             clearInterval(this.refreshInterval);
             $.getJSON('zigbee-shepherd/join?id=' + this.id + '&permit=false');
@@ -1079,6 +1094,8 @@
                     arr.push(i);
                 }
             }
+
+            console.log(this.credentials);
 
             this.channelList = arr;
             this.rtscts = $('#rtscts').val() === 'true';
@@ -1312,6 +1329,11 @@
             <div class="form-row">
                 <label for="node-config-input-panId"><i class="icon-bookmark"></i> panId</label>
                 <input type="text" id="node-config-input-panId">
+            </div>
+
+            <div class="form-row">
+                <label for="node-config-input-extPanId"><i class="icon-bookmark"></i> extPanId</label>
+                <input type="text" id="node-config-input-extPanId">
             </div>
 
             <div class="form-row">
