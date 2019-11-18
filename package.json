@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-zigbee",
-  "version": "0.16.2",
+  "version": "0.16.3",
   "keywords": [
     "node-red",
     "zigbee",
@@ -25,8 +25,8 @@
     "mkdirp": "^0.5.1",
     "obj-ease": "^1.0.1",
     "vis": "^4.21.0",
-    "zigbee-herdsman": "0.12.4",
-    "zigbee-herdsman-converters": "^11.1.41"
+    "zigbee-herdsman": "0.12.7",
+    "zigbee-herdsman-converters": "^11.1.45"
   },
   "engines": {
     "node": ">= 10.0.0"
@@ -60,7 +60,7 @@
     "camo-purge": "^1.0.2",
     "eslint-plugin-html": "^6.0.0",
     "xo": "^0.25.3",
-    "husky": "^3.0.8"
+    "husky": "^3.1.0"
   },
   "xo": {
     "space": 4,
