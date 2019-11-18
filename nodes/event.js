@@ -45,7 +45,8 @@ module.exports = function (RED) {
                             cluster: message.cluster,
                             data: message.data,
                             linkquality: message.linkquality,
-                            groupid: message.groupid
+                            profileID: message.endpoint.profileID,
+                            groupID: message.groupID
 
                         });
                     } else {
@@ -61,7 +62,8 @@ module.exports = function (RED) {
                                 cluster: message.cluster,
                                 data: message.data,
                                 linkquality: message.linkquality,
-                                groupid: message.groupid
+                                profileID: message.endpoint.profileID,
+                                groupID: message.groupID
                             });
                         });
                     }
