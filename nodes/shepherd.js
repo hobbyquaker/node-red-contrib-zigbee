@@ -399,8 +399,6 @@ module.exports = function (RED) {
 
             shepherdNodes[this.id] = this;
 
-            console.log('...?', this.credentials);
-
             let panID = 0xFFFF;
             if (this.credentials.panId) {
                 panID = parseInt(this.credentials.panId, 16);
@@ -433,8 +431,6 @@ module.exports = function (RED) {
                 databasePath: this.dbPath,
                 backupPath: this.backupPath
             };
-
-            console.log(this.herdsmanOptions);
 
             this.reportingConfiguring = new Set();
             this.offlineTimeouts = {};
