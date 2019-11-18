@@ -633,6 +633,11 @@ module.exports = function (RED) {
 
         createGroup(groupID, name) {
             return new Promise((resolve, reject) => {
+                if (this.status !== 'connected') {
+                    reject(new Error('herdsman not connected'));
+                    return;
+                }
+
                 if (this.herdsman.getGroupByID(groupID)) {
                     reject(new Error(`Group ${groupID} already exists`));
                     return;
@@ -647,6 +652,11 @@ module.exports = function (RED) {
 
         removeGroup(groupID) {
             return new Promise((resolve, reject) => {
+                if (this.status !== 'connected') {
+                    reject(new Error('herdsman not connected'));
+                    return;
+                }
+
                 const group = this.herdsman.getGroupByID(groupID);
                 if (group) {
                     if (group.members.length === 0) {
@@ -666,6 +676,11 @@ module.exports = function (RED) {
 
         addGroupMember(groupID, ieeeAddr, epID) {
             return new Promise((resolve, reject) => {
+                if (this.status !== 'connected') {
+                    reject(new Error('herdsman not connected'));
+                    return;
+                }
+
                 const group = this.herdsman.getGroupByID(parseInt(groupID, 10));
                 if (!group) {
                     reject(new Error(`unknown group ${groupID}`));
@@ -685,6 +700,11 @@ module.exports = function (RED) {
         removeFromGroup(groupID, ieeeAddr, epID) {
             //console.log('removeFromGroup', groupID, ieeeAddr, epID, typeof epID);
             return new Promise((resolve, reject) => {
+                if (this.status !== 'connected') {
+                    reject(new Error('herdsman not connected'));
+                    return;
+                }
+
                 const group = this.herdsman.getGroupByID(parseInt(groupID, 10));
                 this.herdsman.getDeviceByIeeeAddr(ieeeAddr).endpoints.find(ep => ep.ID === epID).removeFromGroup(group).then(result => {
                     this.log(`removeFromGroup ${groupID} ${ieeeAddr} ${epID} successful`);
@@ -698,6 +718,11 @@ module.exports = function (RED) {
 
         command(ieeeAddr, endpoint, cluster, command, payload, options) {
             return new Promise((resolve, reject) => {
+                if (this.status !== 'connected') {
+                    reject(new Error('herdsman not connected'));
+                    return;
+                }
+
                 const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
                 if (!device) {
                     reject(new Error(`Device ${ieeeAddr} not found`));
@@ -738,6 +763,11 @@ module.exports = function (RED) {
 
         groupCommand(groupID, cluster, command, payload) {
             return new Promise((resolve, reject) => {
+                if (this.status !== 'connected') {
+                    reject(new Error('herdsman not connected'));
+                    return;
+                }
+
                 const group = this.herdsman.getGroupByID(groupID);
                 if (!group) {
                     reject(new Error(`Group ${groupID} not found`));
@@ -756,6 +786,11 @@ module.exports = function (RED) {
 
         read(ieeeAddr, endpoint, cluster, payload, options) {
             return new Promise((resolve, reject) => {
+                if (this.status !== 'connected') {
+                    reject(new Error('herdsman not connected'));
+                    return;
+                }
+
                 const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
                 if (!device) {
                     reject(new Error(`Device ${ieeeAddr} not found`));
@@ -780,6 +815,11 @@ module.exports = function (RED) {
 
         write(ieeeAddr, endpoint, cluster, attributes, options) {
             return new Promise((resolve, reject) => {
+                if (this.status !== 'connected') {
+                    reject(new Error('herdsman not connected'));
+                    return;
+                }
+
                 const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
                 if (!device) {
                     reject(new Error(`Device ${ieeeAddr} not found`));
@@ -882,6 +922,11 @@ module.exports = function (RED) {
 
         bind(ieeeAddr, epid, cluster, targetIeeeAddr, targetEpid) {
             return new Promise((resolve, reject) => {
+                if (this.status !== 'connected') {
+                    reject(new Error('herdsman not connected'));
+                    return;
+                }
+
                 const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
                 const endpoint = device.getEndpoint(epid);
 
@@ -910,6 +955,11 @@ module.exports = function (RED) {
 
         bindGroup(ieeeAddr, epid, cluster, groupID) {
             return new Promise((resolve, reject) => {
+                if (this.status !== 'connected') {
+                    reject(new Error('herdsman not connected'));
+                    return;
+                }
+
                 const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
                 const endpoint = device.getEndpoint(epid);
                 const group = this.herdsman.getGroupByID(groupID);
@@ -932,6 +982,11 @@ module.exports = function (RED) {
 
         unbind(ieeeAddr, epid, cluster, targetIeeeAddr, targetEpid) {
             return new Promise((resolve, reject) => {
+                if (this.status !== 'connected') {
+                    reject(new Error('herdsman not connected'));
+                    return;
+                }
+
                 const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
                 const endpoint = device.getEndpoint(epid);
 
@@ -951,6 +1006,11 @@ module.exports = function (RED) {
 
         unbindGroup(ieeeAddr, epid, cluster, groupID) {
             return new Promise((resolve, reject) => {
+                if (this.status !== 'connected') {
+                    reject(new Error('herdsman not connected'));
+                    return;
+                }
+
                 const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
                 const endpoint = device.getEndpoint(epid);
 
@@ -968,6 +1028,11 @@ module.exports = function (RED) {
         }
 
         softReset() {
+            if (this.status !== 'connected') {
+                this.error('herdsman not connected');
+                return;
+            }
+
             this.herdsman.softReset().then(() => {
                 this.log('soft-reset z-stack');
             });
@@ -1030,6 +1095,11 @@ module.exports = function (RED) {
 
         remove(ieeeAddr) {
             return new Promise((resolve, reject) => {
+                if (this.status !== 'connected') {
+                    reject(new Error('herdsman not connected'));
+                    return;
+                }
+
                 this.log('remove ' + ieeeAddr);
                 const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
                 device.removeFromNetwork().then(() => {
@@ -1048,6 +1118,11 @@ module.exports = function (RED) {
         }
 
         permitJoin(permit) {
+            if (this.status !== 'connected') {
+                this.error('herdsman not connected');
+                return;
+            }
+
             this.log('permitJoin ' + permit);
             this.herdsman.permitJoin(permit);
             this.joinPermitted = permit;
@@ -1075,6 +1150,11 @@ module.exports = function (RED) {
 
         getLqi(ieeeAddr) {
             return new Promise((resolve, reject) => {
+                if (this.status !== 'connected') {
+                    reject(new Error('herdsman not connected'));
+                    return;
+                }
+
                 const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
                 if (!device) {
                     reject(new Error('unknown device ' + ieeeAddr));
@@ -1108,6 +1188,11 @@ module.exports = function (RED) {
 
         getRoutingTable(ieeeAddr) {
             return new Promise((resolve, reject) => {
+                if (this.status !== 'connected') {
+                    reject(new Error('herdsman not connected'));
+                    return;
+                }
+
                 const device = this.herdsman.getDeviceByIeeeAddr(ieeeAddr);
                 if (!device) {
                     reject(new Error('unknown device ' + ieeeAddr));
