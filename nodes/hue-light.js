@@ -18,9 +18,9 @@ module.exports = function (RED) {
             this.proxy = shepherdNode.proxy;
             this.config = config;
 
-            shepherdNode.proxy.on('nodeStatus', status => {
+            const nodeStatusHandler = status => {
                 this.status(status);
-            });
+            };
 
             this.lastState = {};
 
@@ -112,16 +112,20 @@ module.exports = function (RED) {
                 }
             };
 
+            this.debug('adding event listeners');
             this.proxy.on('ready', readyHandler);
             this.proxy.on('devices', readyHandler);
             this.proxy.on('message', messageHandler);
             this.proxy.on('offline', offlineHandler);
+            this.proxy.on('nodeStatus', nodeStatusHandler);
 
             this.on('close', () => {
+                this.debug('removing event listeners');
                 this.proxy.removeListener('ready', readyHandler);
                 this.proxy.removeListener('devices', readyHandler);
                 this.proxy.removeListener('message', messageHandler);
                 this.proxy.removeListener('offline', offlineHandler);
+                this.proxy.removeListener('nodeStatus', nodeStatusHandler);
             });
 
             this.on('input', (msg, send, done) => {

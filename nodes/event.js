@@ -10,7 +10,7 @@ module.exports = function (RED) {
                 return;
             }
 
-            this.shepherd = shepherdNode.proxy;
+            this.proxy = shepherdNode.proxy;
 
             const nodeStatusHandler = status => {
                 this.status(status);
@@ -70,12 +70,14 @@ module.exports = function (RED) {
                 }
             };
 
-            shepherdNode.proxy.on('nodeStatus', nodeStatusHandler);
-            shepherdNode.proxy.on('message', messageHandler);
+            this.debug('adding event listeners');
+            this.proxy.on('nodeStatus', nodeStatusHandler);
+            this.proxy.on('message', messageHandler);
 
             this.on('close', () => {
-                shepherdNode.proxy.removeListener('nodeStatus', nodeStatusHandler);
-                shepherdNode.proxy.removeListener('message', messageHandler);
+                this.debug('removing event listeners');
+                this.proxy.removeListener('nodeStatus', nodeStatusHandler);
+                this.proxy.removeListener('message', messageHandler);
             });
         }
 

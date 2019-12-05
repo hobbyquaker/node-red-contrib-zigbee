@@ -504,8 +504,13 @@ module.exports = function (RED) {
                     this.status = '';
                     this.proxy.emit('nodeStatus', {});
                     setTimeout(() => {
+                        this.debug('remaining proxy listeners for event nodeStatus ' + this.proxy.listenerCount('nodeStatus'));
+                        this.debug('remaining proxy listeners for event ready ' + this.proxy.listenerCount('ready'));
+                        this.debug('remaining proxy listeners for event devices ' + this.proxy.listenerCount('devices'));
+                        this.debug('remaining proxy listeners for event permitJoin ' + this.proxy.listenerCount('permitJoin'));
+                        this.debug('remaining proxy listeners for event message ' + this.proxy.listenerCount('message'));
                         this.proxy.removeAllListeners();
-                        this.debug('removed proxy event listeners');
+                        this.debug('remaining proxy listeners removed');
                         done();
                     }, 100);
                 });

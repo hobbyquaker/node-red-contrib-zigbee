@@ -11,10 +11,6 @@ module.exports = function (RED) {
             }
 
             let nodeStatus = {text: ''};
-            shepherdNode.proxy.on('nodeStatus', status => {
-                nodeStatus = status;
-                this.status(status);
-            });
 
             this.shepherd = shepherdNode.herdsman;
 
@@ -95,6 +91,19 @@ module.exports = function (RED) {
 
                     this.status({fill: 'red', shape: 'dot', text: err.message});
                 });
+            });
+
+            const nodeStatusHandler = status => {
+                nodeStatus = status;
+                this.status(status);
+            };
+
+            this.debug('adding event listeners');
+            shepherdNode.proxy.on('nodeStatus', nodeStatusHandler);
+
+            this.on('close', () => {
+                this.debug('removing event listeners');
+                shepherdNode.proxy.removeListener('nodeStatus', nodeStatusHandler);
             });
         }
     }

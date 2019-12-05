@@ -45,11 +45,13 @@ module.exports = function (RED) {
                 this.shepherdNode.herdsman.getDevices().forEach(sendMessage);
             };
 
+            this.debug('adding event listeners');
             shepherdNode.proxy.on('nodeStatus', nodeStatusHandler);
             shepherdNode.proxy.on('offline', sendMessage);
             shepherdNode.proxy.on('ready', readyHandler);
 
             this.on('close', () => {
+                this.debug('removing event listeners');
                 shepherdNode.proxy.removeListener('nodeStatus', nodeStatusHandler);
                 shepherdNode.proxy.removeListener('offline', sendMessage);
                 shepherdNode.proxy.removeListener('ready', readyHandler);

@@ -335,16 +335,16 @@ module.exports = function (RED) {
                 this.status(status);
             };
 
+            this.debug('adding event listeners');
             shepherdNode.proxy.on('nodeStatus', nodeStatusHandler);
             shepherdNode.proxy.on('message', messageHandler);
-            shepherdNode.proxy.on('nodeStatus', nodeStatusHandler);
             shepherdNode.proxy.on('ready', devicesHandler);
             shepherdNode.proxy.on('devices', devicesHandler);
 
             this.on('close', () => {
+                this.debug('removing event listeners');
                 shepherdNode.proxy.removeListener('nodeStatus', nodeStatusHandler);
                 shepherdNode.proxy.removeListener('message', messageHandler);
-                shepherdNode.proxy.removeListener('nodeStatus', nodeStatusHandler);
                 shepherdNode.proxy.removeListener('ready', devicesHandler);
                 shepherdNode.proxy.removeListener('devices', devicesHandler);
             });

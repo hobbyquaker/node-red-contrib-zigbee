@@ -11,17 +11,6 @@ module.exports = function (RED) {
             }
 
             let nodeStatus = {text: ''};
-            herdsmanNode.proxy.on('nodeStatus', status => {
-                nodeStatus = status;
-                this.status(status);
-            });
-            herdsmanNode.proxy.on('permitJoin', status => {
-                if (status) {
-                    this.status({shape: 'ring', fill: 'blue', text: 'join permitted'});
-                } else {
-                    this.status(nodeStatus);
-                }
-            });
 
             this.herdsman = herdsmanNode.herdsman;
 
@@ -79,6 +68,29 @@ module.exports = function (RED) {
                     default:
                         done(new Error(`Unknown command ${msg.payload}`));
                 }
+            });
+
+            const nodeStatusHandler = status => {
+                nodeStatus = status;
+                this.status(status);
+            };
+
+            const permitJoinHandler = status => {
+                if (status) {
+                    this.status({shape: 'ring', fill: 'blue', text: 'join permitted'});
+                } else {
+                    this.status(nodeStatus);
+                }
+            };
+
+            this.debug('adding event listeners');
+            herdsmanNode.proxy.on('nodeStatus', nodeStatusHandler);
+            herdsmanNode.proxy.on('permitJoin', permitJoinHandler);
+
+            this.on('close', () => {
+                this.debug('removing event listeners');
+                herdsmanNode.proxy.removeListener('nodeStatus', nodeStatusHandler);
+                herdsmanNode.proxy.removeListener('permitJoin', permitJoinHandler);
             });
         }
     }
