@@ -32,6 +32,7 @@ module.exports = function (RED) {
             ];
 
             const devicesHandler = () => {
+                this.debug('devicesHandler');
                 const devices = this.herdsman.getDevices();
                 this.groups = this.herdsman.getGroups();
                 devices.forEach(device => {

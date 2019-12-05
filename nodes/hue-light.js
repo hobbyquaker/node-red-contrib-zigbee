@@ -25,6 +25,7 @@ module.exports = function (RED) {
             this.lastState = {};
 
             const readyHandler = () => {
+                this.debug('readyHandler');
                 this.devices = shepherdNode.herdsman.getDevices();
                 this.groups = shepherdNode.herdsman.getGroups();
                 this.devices.forEach(device => {
@@ -227,7 +228,7 @@ module.exports = function (RED) {
         }
 
         searchDevice(search) {
-            return this.devices.find(device => {
+            return this.devices && this.devices.find(device => {
                 return device.meta.name === search ||
                     device.ieeeAddr === search ||
                     device.ID === parseInt(search, 10);
@@ -235,7 +236,7 @@ module.exports = function (RED) {
         }
 
         searchGroup(search) {
-            return this.groups.find(group => {
+            return this.groups && this.groups.find(group => {
                 return group.meta.name === search ||
                     group.groupID === parseInt(search, 10);
             });
