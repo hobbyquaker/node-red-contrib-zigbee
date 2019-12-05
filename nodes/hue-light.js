@@ -24,13 +24,26 @@ module.exports = function (RED) {
 
             this.lastState = {};
 
-            const readyHandler = () => {
-                this.debug('readyHandler');
+            const getDevices = () => {
+                this.debug('getDevices');
                 this.devices = shepherdNode.herdsman.getDevices();
                 this.groups = shepherdNode.herdsman.getGroups();
                 this.devices.forEach(device => {
                     this.initLight(device);
                 });
+                this.gotDevices = true;
+            };
+
+            const readyHandler = () => {
+                this.debug('readyHandler');
+                if (!this.gotDevices) {
+                    getDevices();
+                }
+            };
+
+            const devicesHandler = () => {
+                this.debug('devicesHandler');
+                getDevices();
             };
 
             const publishTimeouts = {};
@@ -115,18 +128,23 @@ module.exports = function (RED) {
 
             this.debug('adding event listeners');
             this.proxy.on('ready', readyHandler);
-            this.proxy.on('devices', readyHandler);
+            this.proxy.on('devices', devicesHandler);
             this.proxy.on('message', messageHandler);
             this.proxy.on('offline', offlineHandler);
             this.proxy.on('nodeStatus', nodeStatusHandler);
 
+            if (!this.gotDevices && shepherdNode.status === 'connected') {
+                getDevices();
+            }
+
             this.on('close', () => {
                 this.debug('removing event listeners');
                 this.proxy.removeListener('ready', readyHandler);
-                this.proxy.removeListener('devices', readyHandler);
+                this.proxy.removeListener('devices', devicesHandler);
                 this.proxy.removeListener('message', messageHandler);
                 this.proxy.removeListener('offline', offlineHandler);
                 this.proxy.removeListener('nodeStatus', nodeStatusHandler);
+                this.gotDevices = false;
             });
 
             this.on('input', (msg, send, done) => {

@@ -31,14 +31,27 @@ module.exports = function (RED) {
                 herdsmanConverters.toZigbeeConverters.ignore_transition
             ];
 
-            const devicesHandler = () => {
-                this.debug('devicesHandler');
+            const getDevices = () => {
+                this.debug('getDevices');
                 const devices = this.herdsman.getDevices();
-                this.groups = this.herdsman.getGroups();
                 devices.forEach(device => {
                     this.ieeeAddresses[device.ieeeAddr] = device;
                     this.names[device.meta.name] = device;
                 });
+                this.groups = this.herdsman.getGroups();
+                this.gotDevices = true;
+            };
+
+            const readyHandler = () => {
+                this.debug('readyHandler');
+                if (!this.gotDevices) {
+                    getDevices();
+                }
+            };
+
+            const devicesHandler = () => {
+                this.debug('devicesHandler');
+                getDevices();
             };
 
             this.on('input', (msg, send, done) => {
@@ -339,15 +352,20 @@ module.exports = function (RED) {
             this.debug('adding event listeners');
             shepherdNode.proxy.on('nodeStatus', nodeStatusHandler);
             shepherdNode.proxy.on('message', messageHandler);
-            shepherdNode.proxy.on('ready', devicesHandler);
+            shepherdNode.proxy.on('ready', readyHandler);
             shepherdNode.proxy.on('devices', devicesHandler);
+
+            if (!this.gotDevices && shepherdNode.status === 'connected') {
+                getDevices();
+            }
 
             this.on('close', () => {
                 this.debug('removing event listeners');
                 shepherdNode.proxy.removeListener('nodeStatus', nodeStatusHandler);
                 shepherdNode.proxy.removeListener('message', messageHandler);
-                shepherdNode.proxy.removeListener('ready', devicesHandler);
+                shepherdNode.proxy.removeListener('ready', readyHandler);
                 shepherdNode.proxy.removeListener('devices', devicesHandler);
+                this.gotDevices = false;
             });
         }
 
