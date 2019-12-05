@@ -96,7 +96,7 @@ module.exports = function (RED) {
                 this.debug('topic=' + msg.topic + ' name=' + name + ' ieeeAddr=' + ieeeAddr + ' attribute=' + attribute + ' payload=' + JSON.stringify(msg.payload));
 
                 if (!device) {
-                    group = this.groups.find(g => g.meta.name === topicAttrs.name);
+                    group = this.groups && this.groups.find(g => g.meta.name === topicAttrs.name);
                     if (group) {
                         isGroup = true;
                     } else {
