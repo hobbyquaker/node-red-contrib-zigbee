@@ -28,7 +28,7 @@
     "mkdirp": "^0.5.1",
     "obj-ease": "^1.0.1",
     "vis": "^4.21.0",
-    "zigbee-herdsman": "0.12.17",
+    "zigbee-herdsman": "0.12.24",
     "zigbee-herdsman-converters": "^11.1.53"
   },
   "engines": {
