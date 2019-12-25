@@ -17,6 +17,9 @@
   ],
   "main": "none",
   "author": "Sebastian Raff <hobbyquaker@gmail.com>",
+  "contributors": [
+    "Sineos <Sineos.pub@gmail.com>"
+  ],
   "license": "MIT",
   "description": "Node-RED Nodes for Zigbee Devices",
   "repository": "https://github.com/hobbyquaker/node-red-contrib-zigbee",
