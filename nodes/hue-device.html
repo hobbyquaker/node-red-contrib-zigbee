@@ -1,0 +1,70 @@
+<script type="text/javascript">
+    RED.nodes.registerType('zigbee-hue-device', {
+
+        category: 'zigbee',
+        defaults: {
+            shepherd: {value: '', type: 'zigbee-shepherd', required: true},
+            name: {value: '', require: true},
+            device: {value: '', required: true},
+            payload: {value: 'json'}
+        },
+        inputs: 1,
+        outputs: 1,
+        outputLabels: ['response', 'light state changes'],
+        icon: 'bee.png',
+        color: '#E2D96E',
+        paletteLabel: 'hue light',
+        align: 'left',
+        label() {
+            return this.name || this.device || 'hue light';
+        },
+        labelStyle() {
+            return this.name ? 'node_label_italic' : '';
+        },
+        oneditprepare() {
+            function getDevices() {
+                $.getJSON('zigbee-shepherd/hue?id=' + $('#node-input-shepherd').val(), data => {
+                    Object.keys(data).forEach(index => {
+                        const device = data[index];
+                        $('#node-input-device').append(`<option>${device.meta.name}</option>`);
+                    });
+                });
+            }
+
+            $('#node-input-shepherd').change(() => {
+                getDevices();
+            });
+
+            getDevices();
+        }
+    });
+</script>
+
+<script type="text/x-red" data-template-name="zigbee-hue-device">
+    <div class="form-row">
+        <label for="node-input-shepherd"><i class="icon-global"></i> herdsman</label>
+        <input type="text" id="node-input-shepherd">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name"><i class="icon-global"></i> name</label>
+        <input type="text" id="node-input-name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-device"><i class="icon-global"></i> device</label>
+        <select id="node-input-device"></select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-payload"><i class="icon-global"></i> payload</label>
+        <select id="node-input-payload" style="width: 70%">
+            <option value="plain">plain, one msg per attr, attr is appended to topic</option>
+            <option value="json">json, all attributes in one msg</option>
+            <option value="plain json">plain + json</option>
+            <option value="mqttsh">mqtt-smarthome json schema</option>
+            <option value="plain mqttsh">plain + mqtt-smarthome json schema</option>
+        </select>
+    </div>
+</script>
+
+<script type="text/x-red" data-help-name="zigbee-hue-device">
+
+</script>
