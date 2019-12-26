@@ -45,6 +45,15 @@ module.exports = function (RED) {
         }
     });
 
+    RED.httpAdmin.get('/zigbee-shepherd/hue', RED.auth.needsPermission('zigbee.read'), (req, res) => {
+        if (shepherdNodes[req.query.id]) {
+            const devices = shepherdNodes[req.query.id].herdsman.getDevices().filter(d => d.meta.hue).map(d => toJson.deviceToJson(d));
+            res.status(200).send(JSON.stringify(devices));
+        } else {
+            res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
+        }
+    });
+
     RED.httpAdmin.get('/zigbee-shepherd/groups', RED.auth.needsPermission('zigbee.read'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
             const groups = shepherdNodes[req.query.id].herdsman.getGroups().map(g => toJson.groupToJson(g));
