@@ -343,6 +343,10 @@
                 $.getJSON('zigbee-shepherd/soft-reset?id=' + id, () => {});
             });
 
+            $('#touchlink-reset').click(() => {
+                $.getJSON('zigbee-shepherd/touchlink-reset?id=' + id, () => {});
+            });
+
             $('#join-permit').click(() => {
                 $.getJSON('zigbee-shepherd/join?id=' + id + '&permit=true', () => {});
                 clearInterval(this.refreshInterval);
@@ -1437,6 +1441,7 @@
             <div class="form-row">
                 <button id="join-permit">PermitJoin</button>
                 <button id="join-stop">StopJoin</button>
+                <button id="touchlink-reset">TouchlinkFactoryReset</button>
                 <button id="show-network-map">NetworkMap</button>
 
             </div>

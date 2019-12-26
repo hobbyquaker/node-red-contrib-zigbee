@@ -290,6 +290,15 @@ module.exports = function (RED) {
         }
     });
 
+    RED.httpAdmin.get('/zigbee-shepherd/touchlink-reset', RED.auth.needsPermission('zigbee.write'), (req, res) => {
+        if (shepherdNodes[req.query.id]) {
+            shepherdNodes[req.query.id].touchlinkFactoryReset();
+            res.status(200).send('');
+        } else {
+            res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
+        }
+    });
+
     RED.httpAdmin.post('/zigbee-shepherd/cmd', RED.auth.needsPermission('zigbee.write'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
             const cmd = JSON.parse(req.body.cmd);
