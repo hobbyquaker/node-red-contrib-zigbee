@@ -268,7 +268,7 @@ module.exports = function (RED) {
             }
 
             const type = zllDevice[epFirst.deviceID];
-            if (type && device.modelID !== 'lumi.router') {
+            if (type && device.modelID !== 'lumi.router' && device.type === 'Router') {
                 if (!device.meta.hue) {
                     this.debug(`initLight ${device.ieeeAddr} ${device.meta.name} ${device.modelID}`);
                     const uniqueid = device.ieeeAddr.replace('0x', '').replace(/([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/, '$1:$2:$3:$4:$5:$6:$7:$8') + '-' + (uniqueidSuffix[device.manufacturerName] || '00');

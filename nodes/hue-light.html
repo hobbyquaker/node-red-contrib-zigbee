@@ -4,13 +4,12 @@
         category: 'zigbee',
         defaults: {
             shepherd: {value: '', type: 'zigbee-shepherd', required: true},
-            topic: {value: 'hue/status/lights/${name}', require: true},
-            settopic: {value: 'hue/set/${type}/${name}/${attribute}', require: true},
+            topic: {value: 'hue/status/lights/${name}', required: true},
+            settopic: {value: 'hue/set/${type}/${name}/${attribute}', required: true},
             payload: {value: 'json'}
         },
         inputs: 1,
         outputs: 1,
-        outputLabels: ['response', 'light state changes'],
         icon: 'bee.png',
         color: '#E2D96E',
         paletteLabel: 'hue',
@@ -22,10 +21,11 @@
             return this.name ? 'node_label_italic' : '';
         },
         oneditprepare() {
-            $.getJSON('zigbee-shepherd/hue?id=' + $('#node-input-herdsman').val(), data => {
+            $.getJSON('zigbee-shepherd/hue?id=' + $('#node-input-shepherd').val(), data => {
+                console.log(data);
                 Object.keys(data).forEach(index => {
-                    const light = data[index];
-                    $('#lights').append(`<tr><td style="text-align: right;">${index}</td><td>${light.name}</td><td>${light.manufacturername}</td><td>${light.modelid}</td><td>${light.type}</td></tr>`);
+                    const device = data[index];
+                    $('#lights').append(`<tr><td>${device.meta.hue.name}</td><td>${device.meta.hue.manufacturername}</td><td>${device.meta.hue.modelid}</td><td>${device.meta.hue.type}</td></tr>`);
                 });
             });
         }
