@@ -292,7 +292,7 @@ module.exports = function (RED) {
 
     RED.httpAdmin.get('/zigbee-shepherd/soft-reset', RED.auth.needsPermission('zigbee.write'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
-            shepherdNodes[req.query.id].softReset();
+            shepherdNodes[req.query.id].reset('soft');
             res.status(200).send('');
         } else {
             res.status(500).send(`500 Internal Server Error: Unknown Herdsman ID ${req.query.id}`);
@@ -1046,14 +1046,14 @@ module.exports = function (RED) {
             });
         }
 
-        softReset() {
+        reset(type) {
             if (this.status !== 'connected') {
                 this.error('herdsman not connected');
                 return;
             }
 
-            this.herdsman.softReset().then(() => {
-                this.log('soft-reset z-stack');
+            this.herdsman.reset(type).then(() => {
+                this.log(type + '-reset z-stack');
             });
         }
 
@@ -1146,6 +1146,16 @@ module.exports = function (RED) {
             this.herdsman.permitJoin(permit);
             this.joinPermitted = permit;
             this.proxy.emit('permitJoin', permit);
+        }
+
+        touchlinkFactoryReset() {
+            if (this.status !== 'connected') {
+                this.error('herdsman not connected');
+                return;
+            }
+
+            this.log('touchlinkFactoryReset');
+            this.herdsman.touchlinkFactoryReset();
         }
 
         checkOverdue() {
