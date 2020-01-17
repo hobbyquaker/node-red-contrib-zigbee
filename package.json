@@ -28,8 +28,8 @@
     "mkdirp": "^0.5.1",
     "obj-ease": "^1.0.1",
     "vis": "^4.21.0",
-    "zigbee-herdsman": "0.12.26",
-    "zigbee-herdsman-converters": "^11.1.64"
+    "zigbee-herdsman": "0.12.32",
+    "zigbee-herdsman-converters": "^11.2.8"
   },
   "engines": {
     "node": ">= 10.0.0"
@@ -64,7 +64,7 @@
     "camo-purge": "^1.0.2",
     "eslint-plugin-html": "^6.0.0",
     "xo": "^0.25.3",
-    "husky": "^3.1.0"
+    "husky": "^4.0.10"
   },
   "xo": {
     "space": 4,

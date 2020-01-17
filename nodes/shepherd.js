@@ -19,7 +19,7 @@ const configuring = new Set();
 const shepherdNodes = {};
 const herdsmanInstances = {};
 
-const herdsmanPath = path.dirname(require.resolve('zigbee-herdsman'));
+const herdsmanPath = path.dirname(require.resolve('zigbee-herdsman')).replace(/\/dist$/, '');
 const convertersPath = path.dirname(require.resolve('zigbee-herdsman-converters'));
 
 const herdsmanVersion = require(path.join(herdsmanPath, 'package.json')).version;
