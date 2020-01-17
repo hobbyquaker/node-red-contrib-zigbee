@@ -25,7 +25,7 @@
                 $('#lights').html('');
                 Object.keys(data).forEach(index => {
                     const device = data[index];
-                    $('#lights').append(`<tr><td>${device.meta.hue.name}</td><td>${device.meta.hue.manufacturername}</td><td>${device.meta.hue.modelid}</td><td>${device.meta.hue.type}</td></tr>`);
+                    $('#lights').append(`<tr><td>${device.meta.name}</td><td>${device.meta.hue.manufacturername}</td><td>${device.meta.hue.modelid}</td><td>${device.meta.hue.type}</td></tr>`);
                 });
             });
         }
