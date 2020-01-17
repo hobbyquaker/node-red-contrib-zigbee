@@ -18,7 +18,8 @@
   "main": "none",
   "author": "Sebastian Raff <hobbyquaker@gmail.com>",
   "contributors": [
-    "Sineos <Sineos.pub@gmail.com>"
+    "Sineos <Sineos.pub@gmail.com>",
+    "Martin Wigger https://github.com/Maladus"
   ],
   "license": "MIT",
   "description": "Node-RED Nodes for Zigbee Devices",
