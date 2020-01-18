@@ -42,7 +42,7 @@ module.exports = function (RED) {
             };
 
             const readyHandler = () => {
-                this.debug('readyHandler');
+                this.trace('readyHandler');
                 this.shepherdNode.herdsman.getDevices().forEach(sendMessage);
             };
 

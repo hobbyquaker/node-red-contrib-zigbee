@@ -37,14 +37,14 @@ module.exports = function (RED) {
             };
 
             const readyHandler = () => {
-                this.debug('readyHandler');
+                this.trace('readyHandler');
                 if (!this.gotDevices) {
                     getDevices();
                 }
             };
 
             const devicesHandler = () => {
-                this.debug('devicesHandler');
+                this.trace('devicesHandler');
                 getDevices();
             };
 
