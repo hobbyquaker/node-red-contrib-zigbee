@@ -422,6 +422,27 @@ module.exports = function (RED) {
                 fs.copyFileSync(this.backupPath, this.backupPath + '.' + now);
             }
 
+            fs.readdir(this.persistPath, (err, dir) => {
+                const count = {dev: 0, backup: 0};
+                const remove = [];
+
+                const now = (new Date()).getTime();
+                const maxAge = now - this.maxBackupAge;
+
+                dir.sort().reverse().forEach(file => {
+                    const match = file.match(/^(backup|dev)\.db\.(\d+)$/);
+                    if (match) {
+                        const [, type, timestamp] = match;
+                        if (++count[type] > this.maxBackupCount || parseInt(timestamp, 10) < maxAge) {
+                            remove.push(file);
+                        }
+                    }
+                });
+                remove.forEach(file => {
+                    fs.unlink(path.join(this.persistPath, file), () => {});
+                });
+            });
+
             try {
                 this.names = require(this.namesPath);
             } catch (_) {
