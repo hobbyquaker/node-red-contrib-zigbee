@@ -406,8 +406,21 @@ module.exports = function (RED) {
             this.dbPath = path.join(this.persistPath, 'dev.db');
             this.backupPath = path.join(this.persistPath, 'backup.db');
             this.led = config.led;
+
             this.pingTime = 30 * 1000;
             this.maxConfigureTries = 6;
+            this.maxBackupCount = 20;
+            this.maxBackupAge = 30 * 24 * 60 * 60 * 1000;
+
+            const now = (new Date()).getTime();
+
+            if (fs.existsSync(this.dbPath)) {
+                fs.copyFileSync(this.dbPath, this.dbPath + '.' + now);
+            }
+
+            if (fs.existsSync(this.backupPath)) {
+                fs.copyFileSync(this.backupPath, this.backupPath + '.' + now);
+            }
 
             try {
                 this.names = require(this.namesPath);
