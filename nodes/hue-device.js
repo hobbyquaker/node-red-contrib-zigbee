@@ -25,7 +25,7 @@ module.exports = function (RED) {
             this.lastState = {};
 
             const getDevices = () => {
-                this.debug('getDevices');
+                this.trace('getDevices');
                 this.devices = shepherdNode.herdsman.getDevices();
                 this.groups = shepherdNode.herdsman.getGroups();
                 this.devices.forEach(device => {

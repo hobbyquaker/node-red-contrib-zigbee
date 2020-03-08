@@ -32,7 +32,7 @@ module.exports = function (RED) {
             ];
 
             const getDevices = () => {
-                this.debug('getDevices');
+                this.trace('getDevices');
                 const devices = this.herdsman.getDevices();
                 devices.forEach(device => {
                     this.ieeeAddresses[device.ieeeAddr] = device;
