@@ -301,7 +301,8 @@ module.exports = function (RED) {
                 // Check if there is an available converter
                 if (converters.length === 0) {
                     // Don't log readRsp messages, they are not interesting most of the time.
-                    if (data.type !== 'readResponse') {
+                    // Todo: Clarify genOta logging (#107)
+                    if (data.type !== 'readResponse' && data.cluster !== 'genOta') {
                         this.warn(
                             `No converter available for '${data.device.modelID}' with cluster '${data.cluster}' ` +
                             `and type '${data.type}' and data '${JSON.stringify(data.data)}'`
