@@ -1135,7 +1135,6 @@ module.exports = function (RED) {
 
         messageHandler(message) {
             this.debug('message ' + message.type + ' ' + this.logName(message.device));
-            this.proxy.emit('message', message);
             clearTimeout(this.offlineTimeouts[message.device.ieeeAddr]);
             this.offlineTimeouts[message.device.ieeeAddr] = setTimeout(() => {
                 delete this.offlineTimeouts[message.device.ieeeAddr];
@@ -1144,6 +1143,18 @@ module.exports = function (RED) {
             setTimeout(() => {
                 this.configure(message.device);
             }, 5000);
+            if (message.type === 'commandQueryNextImageRequest') {
+                this.otauHandler(message);
+            } else {
+                this.proxy.emit('message', message);
+            }
+        }
+
+        otauHandler(message) {
+            // TODO Implement OTAU
+            this.debug('ota - no image available for ' + this.logName(message.device));
+            const endpoint = message.device.endpoints.find(e => e.supportsOutputCluster('genOta'));
+            endpoint.commandResponse('genOta', 'queryNextImageResponse', {status: 0x98});
         }
 
         remove(ieeeAddr) {

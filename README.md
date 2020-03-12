@@ -87,7 +87,7 @@ Call methods of the herdsman controller
 * [x] Secure shepherd node REST API, use Authentication
 * [ ] Documentation
 * [x] Adapt to Node-RED 1.0 message API
-
+* [ ] OTA Update
 
 ## License
 
