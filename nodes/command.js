@@ -19,21 +19,21 @@ module.exports = function (RED) {
                 if (typeof configZclData !== 'object') {
                     configZclData = JSON.parse(config.zclData);
                 }
-            } catch (_) {
+            } catch {
                 configZclData = {};
             }
 
             let configAttributesRead;
             try {
                 configAttributesRead = JSON.parse(config.attributesRead);
-            } catch (_) {
+            } catch {
                 configAttributesRead = {};
             }
 
             let configAttributesWrite;
             try {
                 configAttributesWrite = JSON.parse(config.attributesWrite);
-            } catch (_) {
+            } catch {
                 configAttributesWrite = {};
             }
 
@@ -42,7 +42,7 @@ module.exports = function (RED) {
                 const target = msg.target || config.target;
                 const ieeeAddr = msg.ieeeAddr || ((config.ieeeAddr || '').split(' ')[0]);
                 const group = msg.group || ((config.group || '').split(' ')[0]);
-                const ep = parseInt(msg.endpoint || msg.ep || config.ep, 10);
+                const ep = Number.parseInt(msg.endpoint || msg.ep || config.ep, 10);
                 const cid = msg.cluster || msg.cid || config.cid;
                 const cmd = msg.command || msg.cmd || config.cmd;
                 const zclData = msg.payload || msg.parameters || msg.zclData || configZclData;

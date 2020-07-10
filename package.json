@@ -63,9 +63,9 @@
   },
   "devDependencies": {
     "camo-purge": "^1.0.2",
-    "eslint-plugin-html": "^6.0.0",
-    "xo": "^0.25.3",
-    "husky": "^4.0.10"
+    "eslint-plugin-html": "^6.0.2",
+    "xo": "^0.32.1",
+    "husky": "^4.2.5"
   },
   "xo": {
     "space": 4,
@@ -87,13 +87,18 @@
       "capitalized-comments": 0,
       "spaced-comment": 0,
       "unicorn/catch-error-name": 0,
+      "unicorn/prevent-abbreviations": 0,
       "no-unused-expressions": "warn",
       "no-await-in-loop": "warn",
       "unicorn/prefer-string-slice": "warn",
       "require-atomic-updates": "warn",
       "unicorn/no-nested-ternary": "warn",
       "promise/prefer-await-to-then": "warn",
-      "prefer-named-capture-group": "warn"
+      "prefer-named-capture-group": "warn",
+      "unicorn/prefer-number-properties": "warn",
+      "unicorn/no-fn-reference-in-iterator": "warn",
+      "unicorn/better-regex": "warn",
+      "unicorn/prefer-optional-catch-binding": "warn"
     },
     "ignore": []
   }

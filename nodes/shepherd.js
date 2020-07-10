@@ -433,7 +433,7 @@ module.exports = function (RED) {
                     const match = file.match(/^(backup|dev)\.db\.(\d+)$/);
                     if (match) {
                         const [, type, timestamp] = match;
-                        if (++count[type] > this.maxBackupCount || parseInt(timestamp, 10) < maxAge) {
+                        if (++count[type] > this.maxBackupCount || Number.parseInt(timestamp, 10) < maxAge) {
                             remove.push(file);
                         }
                     }
@@ -445,7 +445,7 @@ module.exports = function (RED) {
 
             try {
                 this.names = require(this.namesPath);
-            } catch (_) {
+            } catch {
                 this.names = {};
             }
 
@@ -458,20 +458,20 @@ module.exports = function (RED) {
 
             let extendedPanID = [0xDD, 0xDD, 0xDD, 0xDD, 0xDD, 0xDD, 0xDD, 0xDD];
             if (this.credentials.extPanId) {
-                const bytes = this.credentials.extPanId.match(/[0-9a-fA-F]{2}/gi);
-                extendedPanID = bytes.map(t => parseInt(t, 16));
+                const bytes = this.credentials.extPanId.match(/[\da-f]{2}/gi);
+                extendedPanID = bytes.map(t => Number.parseInt(t, 16));
             }
 
             let precfgkey;
             if (this.credentials.precfgkey) {
-                const bytes = this.credentials.precfgkey.match(/[0-9a-fA-F]{2}/gi);
-                precfgkey = bytes.map(t => parseInt(t, 16));
+                const bytes = this.credentials.precfgkey.match(/[\da-f]{2}/gi);
+                precfgkey = bytes.map(t => Number.parseInt(t, 16));
             }
 
             this.herdsmanOptions = {
                 serialPort: {
                     path: config.path,
-                    baudRate: parseInt(config.baudRate, 10) || 115200,
+                    baudRate: Number.parseInt(config.baudRate, 10) || 115200,
                     rtscts: Boolean(config.rtscts)
                 },
                 network: {
@@ -734,7 +734,7 @@ module.exports = function (RED) {
                     return;
                 }
 
-                const group = this.herdsman.getGroupByID(parseInt(groupID, 10));
+                const group = this.herdsman.getGroupByID(Number.parseInt(groupID, 10));
                 if (!group) {
                     reject(new Error(`unknown group ${groupID}`));
                     return;
@@ -758,7 +758,7 @@ module.exports = function (RED) {
                     return;
                 }
 
-                const group = this.herdsman.getGroupByID(parseInt(groupID, 10));
+                const group = this.herdsman.getGroupByID(Number.parseInt(groupID, 10));
                 this.herdsman.getDeviceByIeeeAddr(ieeeAddr).endpoints.find(ep => ep.ID === epID).removeFromGroup(group).then(result => {
                     this.log(`removeFromGroup ${groupID} ${ieeeAddr} ${epID} successful`);
                     resolve(result);

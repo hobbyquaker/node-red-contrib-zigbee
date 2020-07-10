@@ -162,7 +162,7 @@ module.exports = function (RED) {
                 if (typeof msg.payload === 'string' && msg.payload.startsWith('{')) {
                     try {
                         msg.payload = JSON.parse(msg.payload);
-                    } catch (_) { }
+                    } catch { }
                 }
 
                 if (attribute) {

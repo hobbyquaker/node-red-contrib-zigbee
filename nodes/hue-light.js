@@ -229,7 +229,7 @@ module.exports = function (RED) {
                 } else if (msg.payload === 'false') {
                     cmd.on = false;
                 } else {
-                    const bri = parseInt(msg.payload, 10) || 0;
+                    const bri = Number.parseInt(msg.payload, 10) || 0;
                     if (type === 'groups' || (bri > 0 && !device.meta.hue.type.startsWith('On/off'))) {
                         cmd.bri = bri;
                     }
@@ -249,14 +249,14 @@ module.exports = function (RED) {
             return this.devices && this.devices.find(device => {
                 return device.meta.name === search ||
                     device.ieeeAddr === search ||
-                    device.ID === parseInt(search, 10);
+                    device.ID === Number.parseInt(search, 10);
             });
         }
 
         searchGroup(search) {
             return this.groups && this.groups.find(group => {
                 return group.meta.name === search ||
-                    group.groupID === parseInt(search, 10);
+                    group.groupID === Number.parseInt(search, 10);
             });
         }
 
@@ -273,7 +273,7 @@ module.exports = function (RED) {
                     device.meta.hue.name = device.meta.name;
                 } else {
                     this.debug(`initLight ${device.ieeeAddr} ${device.meta.name} ${device.modelID}`);
-                    const uniqueid = device.ieeeAddr.replace('0x', '').replace(/([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/, '$1:$2:$3:$4:$5:$6:$7:$8') + '-' + (uniqueidSuffix[device.manufacturerName] || '00');
+                    const uniqueid = device.ieeeAddr.replace('0x', '').replace(/([\da-f]{2})([\da-f]{2})([\da-f]{2})([\da-f]{2})([\da-f]{2})([\da-f]{2})([\da-f]{2})([\da-f]{2})/, '$1:$2:$3:$4:$5:$6:$7:$8') + '-' + (uniqueidSuffix[device.manufacturerName] || '00');
 
                     device.meta.hue = {
                         state: emptyStates[type] || {on: false, reachable: false},
