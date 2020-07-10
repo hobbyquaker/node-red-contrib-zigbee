@@ -212,11 +212,11 @@ module.exports = function (RED) {
                             this.debug(`${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(result)}`);
 
                             // Todo clarify why converterGet doesnt set readAfterWriteTime when state==OFF
-                            if (typeof result.readAferWriteTime === 'undefined' && !device.meta.reporting && result.state && result.state.state === 'OFF') {
+                            if (result && typeof result.readAfterWriteTime === 'undefined' && !device.meta.reporting && result.state && result.state.state === 'OFF') {
                                 result.readAfterWriteTime = 0;
                             }
 
-                            if (typeof result.readAfterWriteTime !== 'undefined' && !device.meta.reporting) {
+                            if (result && typeof result.readAfterWriteTime !== 'undefined' && !device.meta.reporting) {
                                 setTimeout(() => {
                                     this.debug(`readAfterWrite ${device.ieeeAddr} ${device.meta.name}`);
                                     converter.convertGet(endpoint, key, meta);
