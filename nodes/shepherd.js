@@ -451,10 +451,7 @@ module.exports = function (RED) {
 
             shepherdNodes[this.id] = this;
 
-            let panID = 0xFFFF;
-            if (this.credentials.panId) {
-                panID = parseInt(this.credentials.panId, 16);
-            }
+            const panID = this.credentials.panId ? Number.parseInt(String(this.credentials.panId), 16) : '';
 
             let extendedPanID = [0xDD, 0xDD, 0xDD, 0xDD, 0xDD, 0xDD, 0xDD, 0xDD];
             if (this.credentials.extPanId) {
@@ -470,6 +467,7 @@ module.exports = function (RED) {
 
             this.herdsmanOptions = {
                 serialPort: {
+                    adapter: config.adapter || 'zstack',
                     path: config.path,
                     baudRate: Number.parseInt(config.baudRate, 10) || 115200,
                     rtscts: Boolean(config.rtscts)

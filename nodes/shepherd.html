@@ -35,7 +35,8 @@
             baudRate: {value: 115200, required: true},
             rtscts: {value: true},
             channelList: {value: [11]},
-            led: {value: 'disabled'}
+            led: {value: 'disabled'},
+            adapter: {value: 'zstack'}
         },
         label() {
             return this.name || 'zigbee herdsman';
@@ -1287,6 +1288,13 @@
                 <input type="text" id="node-config-input-name">
             </div>
             <div class="form-row"><h4>serialport</h4></div>
+            <div class="form-row">
+                <label for="node-config-input-adapter"><i class="icon-bookmark"></i> adapter</label>
+                <select id="adapter">
+                    <option value="zstack">Z-Stack</option>
+                    <option value="deconz">ConBee</option>
+                </select>
+            </div>
             <div class="form-row">
                 <label for="node-config-input-path"><i class="icon-bookmark"></i> path</label>
                 <input type="text" id="node-config-input-path">
