@@ -628,11 +628,16 @@ module.exports = function (RED) {
                 this.proxy.emit('ready');
                 this.status = 'connected';
                 this.proxy.emit('nodeStatus', {fill: 'green', shape: 'dot', text: 'connected'});
-                this.herdsman.setLED(this.led === 'enabled').then(() => {
-                    this.debug(`setLED successfully set ${this.led}`);
-                }).catch(error => {
-                    this.error(`setLED failed to set ${this.led} ${error.message}`);
-                });
+                if (this.herdsman.supportsLED()) {
+                    this.herdsman.setLED(this.led === 'enabled').then(() => {
+                        this.debug(`setLED successfully set ${this.led}`);
+                    }).catch(error => {
+                        this.error(`setLED failed to set ${this.led} ${error.message}`);
+                    });
+                } 
+                elif (this.led === 'enabled') {
+                    this.log('Setting LED not supported on this controller. To avoid this message at startup, set CC2531 LED to \'disabled\' in controller node');
+                }
 
                 this.checkOverdueInterval = setInterval(() => {
                     this.checkOverdue();
