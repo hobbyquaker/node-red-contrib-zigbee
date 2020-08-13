@@ -326,7 +326,7 @@ module.exports = function (RED) {
                             }
                         });
                     } else {
-                        // indicate out.payload has been  "extended" 
+                        // indicate out.payload has been  "extended"
                         // with converted data
                         wait -= 1;
                         Object.assign(out.payload, convertedPayload);
@@ -343,12 +343,12 @@ module.exports = function (RED) {
                 // if at least one converter produced out.payload data
                 // send the combined result
                 if (wait < converters.length) {
-                   if (typeof data.linkquality !== 'undefined') {
-                       out.payload.linkquality = data.linkquality;
-                   }
+                    if (typeof data.linkquality !== 'undefined') {
+                        out.payload.linkquality = data.linkquality;
+                    }
 
-                   this.send(out);
-               }
+                    this.send(out);
+                }
             };
 
             const nodeStatusHandler = status => {
