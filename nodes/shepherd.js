@@ -634,7 +634,7 @@ module.exports = function (RED) {
                     }).catch(error => {
                         this.error(`setLED failed to set ${this.led} ${error.message}`);
                     });
-                } 
+                }
                 else if (this.led === 'enabled') {
                     this.log('Setting LED not supported on this controller. To avoid this message at startup, set CC2531 LED to \'disabled\' in controller node');
                 }
