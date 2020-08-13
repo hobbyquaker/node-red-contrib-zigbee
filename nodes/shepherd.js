@@ -628,15 +628,15 @@ module.exports = function (RED) {
                 this.proxy.emit('ready');
                 this.status = 'connected';
                 this.proxy.emit('nodeStatus', {fill: 'green', shape: 'dot', text: 'connected'});
-                this.herdsman.supportsLED().then( supportsLED => {
+                this.herdsman.supportsLED().then(supportsLED => {
                     if (supportsLED === true) {
                         this.herdsman.setLED(this.led === 'enabled').then(() => {
                             this.debug(`setLED successfully set ${this.led}`);
                         }).catch(error => {
-                           this.error(`setLED failed to set ${this.led} ${error.message}`);
+                            this.error(`setLED failed to set ${this.led} ${error.message}`);
                         });
                     } else if (this.led === 'enabled') {
-                            this.error('Setting LED not supported on this adapter. To avoid this message at startup, set CC2531 LED to \'disabled\' in controller node');
+                        this.error('Setting LED not supported on this adapter. To avoid this message at startup, set CC2531 LED to \'disabled\' in controller node');
                     }
                 });
 
