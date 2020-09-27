@@ -19,7 +19,7 @@ module.exports = function (RED) {
             this.topic = config.topic;
 
             const sendMessage = device => {
-                if (this.device && (this.device !== device.ieeeAddr)) {
+                if (config.device && (config.device !== device.ieeeAddr)) {
                     return;
                 }
 
