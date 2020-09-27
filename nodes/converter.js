@@ -316,7 +316,6 @@ module.exports = function (RED) {
                 let wait = converters.length;
 
                 const publish = convertedPayload => {
-                    wait -= 1;
                     if (config.payload === 'plain') {
                         Object.keys(convertedPayload).forEach(key => {
                             if (config.attribute === '' || config.attribute === key) {
@@ -327,14 +326,10 @@ module.exports = function (RED) {
                             }
                         });
                     } else {
+                        // indicate out.payload has been  "extended"
+                        // with converted data
+                        wait -= 1;
                         Object.assign(out.payload, convertedPayload);
-                        if (wait === 0) {
-                            if (typeof data.linkquality !== 'undefined') {
-                                out.payload.linkquality = data.linkquality;
-                            }
-
-                            this.send(out);
-                        }
                     }
                 };
 
@@ -344,6 +339,16 @@ module.exports = function (RED) {
                         publish(convertedPayload);
                     }
                 });
+
+                // if at least one converter produced out.payload data
+                // send the combined result
+                if (wait < converters.length) {
+                    if (typeof data.linkquality !== 'undefined') {
+                        out.payload.linkquality = data.linkquality;
+                    }
+
+                    this.send(out);
+                }
             };
 
             const nodeStatusHandler = status => {
