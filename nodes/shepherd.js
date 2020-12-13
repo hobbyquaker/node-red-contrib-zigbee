@@ -592,7 +592,7 @@ module.exports = function (RED) {
                         return;
                     }
 
-                    const mappedDevice = shepherdConverters.findByZigbeeModel(device.modelID);
+                    const mappedDevice = shepherdConverters.findByDevice(device);
                     if (mappedDevice && mappedDevice.configure) {
                         device.meta.isConfigurable = true;
                     }
@@ -1098,7 +1098,7 @@ module.exports = function (RED) {
                     return;
                 }
 
-                const mappedDevice = shepherdConverters.findByZigbeeModel(device.modelID);
+                const mappedDevice = shepherdConverters.findByDevice(device);
                 if (mappedDevice && mappedDevice.configure && device.meta.shouldConfigure && !configured.has(device.ieeeAddr) && !configuring.has(device.ieeeAddr)) {
                     this.debug(`configure ${device.ieeeAddr} ${device.meta.name} (try ${device.meta.configureFails})`);
                     configuring.add(device.ieeeAddr);
