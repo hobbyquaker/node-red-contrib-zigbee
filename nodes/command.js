@@ -53,11 +53,7 @@ module.exports = function (RED) {
                 let promise;
                 switch (cmdType) {
                     case 'command':
-                        if (target === 'endpoint') {
-                            promise = shepherdNode.command(ieeeAddr, ep, cid, cmd, zclData);
-                        } else {
-                            promise = shepherdNode.groupCommand(group, cid, cmd, zclData);
-                        }
+                        promise = target === 'endpoint' ? shepherdNode.command(ieeeAddr, ep, cid, cmd, zclData) : shepherdNode.groupCommand(group, cid, cmd, zclData);
 
                         break;
                     case 'write':

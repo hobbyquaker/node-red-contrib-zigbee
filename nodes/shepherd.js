@@ -89,12 +89,7 @@ module.exports = function (RED) {
 
     RED.httpAdmin.post('/zigbee-shepherd/bind', RED.auth.needsPermission('zigbee.write'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
-            let promise;
-            if (req.body.type === 'endpoint') {
-                promise = shepherdNodes[req.query.id].bind(req.body.device, req.body.endpoint, req.body.cluster, req.body.targetDevice, req.body.targetEndpoint);
-            } else {
-                promise = shepherdNodes[req.query.id].bindGroup(req.body.device, req.body.endpoint, req.body.cluster, req.body.group);
-            }
+            const promise = req.body.type === 'endpoint' ? shepherdNodes[req.query.id].bind(req.body.device, req.body.endpoint, req.body.cluster, req.body.targetDevice, req.body.targetEndpoint) : shepherdNodes[req.query.id].bindGroup(req.body.device, req.body.endpoint, req.body.cluster, req.body.group);
 
             promise.then(result => {
                 res.status(200).send(JSON.stringify(result));
@@ -108,12 +103,7 @@ module.exports = function (RED) {
 
     RED.httpAdmin.post('/zigbee-shepherd/unbind', RED.auth.needsPermission('zigbee.write'), (req, res) => {
         if (shepherdNodes[req.query.id]) {
-            let promise;
-            if (req.body.type === 'endpoint') {
-                promise = shepherdNodes[req.query.id].unbind(req.body.device, req.body.endpoint, req.body.cluster, req.body.targetDevice, req.body.targetEndpoint);
-            } else {
-                promise = shepherdNodes[req.query.id].unbindGroup(req.body.device, req.body.endpoint, req.body.cluster, req.body.targetDevice);
-            }
+            const promise = req.body.type === 'endpoint' ? shepherdNodes[req.query.id].unbind(req.body.device, req.body.endpoint, req.body.cluster, req.body.targetDevice, req.body.targetEndpoint) : shepherdNodes[req.query.id].unbindGroup(req.body.device, req.body.endpoint, req.body.cluster, req.body.targetDevice);
 
             promise.then(result => {
                 res.status(200).send(JSON.stringify(result));

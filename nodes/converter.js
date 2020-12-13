@@ -230,9 +230,7 @@ module.exports = function (RED) {
                             shepherdNode.reachable(device, false);
                         });
                     } else if (isGet) {
-                        if (!converter.convertGet) {
-                            this.error(`Converter can not read '${key}' (${payload[key]}) on  modelID '${device.modelID}'`);
-                        } else {
+                        if (converter.convertGet) {
                             converter.convertGet(endpoint, key, payload[key], meta).then(result => {
                                 shepherdNode.reachable(device, true);
                                 this.debug(`${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(result)}`);
@@ -241,6 +239,8 @@ module.exports = function (RED) {
                                 shepherdNode.reachable(device, false);
                                 done(new Error(`${device.ieeeAddr} ${device.meta.name} ${err.message}`));
                             });
+                        } else {
+                            this.error(`Converter can not read '${key}' (${payload[key]}) on  modelID '${device.modelID}'`);
                         }
                     }
                 });
