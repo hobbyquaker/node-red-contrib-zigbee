@@ -129,7 +129,7 @@ module.exports = function (RED) {
                     if (this.models.has(device.modelID)) {
                         model = this.models.get(device.modelID);
                     } else {
-                        model = herdsmanConverters.findByZigbeeModel(device.modelID);
+                        model = herdsmanConverters.findByDevice(device);
                         this.models.set(device.modelID, model);
                     }
 
@@ -195,7 +195,7 @@ module.exports = function (RED) {
                 Object.keys(payload).sort(a => (['state', 'brightness'].includes(a) ? -1 : 1)).forEach(key => {
                     const converter = converters.find(c => c.key.includes(key));
                     if (!converter) {
-                        this.error(`No converter available for '${key}' (${payload[key]})`);
+                        this.error(`No converter available for '${key}' (${payload[key]}) on  modelID '${device.modelID}'`);
                         return;
                     }
 
@@ -230,14 +230,18 @@ module.exports = function (RED) {
                             shepherdNode.reachable(device, false);
                         });
                     } else if (isGet) {
-                        converter.convertGet(endpoint, key, payload[key], meta).then(result => {
-                            shepherdNode.reachable(device, true);
-                            this.debug(`${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(result)}`);
-                            done();
-                        }).catch(err => {
-                            shepherdNode.reachable(device, false);
-                            done(new Error(`${device.ieeeAddr} ${device.meta.name} ${err.message}`));
-                        });
+                        if (!converter.convertGet) {
+                            this.error(`Converter can not read '${key}' (${payload[key]}) on  modelID '${device.modelID}'`);
+                        } else {
+                            converter.convertGet(endpoint, key, payload[key], meta).then(result => {
+                                shepherdNode.reachable(device, true);
+                                this.debug(`${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(result)}`);
+                                done();
+                            }).catch(err => {
+                                shepherdNode.reachable(device, false);
+                                done(new Error(`${device.ieeeAddr} ${device.meta.name} ${err.message}`));
+                            });
+                        }
                     }
                 });
             });
@@ -271,7 +275,7 @@ module.exports = function (RED) {
                 if (this.models.has(device.modelID)) {
                     model = this.models.get(device.modelID);
                 } else {
-                    model = herdsmanConverters.findByZigbeeModel(device.modelID);
+                    model = herdsmanConverters.findByDevice(device);
                     this.models.set(device.modelID, model);
                 }
 
