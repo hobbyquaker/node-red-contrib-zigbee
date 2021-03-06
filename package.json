@@ -66,8 +66,8 @@
   "devDependencies": {
     "camo-purge": "^1.0.2",
     "eslint-plugin-html": "^6.1.1",
-    "xo": "^0.36.1",
-    "husky": "^4.3.5"
+    "xo": "^0.38.2",
+    "husky": "^5.1.3"
   },
   "xo": {
     "space": 4,
@@ -101,7 +101,10 @@
       "unicorn/better-regex": "warn",
       "unicorn/prefer-optional-catch-binding": "warn",
       "no-promise-executor-return": "warn",
-      "unicorn/prefer-ternary": "warn"
+      "unicorn/prefer-ternary": "warn",
+      "unicorn/no-array-for-each": "warn",
+      "unicorn/no-array-callback-reference": "warn",
+      "unicorn/prefer-date-now": "warn"
     },
     "ignore": []
   }
