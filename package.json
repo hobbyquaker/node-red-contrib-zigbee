@@ -20,7 +20,8 @@
   "contributors": [
     "Sineos <Sineos.pub@gmail.com>",
     "Martin Wigger https://github.com/Maladus",
-    "hogthrob https://github.com/hogthrob"
+    "hogthrob https://github.com/hogthrob",
+    "mr G1K https://github.com/G1K"
   ],
   "license": "MIT",
   "description": "Node-RED Nodes for Zigbee Devices",
