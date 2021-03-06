@@ -30,8 +30,8 @@
     "mkdirp": "^1.0.4",
     "obj-ease": "^1.0.1",
     "vis": "^4.21.0",
-    "zigbee-herdsman": "0.13.40",
-    "zigbee-herdsman-converters": "^13.0.18"
+    "zigbee-herdsman": "^0.13.70",
+    "zigbee-herdsman-converters": "^14.0.57"
   },
   "engines": {
     "node": ">= 10.0.0"
