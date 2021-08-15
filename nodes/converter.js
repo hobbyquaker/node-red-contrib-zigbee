@@ -106,7 +106,6 @@ module.exports = function (RED) {
                 const name = topicAttrs.name || (device && device.meta.name);
                 const attribute = config.attribute || topicAttrs.attribute;
                 let group;
-
                 this.debug('topic=' + msg.topic + ' name=' + name + ' ieeeAddr=' + ieeeAddr + ' attribute=' + attribute + ' payload=' + JSON.stringify(msg.payload));
 
                 if (!device) {
@@ -125,14 +124,7 @@ module.exports = function (RED) {
                 if (isGroup) {
                     converters = groupConverters;
                 } else {
-                    // Map device to a model
-                    if (this.models.has(device.modelID)) {
-                        model = this.models.get(device.modelID);
-                    } else {
-                        model = herdsmanConverters.findByDevice(device);
-                        this.models.set(device.modelID, model);
-                    }
-
+                    model = this.getModelFromDevice(device);
                     if (!model) {
                         this.warn(`Device with modelID '${device.modelID}' is not supported.`);
                         this.warn('Please see: https://www.zigbee2mqtt.io/how_tos/how_to_support_new_devices.html');
@@ -143,53 +135,8 @@ module.exports = function (RED) {
                 }
 
                 // TODO understand postfix
-                let endpoint;
-                // Determine endpoint to publish to.
-                if (typeof model.endpoint !== 'undefined') {
-                    const eps = model.endpoint(device);
-                    endpoint = typeof eps[isSet ? 'set' : 'get'] === 'undefined' ? null : eps[isSet ? 'set' : 'get'];
-                    if (endpoint === null && typeof eps.default !== 'undefined') {
-                        endpoint = eps.default;
-                    }
-                }
-
-                if (!endpoint) {
-                    endpoint = device.endpoints[0];
-                }
-
-                let payload;
-
-                if (typeof msg.payload === 'string' && msg.payload.startsWith('{')) {
-                    try {
-                        msg.payload = JSON.parse(msg.payload);
-                    } catch {}
-                }
-
-                if (attribute) {
-                    payload = {};
-                    payload[attribute] = msg.payload;
-                } else if (typeof msg.payload === 'object') {
-                    payload = msg.payload;
-                } else if (typeof msg.payload === 'string') {
-                    // No attribute supplied, payload not an object - assume state.
-                    payload = {state: msg.payload};
-                } else {
-                    payload = {state: msg.payload ? 'ON' : 'OFF'};
-                }
-
-                const meta = {
-                    options: {},
-                    message: payload,
-                    mapped: model,
-                    state: {},
-                    logger: {
-                        debug: this.debug,
-                        log: this.log,
-                        info: this.log,
-                        warn: this.warn,
-                        error: this.error
-                    }
-                };
+                let endpoint = this.getEndPointFromDevice(model, device, isSet);
+                let payload = this.getPayloadFromMsg(msg, attribute);
 
                 // For each key in the JSON message find the matching converter.
                 Object.keys(payload).sort(a => (['state', 'brightness'].includes(a) ? -1 : 1)).forEach(key => {
@@ -198,50 +145,28 @@ module.exports = function (RED) {
                         this.error(`No converter available for '${key}' (${payload[key]}) on  modelID '${device.modelID}'`);
                         return;
                     }
-
-                    if (isSet && isGroup) {
-                        converter.convertSet(group, key, payload[key], meta).then(result => {
-                            this.debug(`${group.groupID} ${group.meta.name} ${JSON.stringify(result)}`);
-                            done();
-                        }).catch(err => {
-                            done(new Error(`${group.groupID} ${group.meta.name} ${err.message}`));
-                        });
-                    } else if (isSet) {
-                        converter.convertSet(endpoint, key, payload[key], meta).then(result => {
-                            shepherdNode.reachable(device, true);
-                            this.debug(`${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(result)}`);
-
-                            // Todo clarify why converterGet doesnt set readAfterWriteTime when state==OFF
-                            if (result && typeof result.readAfterWriteTime === 'undefined' && !device.meta.reporting && result.state && result.state.state === 'OFF') {
-                                result.readAfterWriteTime = 0;
-                            }
-
-                            if (result && typeof result.readAfterWriteTime !== 'undefined' && !device.meta.reporting) {
-                                setTimeout(() => {
-                                    this.debug(`readAfterWrite ${device.ieeeAddr} ${device.meta.name}`);
-                                    converter.convertGet(endpoint, key, meta);
-                                    done();
-                                }, result.readAfterWriteTime);
-                            } else {
-                                done();
-                            }
-                        }).catch(err => {
-                            done(new Error(`${device.ieeeAddr} ${device.meta.name} ${err.message}`));
-                            shepherdNode.reachable(device, false);
-                        });
-                    } else if (isGet) {
-                        if (converter.convertGet) {
-                            converter.convertGet(endpoint, key, payload[key], meta).then(result => {
-                                shepherdNode.reachable(device, true);
-                                this.debug(`${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(result)}`);
-                                done();
-                            }).catch(err => {
-                                shepherdNode.reachable(device, false);
-                                done(new Error(`${device.ieeeAddr} ${device.meta.name} ${err.message}`));
-                            });
-                        } else {
-                            this.error(`Converter can not read '${key}' (${payload[key]}) on  modelID '${device.modelID}'`);
+                    const meta = {
+                        options: {},
+                        message: payload,
+                        mapped: model,
+                        state: {},
+                        logger: {
+                            debug: console.debug,
+                            log: console.log,
+                            info: console.log,
+                            warn: console.warn,
+                            error: console.error
                         }
+                    };
+                    if (isSet) {
+                        if(isGroup) {
+                            this.setToGroup(converter, group, key, payload, meta, done);
+                        }
+                        else {
+                            this.setToDevice(converter, endpoint, key, payload, meta, shepherdNode, device, done);
+                        }                     
+                    } else { //get
+                        this.getFromDevice(converter, device, payload, endpoint, key, meta, done);
                     }
                 });
             });
@@ -254,7 +179,7 @@ module.exports = function (RED) {
                 }
 
                 const out = {
-                    topic: null,
+                    topic: config.topic,
                     payload: {},
                     name: device.meta.name,
                     type: device.type,
@@ -267,20 +192,10 @@ module.exports = function (RED) {
                     groupID: data.groupID,
                     cluster: data.cluster
                 };
+                out.topic = this.topicReplace(config.topic, out)
+                let model = this.getModelFromDevice(device);
 
-                out.topic = this.topicReplace(config.topic, out);
-
-                let model;
-                // Map device to a model
-                if (this.models.has(device.modelID)) {
-                    model = this.models.get(device.modelID);
-                } else {
-                    model = herdsmanConverters.findByDevice(device);
-                    this.models.set(device.modelID, model);
-                }
-
-                const hasGroupID = data.groupID;
-                if (utils.isXiaomiDevice(data.device) && utils.isRouter(data.device) && hasGroupID) {
+                if (utils.isXiaomiDevice(data.device) && utils.isRouter(data.device) && data.groupID) {
                     this.debug('Skipping re-transmitted Xiaomi message');
                     return;
                 }
@@ -296,6 +211,7 @@ module.exports = function (RED) {
                     return;
                 }
 
+                this.debug(JSON.stringify(data.type));
                 // Find a converter for this message.
                 const converters = model.fromZigbee.filter(c => {
                     const type = Array.isArray(c.type) ? c.type.includes(data.type) : c.type === data.type;
@@ -336,9 +252,8 @@ module.exports = function (RED) {
                         Object.assign(out.payload, convertedPayload);
                     }
                 };
-
                 converters.forEach(converter => {
-                    const convertedPayload = converter.convert(model, data, publish, {});
+                    const convertedPayload = converter.convert(model, data, publish, {}, device.meta);
                     if (convertedPayload && Object.keys(convertedPayload).length > 0) {
                         publish(convertedPayload);
                     }
@@ -376,6 +291,108 @@ module.exports = function (RED) {
                 shepherdNode.proxy.removeListener('ready', readyHandler);
                 shepherdNode.proxy.removeListener('devices', devicesHandler);
                 this.gotDevices = false;
+            });
+        }
+
+        getModelFromDevice(device) {
+            let model;
+            // Map device to a model
+            if (this.models.has(device.modelID)) {
+                model = this.models.get(device.modelID);
+            } else {
+                model = herdsmanConverters.findByDevice(device);
+                this.models.set(device.modelID, model);
+            }
+            return model;
+        }
+
+        getPayloadFromMsg(msg, attribute) {
+            let payload;
+
+            if (typeof msg.payload === 'string' && msg.payload.startsWith('{')) {
+                try {
+                    msg.payload = JSON.parse(msg.payload);
+                } catch { }
+            }
+
+            if (attribute) {
+                payload = {};
+                payload[attribute] = msg.payload;
+            } else if (typeof msg.payload === 'object') {
+                payload = msg.payload;
+            } else if (typeof msg.payload === 'string') {
+                // No attribute supplied, payload not an object - assume state.
+                payload = { state: msg.payload };
+            } else {
+                payload = { state: msg.payload ? 'ON' : 'OFF' };
+            }
+            return payload;
+        }
+
+        getEndPointFromDevice(model, device, isSet) {
+            if (typeof model.endpoint === 'undefined') {
+                return device.endpoints[0];
+            }
+            const endpoints = model.endpoint(device);
+            let endpoint = endpoints[isSet ? 'set' : 'get'];
+            if((endpoint === null || typeof endpoint === 'undefined') && eps.default !== 'undefined') {
+                return eps.default;
+            }
+            return device.endpoints[0];            
+        }
+
+        getFromDevice(converter, device, payload, endpoint, key, meta, done) {
+            if (!converter.convertGet) {
+                this.error(`Converter can not read '${key}' (${payload[key]}) on  modelID '${device.modelID}'`);
+                return;
+            }
+            converter.convertGet(endpoint, key, meta).then(result => {
+                this.handleResult(device, result);
+                done();
+            }).catch(err => {
+                this.handleError(done, device, err);
+            });
+        }
+
+        setToDevice(converter, endpoint, key, payload, meta, shepherdNode, device, done) {
+            converter.convertSet(endpoint, key, payload[key], meta).then(result => {
+                this.handleResult(device, result);
+
+                // Todo clarify why converterGet doesnt set readAfterWriteTime when state==OFF
+                if (result && typeof result.readAfterWriteTime === 'undefined' && !device.meta.reporting && result.state && result.state.state === 'OFF') {
+                    result.readAfterWriteTime = 0;
+                }
+
+                if (result && typeof result.readAfterWriteTime !== 'undefined' && !device.meta.reporting) {
+                    setTimeout(() => {
+                        this.debug(`readAfterWrite ${device.ieeeAddr} ${device.meta.name}`);
+                        converter.convertGet(endpoint, key, meta);
+                        done();
+                    }, result.readAfterWriteTime);
+                } else {
+                    done();
+                }
+            }).catch(err => {
+                this.handleError(done, device, err, shepherdNode);
+            });
+        }
+
+        handleError(done, device, err) {
+            this.shepherdNode.reachable(device, false);
+            done(new Error(`${device.ieeeAddr} ${device.meta.name} ${err.message}`));
+        }
+
+        handleResult(device, result) {
+            this.shepherdNode.reachable(device, true);
+            this.debug(`${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(result)}`);
+        }
+
+        setToGroup(converter, group, key, payload, meta, done) {
+            converter.convertSet(group, key, payload[key], meta).then(result => {
+                this.debug(`${group.groupID} ${group.meta.name} ${JSON.stringify(result)}`);
+                done();
+            }).catch(err => {
+                done(new Error(`${group.groupID} ${group.meta.name} ${err.message}`));
             });
         }
 
