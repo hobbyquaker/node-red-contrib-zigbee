@@ -520,7 +520,7 @@ module.exports = function (RED) {
 
             if (!herdsmanInstances[this.id]) {
                 this.debug('creating new herdsman instance');
-                herdsmanInstances[this.id] = new ZigbeeHerdsman.Controller(this.herdsmanOptions);
+                herdsmanInstances[this.id] = new ZigbeeHerdsman.Controller(this.herdsmanOptions, this);
             }
 
             this.herdsman = herdsmanInstances[this.id];
@@ -573,7 +573,7 @@ module.exports = function (RED) {
             this.connecting = true;
             this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'dot', text: 'connecting'});
             this.status = 'starting';
-            this.log('connecting ' + this.config.path + ' ' + JSON.stringify(this.herdsmanOptions.sp));
+            this.log('connecting ' + this.config.path + ' ' + JSON.stringify(this.herdsmanOptions.serialPort));
             this.herdsman.start().then(() => {
                 this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'dot', text: 'connecting'});
 
