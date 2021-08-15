@@ -19,7 +19,7 @@ module.exports = function (RED) {
             }
 
             this.models = new Map();
-            
+
             this.herdsman = this.shepherdNode.herdsman;
             this.ieeeAddresses = {};
             this.names = {};
@@ -165,7 +165,7 @@ module.exports = function (RED) {
                         }
                         else {
                             this.setToDevice(converter, endpoint, key, payload, meta, device, done);
-                        }                     
+                        }
                     } else { //get
                         this.getFromDevice(converter, device, payload, endpoint, key, meta, done);
                     }
@@ -333,7 +333,7 @@ module.exports = function (RED) {
             if((endpoint === null || typeof endpoint === 'undefined') && eps.default !== 'undefined') {
                 return eps.default;
             }
-            return device.endpoints[0];            
+            return device.endpoints[0];
         }
 
         getFromDevice(converter, device, payload, endpoint, key, meta, done) {
