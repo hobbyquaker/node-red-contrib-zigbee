@@ -354,10 +354,9 @@ module.exports = function (RED) {
                 this.handleResult(device, result);
 
                 // Todo clarify why converterGet doesnt set readAfterWriteTime when state==OFF
-                if (result && typeof result.readAfterWriteTime === 'undefined' && !device.meta.reporting && result.state && result.state.state === 'OFF') {
+                if (result && typeof result.readAfterWriteTime === 'undefined' && !device.meta.reporting) {
                     result.readAfterWriteTime = 0;
                 }
-
                 if (result && typeof result.readAfterWriteTime !== 'undefined' && !device.meta.reporting) {
                     setTimeout(() => {
                         this.debug(`readAfterWrite ${device.ieeeAddr} ${device.meta.name}`);
@@ -368,7 +367,6 @@ module.exports = function (RED) {
                     done();
                 }
             }).catch(err => {
-                this.error("setToDevice error");
                 this.handleError(device, err);
             });
         }
