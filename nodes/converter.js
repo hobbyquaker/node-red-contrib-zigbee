@@ -178,23 +178,6 @@ module.exports = function (RED) {
                     return;
                 }
 
-                const out = {
-                    topic: config.topic,
-                    payload: {},
-                    name: device.meta.name,
-                    type: device.type,
-                    manufacturerName: device.manufacturerName,
-                    modelID: device.modelID,
-                    lastSeen: device.lastSeen,
-                    ieeeAddr: device.ieeeAddr,
-                    data: data.data,
-                    linkquality: data.linkquality,
-                    groupID: data.groupID,
-                    cluster: data.cluster
-                };
-                out.topic = this.topicReplace(config.topic, out)
-                let model = this.getModelFromDevice(device);
-
                 if (utils.isXiaomiDevice(data.device) && utils.isRouter(data.device) && data.groupID) {
                     this.debug('Skipping re-transmitted Xiaomi message');
                     return;
@@ -205,13 +188,13 @@ module.exports = function (RED) {
                     return;
                 }
 
+                let model = this.getModelFromDevice(device);
                 if (!model) {
                     this.warn(`Received message from unsupported device with Zigbee model '${data.device.modelID}'`);
                     this.warn('Please see: https://www.zigbee2mqtt.io/how_tos/how_to_support_new_devices.html.');
                     return;
                 }
 
-                this.debug(JSON.stringify(data.type));
                 // Find a converter for this message.
                 const converters = model.fromZigbee.filter(c => {
                     const type = Array.isArray(c.type) ? c.type.includes(data.type) : c.type === data.type;
@@ -229,12 +212,26 @@ module.exports = function (RED) {
                         );
                         this.warn('Please see: https://www.zigbee2mqtt.io/how_tos/how_to_support_new_devices.html.');
                     }
-
                     return;
                 }
 
                 let wait = converters.length;
 
+                const out = {
+                    topic: config.topic,
+                    payload: {},
+                    name: device.meta.name,
+                    type: device.type,
+                    manufacturerName: device.manufacturerName,
+                    modelID: device.modelID,
+                    lastSeen: device.lastSeen,
+                    ieeeAddr: device.ieeeAddr,
+                    data: data.data,
+                    linkquality: data.linkquality,
+                    groupID: data.groupID,
+                    cluster: data.cluster
+                };
+                out.topic = this.topicReplace(config.topic, out);
                 const publish = convertedPayload => {
                     if (config.payload === 'plain') {
                         Object.keys(convertedPayload).forEach(key => {
@@ -295,26 +292,23 @@ module.exports = function (RED) {
         }
 
         getModelFromDevice(device) {
-            let model;
-            // Map device to a model
             if (this.models.has(device.modelID)) {
-                model = this.models.get(device.modelID);
+                return this.models.get(device.modelID);
             } else {
-                model = herdsmanConverters.findByDevice(device);
+                let model = herdsmanConverters.findByDevice(device);
                 this.models.set(device.modelID, model);
+                return model;
             }
-            return model;
         }
 
         getPayloadFromMsg(msg, attribute) {
-            let payload;
-
             if (typeof msg.payload === 'string' && msg.payload.startsWith('{')) {
                 try {
                     msg.payload = JSON.parse(msg.payload);
                 } catch { }
             }
 
+            let payload;
             if (attribute) {
                 payload = {};
                 payload[attribute] = msg.payload;
