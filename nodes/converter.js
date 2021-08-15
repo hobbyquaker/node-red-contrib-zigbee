@@ -11,15 +11,16 @@ module.exports = function (RED) {
         constructor(config) {
             RED.nodes.createNode(this, config);
 
-            const shepherdNode = RED.nodes.getNode(config.shepherd);
+            this.shepherdNode = RED.nodes.getNode(config.shepherd);
 
-            if (!shepherdNode) {
+            if (!this.shepherdNode) {
                 this.error('missing herdsman');
                 return;
             }
 
             this.models = new Map();
-            this.herdsman = shepherdNode.herdsman;
+            
+            this.herdsman = this.shepherdNode.herdsman;
             this.ieeeAddresses = {};
             this.names = {};
 
@@ -163,7 +164,7 @@ module.exports = function (RED) {
                             this.setToGroup(converter, group, key, payload, meta, done);
                         }
                         else {
-                            this.setToDevice(converter, endpoint, key, payload, meta, shepherdNode, device, done);
+                            this.setToDevice(converter, endpoint, key, payload, meta, device, done);
                         }                     
                     } else { //get
                         this.getFromDevice(converter, device, payload, endpoint, key, meta, done);
@@ -272,21 +273,21 @@ module.exports = function (RED) {
             };
 
             this.debug('adding event listeners');
-            shepherdNode.proxy.on('nodeStatus', nodeStatusHandler);
-            shepherdNode.proxy.on('message', messageHandler);
-            shepherdNode.proxy.on('ready', readyHandler);
-            shepherdNode.proxy.on('devices', devicesHandler);
+            this.shepherdNode.proxy.on('nodeStatus', nodeStatusHandler);
+            this.shepherdNode.proxy.on('message', messageHandler);
+            this.shepherdNode.proxy.on('ready', readyHandler);
+            this.shepherdNode.proxy.on('devices', devicesHandler);
 
-            if (!this.gotDevices && shepherdNode.status === 'connected') {
+            if (!this.gotDevices && this.shepherdNode.status === 'connected') {
                 getDevices();
             }
 
             this.on('close', () => {
                 this.debug('removing event listeners');
-                shepherdNode.proxy.removeListener('nodeStatus', nodeStatusHandler);
-                shepherdNode.proxy.removeListener('message', messageHandler);
-                shepherdNode.proxy.removeListener('ready', readyHandler);
-                shepherdNode.proxy.removeListener('devices', devicesHandler);
+                this.shepherdNode.proxy.removeListener('nodeStatus', nodeStatusHandler);
+                this.shepherdNode.proxy.removeListener('message', messageHandler);
+                this.shepherdNode.proxy.removeListener('ready', readyHandler);
+                this.shepherdNode.proxy.removeListener('devices', devicesHandler);
                 this.gotDevices = false;
             });
         }
@@ -344,11 +345,11 @@ module.exports = function (RED) {
                 this.handleResult(device, result);
                 done();
             }).catch(err => {
-                this.handleError(done, device, err);
+                this.handleError(device, err);
             });
         }
 
-        setToDevice(converter, endpoint, key, payload, meta, shepherdNode, device, done) {
+        setToDevice(converter, endpoint, key, payload, meta, device, done) {
             converter.convertSet(endpoint, key, payload[key], meta).then(result => {
                 this.handleResult(device, result);
 
@@ -367,11 +368,12 @@ module.exports = function (RED) {
                     done();
                 }
             }).catch(err => {
-                this.handleError(done, device, err, shepherdNode);
+                this.error("setToDevice error");
+                this.handleError(device, err);
             });
         }
 
-        handleError(done, device, err) {
+        handleError(device, err) {
             this.shepherdNode.reachable(device, false);
             done(new Error(`${device.ieeeAddr} ${device.meta.name} ${err.message}`));
         }
