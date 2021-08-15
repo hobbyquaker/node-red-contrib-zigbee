@@ -353,7 +353,6 @@ module.exports = function (RED) {
             converter.convertSet(endpoint, key, payload[key], meta).then(result => {
                 this.handleResult(device, result);
 
-                // Todo clarify why converterGet doesnt set readAfterWriteTime when state==OFF
                 if (result && typeof result.readAfterWriteTime === 'undefined' && !device.meta.reporting) {
                     result.readAfterWriteTime = 0;
                 }
