@@ -345,7 +345,7 @@ module.exports = function (RED) {
                 this.handleResult(device, result);
                 done();
             }).catch(err => {
-                this.handleError(device, err);
+                this.handleError(device, err, done);
             });
         }
 
@@ -366,18 +366,18 @@ module.exports = function (RED) {
                     done();
                 }
             }).catch(err => {
-                this.handleError(device, err);
+                this.handleError(device, err, done);
             });
         }
 
-        handleError(device, err) {
+        handleError(device, err, done) {
             this.shepherdNode.reachable(device, false);
             done(new Error(`${device.ieeeAddr} ${device.meta.name} ${err.message}`));
         }
 
         handleResult(device, result) {
             this.shepherdNode.reachable(device, true);
-            this.debug(`${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(result)}`);
+            this.debug(`Result ${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(result)}`);
         }
 
         setToGroup(converter, group, key, payload, meta, done) {
