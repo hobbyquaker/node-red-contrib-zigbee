@@ -1,6 +1,6 @@
 {
   "name": "node-red-contrib-zigbee",
-  "version": "0.20.3",
+  "version": "0.21.0",
   "keywords": [
     "node-red",
     "zigbee",
@@ -21,7 +21,8 @@
     "Sineos <Sineos.pub@gmail.com>",
     "Martin Wigger https://github.com/Maladus",
     "hogthrob https://github.com/hogthrob",
-    "mr G1K https://github.com/G1K"
+    "mr G1K https://github.com/G1K",
+    "jokakilla https://github.com/jokakilla"
   ],
   "license": "MIT",
   "description": "Node-RED Nodes for Zigbee Devices",
