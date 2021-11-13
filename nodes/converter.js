@@ -329,17 +329,19 @@ module.exports = function (RED) {
         }
 
         getEndPointFromDevice(model, device, isSet) {
+            // TBC: does this work like it should? :)
+            console.log('getEndPointFromDevice', model, device, isSet);
             if (typeof model.endpoint === 'undefined') {
                 return device.endpoints[0];
             }
 
             const endpoints = model.endpoint(device);
             const endpoint = endpoints[isSet ? 'set' : 'get'];
-            if ((endpoint === null || typeof endpoint === 'undefined') && eps.default !== 'undefined') {
-                return eps.default;
+            if ((endpoint === null || typeof endpoint === 'undefined') && endpoints.default !== 'undefined') {
+                return endpoints.default;
             }
 
-            return device.endpoints[0];
+            return endpoint || device.endpoints[0];
         }
 
         getFromDevice(converter, device, payload, endpoint, key, meta, done) {
