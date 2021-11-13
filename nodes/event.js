@@ -50,7 +50,7 @@ module.exports = function (RED) {
 
                         });
                     } else {
-                        Object.keys(message.data).forEach(attribute => {
+                        for (const attribute of Object.keys(message.data)) {
                             topicAttrs.attribute = attribute;
                             this.send({
                                 topic: this.topicReplace(config.topic, topicAttrs),
@@ -65,7 +65,7 @@ module.exports = function (RED) {
                                 profileID: message.endpoint.profileID,
                                 groupID: message.groupID
                             });
-                        });
+                        }
                     }
                 }
             };
@@ -87,18 +87,18 @@ module.exports = function (RED) {
             }
 
             const msgLower = {};
-            Object.keys(msg).forEach(k => {
+            for (const k of Object.keys(msg)) {
                 msgLower[k.toLowerCase()] = msg[k];
-            });
+            }
 
             const match = topic.match(/\${[^}]+}/g);
             if (match) {
-                match.forEach(v => {
+                for (const v of match) {
                     const key = v.substr(2, v.length - 3);
                     const rx = new RegExp('\\${' + key + '}', 'g');
                     const rkey = key.toLowerCase();
                     topic = topic.replace(rx, msgLower[rkey] || '');
-                });
+                }
             }
 
             return topic.replace(/\/$/, '');

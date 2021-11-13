@@ -390,7 +390,7 @@ module.exports = function (RED) {
                 mkdirp.sync(this.persistPath);
             }
 
-            this.startTime = (new Date()).getTime();
+            this.startTime = Date.now();
 
             this.namesPath = path.join(this.persistPath, 'names.json');
             this.dbPath = path.join(this.persistPath, 'dev.db');
@@ -402,7 +402,7 @@ module.exports = function (RED) {
             this.maxBackupCount = 20;
             this.maxBackupAge = 30 * 24 * 60 * 60 * 1000;
 
-            const now = (new Date()).getTime();
+            const now = Date.now();
 
             if (fs.existsSync(this.dbPath)) {
                 fs.copyFileSync(this.dbPath, this.dbPath + '.' + now);
@@ -416,10 +416,10 @@ module.exports = function (RED) {
                 const count = {dev: 0, backup: 0};
                 const remove = [];
 
-                const now = (new Date()).getTime();
+                const now = Date.now();
                 const maxAge = now - this.maxBackupAge;
 
-                dir.sort().reverse().forEach(file => {
+                for (const file of dir.sort().reverse()) {
                     const match = file.match(/^(backup|dev)\.db\.(\d+)$/);
                     if (match) {
                         const [, type, timestamp] = match;
@@ -427,10 +427,11 @@ module.exports = function (RED) {
                             remove.push(file);
                         }
                     }
-                });
-                remove.forEach(file => {
+                }
+
+                for (const file of remove) {
                     fs.unlink(path.join(this.persistPath, file), () => {});
-                });
+                }
             });
 
             try {
@@ -558,10 +559,10 @@ module.exports = function (RED) {
         }
 
         removeListeners() {
-            Object.keys(this.listeners).forEach(event => {
+            for (const event of Object.keys(this.listeners)) {
                 this.herdsman.removeListener(event, this.listeners[event]);
                 this.debug(`removed ${event} listener`);
-            });
+            }
         }
 
         connect() {
@@ -577,19 +578,19 @@ module.exports = function (RED) {
             this.herdsman.start().then(() => {
                 this.proxy.emit('nodeStatus', {fill: 'yellow', shape: 'dot', text: 'connecting'});
 
-                Object.keys(this.listeners).forEach(event => {
+                for (const event of Object.keys(this.listeners)) {
                     this.herdsman.addListener(event, this.listeners[event]);
                     this.debug(`add ${event} listener`);
-                });
+                }
 
                 const devices = this.herdsman.getDevices();
                 this.log(`Currently ${devices.length - 1} devices are joined:`);
-                devices.forEach(device => {
+                for (const device of devices) {
                     if (device.type === 'Coordinator') {
                         this.coordinatorEndpoint = device.endpoints[0];
                         device.meta.name = 'Coordinator';
                         device.meta.isCoordinator = true;
-                        return;
+                        continue;
                     }
 
                     const mappedDevice = shepherdConverters.findByDevice(device);
@@ -610,7 +611,7 @@ module.exports = function (RED) {
                     if (this.names[device.ieeeAddr] && typeof device.meta.name === 'undefined') {
                         this.rename({ieeeAddr: device.ieeeAddr, name: this.names[device.ieeeAddr].name});
                     }
-                });
+                }
 
                 this.logStartupInfo();
 
@@ -638,7 +639,7 @@ module.exports = function (RED) {
                     this.ping();
                 }, this.pingTime);
 
-                devices.forEach(device => {
+                for (const device of devices) {
                     if (device.meta.isConfigurable) {
                         device.meta.configureFails = 0;
                         //this.configure(device);
@@ -647,7 +648,7 @@ module.exports = function (RED) {
                     if (device.meta.isReportable) {
                         device.meta.reportingFails = 0;
                     }
-                });
+                }
             }).catch(error => {
                 this.status = error.message;
                 this.proxy.emit('nodeStatus', {fill: 'red', shape: 'ring', text: error.message + ', retrying'});
@@ -949,11 +950,11 @@ module.exports = function (RED) {
             const devices = this.herdsman.getDevices().filter(d => d.meta.shouldPing);
             if (devices.length > 0) {
                 const pause = this.pingTime / devices.length;
-                devices.forEach((d, i) => {
+                for (const [i, d] of devices.entries()) {
                     setTimeout(() => {
                         this.read(d.ieeeAddr, d.endpoints[0].ID, 'genBasic', ['zclVersion']).catch(err => this.debug(`ping ${d.ieeeAddr} ${d.meta.name} ${err.message}`));
                     }, i * pause);
-                });
+                }
             }
         }
 
@@ -1121,9 +1122,9 @@ module.exports = function (RED) {
                 const device = this.herdsman.getDeviceByIeeeAddr(dev.ieeeAddr);
                 doConfigure(device);
             } else {
-                this.herdsman.getDevices().forEach(device => {
+                for (const device of this.herdsman.getDevices()) {
                     doConfigure(device);
-                });
+                }
             }
         }
 
@@ -1198,8 +1199,8 @@ module.exports = function (RED) {
         }
 
         checkOverdue() {
-            const now = (new Date()).getTime();
-            this.herdsman.getDevices().forEach(device => {
+            const now = Date.now();
+            for (const device of this.herdsman.getDevices()) {
                 const timeout = interval[device.modelID];
                 if (timeout) {
                     const elapsed = Math.round(((now - (device.lastSeen || this.startTime)) / 60000));
@@ -1209,7 +1210,7 @@ module.exports = function (RED) {
                         this.reachable(device, reachable);
                     }
                 }
-            });
+            }
         }
 
         logName(device) {

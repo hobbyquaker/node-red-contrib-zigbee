@@ -35,10 +35,11 @@ module.exports = function (RED) {
             const getDevices = () => {
                 this.trace('getDevices');
                 const devices = this.herdsman.getDevices();
-                devices.forEach(device => {
+                for (const device of devices) {
                     this.ieeeAddresses[device.ieeeAddr] = device;
                     this.names[device.meta.name] = device;
-                });
+                }
+
                 this.groups = this.herdsman.getGroups();
                 this.gotDevices = true;
             };
@@ -136,16 +137,17 @@ module.exports = function (RED) {
                 }
 
                 // TODO understand postfix
-                let endpoint = this.getEndPointFromDevice(model, device, isSet);
-                let payload = this.getPayloadFromMsg(msg, attribute);
+                const endpoint = this.getEndPointFromDevice(model, device, isSet);
+                const payload = this.getPayloadFromMsg(msg, attribute);
 
                 // For each key in the JSON message find the matching converter.
-                Object.keys(payload).sort(a => (['state', 'brightness'].includes(a) ? -1 : 1)).forEach(key => {
+                for (const key of Object.keys(payload).sort(a => (['state', 'brightness'].includes(a) ? -1 : 1))) {
                     const converter = converters.find(c => c.key.includes(key));
                     if (!converter) {
                         this.error(`No converter available for '${key}' (${payload[key]}) on  modelID '${device.modelID}'`);
-                        return;
+                        continue;
                     }
+
                     const meta = {
                         options: {},
                         message: payload,
@@ -160,16 +162,15 @@ module.exports = function (RED) {
                         }
                     };
                     if (isSet) {
-                        if(isGroup) {
+                        if (isGroup) {
                             this.setToGroup(converter, group, key, payload, meta, done);
-                        }
-                        else {
+                        } else {
                             this.setToDevice(converter, endpoint, key, payload, meta, device, done);
                         }
                     } else { //get
                         this.getFromDevice(converter, device, payload, endpoint, key, meta, done);
                     }
-                });
+                }
             });
 
             const messageHandler = data => {
@@ -189,7 +190,7 @@ module.exports = function (RED) {
                     return;
                 }
 
-                let model = this.getModelFromDevice(device);
+                const model = this.getModelFromDevice(device);
                 if (!model) {
                     this.warn(`Received message from unsupported device with Zigbee model '${data.device.modelID}'`);
                     this.warn('Please see: https://www.zigbee2mqtt.io/how_tos/how_to_support_new_devices.html.');
@@ -213,6 +214,7 @@ module.exports = function (RED) {
                         );
                         this.warn('Please see: https://www.zigbee2mqtt.io/how_tos/how_to_support_new_devices.html.');
                     }
+
                     return;
                 }
 
@@ -235,14 +237,14 @@ module.exports = function (RED) {
                 out.topic = this.topicReplace(config.topic, out);
                 const publish = convertedPayload => {
                     if (config.payload === 'plain') {
-                        Object.keys(convertedPayload).forEach(key => {
+                        for (const key of Object.keys(convertedPayload)) {
                             if (config.attribute === '' || config.attribute === key) {
                                 const msg = {...out, topic: out.topic + '/' + key,
                                     payload: convertedPayload[key],
                                     retain: !['click', 'action', 'angle'].includes(key)};
                                 this.send(msg);
                             }
-                        });
+                        }
                     } else {
                         // indicate out.payload has been  "extended"
                         // with converted data
@@ -250,12 +252,13 @@ module.exports = function (RED) {
                         Object.assign(out.payload, convertedPayload);
                     }
                 };
-                converters.forEach(converter => {
+
+                for (const converter of converters) {
                     const convertedPayload = converter.convert(model, data, publish, {}, device.meta);
                     if (convertedPayload && Object.keys(convertedPayload).length > 0) {
                         publish(convertedPayload);
                     }
-                });
+                }
 
                 // if at least one converter produced out.payload data
                 // send the combined result
@@ -295,18 +298,18 @@ module.exports = function (RED) {
         getModelFromDevice(device) {
             if (this.models.has(device.modelID)) {
                 return this.models.get(device.modelID);
-            } else {
-                let model = herdsmanConverters.findByDevice(device);
-                this.models.set(device.modelID, model);
-                return model;
             }
+
+            const model = herdsmanConverters.findByDevice(device);
+            this.models.set(device.modelID, model);
+            return model;
         }
 
         getPayloadFromMsg(msg, attribute) {
             if (typeof msg.payload === 'string' && msg.payload.startsWith('{')) {
                 try {
                     msg.payload = JSON.parse(msg.payload);
-                } catch { }
+                } catch {}
             }
 
             let payload;
@@ -317,10 +320,11 @@ module.exports = function (RED) {
                 payload = msg.payload;
             } else if (typeof msg.payload === 'string') {
                 // No attribute supplied, payload not an object - assume state.
-                payload = { state: msg.payload };
+                payload = {state: msg.payload};
             } else {
-                payload = { state: msg.payload ? 'ON' : 'OFF' };
+                payload = {state: msg.payload ? 'ON' : 'OFF'};
             }
+
             return payload;
         }
 
@@ -328,11 +332,13 @@ module.exports = function (RED) {
             if (typeof model.endpoint === 'undefined') {
                 return device.endpoints[0];
             }
+
             const endpoints = model.endpoint(device);
-            let endpoint = endpoints[isSet ? 'set' : 'get'];
-            if((endpoint === null || typeof endpoint === 'undefined') && eps.default !== 'undefined') {
+            const endpoint = endpoints[isSet ? 'set' : 'get'];
+            if ((endpoint === null || typeof endpoint === 'undefined') && eps.default !== 'undefined') {
                 return eps.default;
             }
+
             return device.endpoints[0];
         }
 
@@ -341,6 +347,7 @@ module.exports = function (RED) {
                 this.error(`Converter can not read '${key}' (${payload[key]}) on  modelID '${device.modelID}'`);
                 return;
             }
+
             converter.convertGet(endpoint, key, meta).then(result => {
                 this.handleResult(device, result);
                 done();
@@ -356,6 +363,7 @@ module.exports = function (RED) {
                 if (result && typeof result.readAfterWriteTime === 'undefined' && !device.meta.reporting) {
                     result.readAfterWriteTime = 0;
                 }
+
                 if (result && typeof result.readAfterWriteTime !== 'undefined' && !device.meta.reporting) {
                     setTimeout(() => {
                         this.debug(`readAfterWrite ${device.ieeeAddr} ${device.meta.name}`);
@@ -395,18 +403,18 @@ module.exports = function (RED) {
             }
 
             const msgLower = {};
-            Object.keys(msg).forEach(k => {
+            for (const k of Object.keys(msg)) {
                 msgLower[k.toLowerCase()] = msg[k];
-            });
+            }
 
             const match = topic.match(/\${[^}]+}/g);
             if (match) {
-                match.forEach(v => {
+                for (const v of match) {
                     const key = v.substr(2, v.length - 3);
                     const rx = new RegExp('\\${' + key + '}', 'g');
                     const rkey = key.toLowerCase();
                     topic = topic.replace(rx, msgLower[rkey] || '');
-                });
+                }
             }
 
             return topic;

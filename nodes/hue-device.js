@@ -28,11 +28,12 @@ module.exports = function (RED) {
                 this.trace('getDevices');
                 this.devices = shepherdNode.herdsman.getDevices();
                 this.groups = shepherdNode.herdsman.getGroups();
-                this.devices.forEach(device => {
+                for (const device of this.devices) {
                     if (device.ieeeAddr === this.device) {
                         this.initLight(device);
                     }
-                });
+                }
+
                 this.gotDevices = true;
             };
 
@@ -491,14 +492,15 @@ module.exports = function (RED) {
 
                     this.debug(`putLightState ${device.ieeeAddr} ${device.meta.name} ${JSON.stringify(msg.payload)}`);
 
-                    cmds.forEach(cmd => {
+                    for (const cmd of cmds) {
                         this.shepherdNode.command(device.ieeeAddr, device.endpoints[0].ID, cmd.cid, cmd.cmd, cmd.zclData, cmd.options)
                             .then(() => {
                                 if (cmd.attributes) {
                                     const data = {};
-                                    cmd.attributes.forEach(attr => {
+                                    for (const attr of cmd.attributes) {
                                         data[attr] = msg.payload[attr];
-                                    });
+                                    }
+
                                     update = update || oe.extend(device.meta.hue.state, data);
                                 }
                             }).catch(() => {}).finally(() => {
@@ -506,19 +508,21 @@ module.exports = function (RED) {
                                     this.publishLightState(device, send, done);
                                 }
                             });
-                    });
+                    }
+
                     break;
 
                 case 'groups':
                     this.debug(`putGroupState ${group.groupID} ${JSON.stringify(msg.payload)}`);
-                    cmds.forEach(cmd => {
+                    for (const cmd of cmds) {
                         this.shepherdNode.groupCommand(group.groupID, cmd.cid, cmd.cmd, cmd.zclData, cmd.options)
                             .then(() => {
                                 if (cmd.attributes) {
                                     const data = {};
-                                    cmd.attributes.forEach(attr => {
+                                    for (const attr of cmd.attributes) {
                                         data[attr] = msg.payload[attr];
-                                    });
+                                    }
+
                                     update = update || oe.extend(device.meta.hue.state, data);
                                 }
                             }).catch(() => {}).finally(() => {
@@ -526,7 +530,8 @@ module.exports = function (RED) {
                                 //this.publishLightState(device);
                                 }
                             });
-                    });
+                    }
+
                     break;
 
                 default:
@@ -567,7 +572,7 @@ module.exports = function (RED) {
                 this.lastState[lightIndex].reachable = newState.reachable;
             }
 
-            Object.keys(newState).forEach(attr => {
+            for (const attr of Object.keys(newState)) {
                 if (attr === 'xy' && !this.lastState[lightIndex].xy) {
                     this.lastState[lightIndex].xy = [];
                 }
@@ -592,7 +597,7 @@ module.exports = function (RED) {
 
                     this.lastState[lightIndex][attr] = newState[attr];
                 }
-            });
+            }
 
             if (change && (this.config.payload.includes('mqttsh'))) {
                 send({
@@ -626,18 +631,18 @@ module.exports = function (RED) {
             }
 
             const msgLower = {};
-            Object.keys(msg).forEach(k => {
+            for (const k of Object.keys(msg)) {
                 msgLower[k.toLowerCase()] = msg[k];
-            });
+            }
 
             const match = topic.match(/\${[^}]+}/g);
             if (match) {
-                match.forEach(v => {
+                for (const v of match) {
                     const key = v.substr(2, v.length - 3);
                     const rx = new RegExp('\\${' + key + '}', 'g');
                     const rkey = key.toLowerCase();
                     topic = topic.replace(rx, msgLower[rkey] || '');
-                });
+                }
             }
 
             return topic;
