@@ -657,7 +657,7 @@ module.exports = function (RED) {
                 this.proxy.emit('nodeStatus', {fill: 'red', shape: 'ring', text: error.message + ', retrying'});
                 this.error(error.message);
                 
-                this.herdsman.finally().then( () => {
+                this.herdsman.stop().finally().then( () => {
                     setTimeout(() => {
                         this.connect();
                     }, 10000);
