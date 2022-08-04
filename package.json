@@ -32,7 +32,7 @@
     "mkdirp": "^1.0.4",
     "obj-ease": "^1.0.1",
     "vis": "^4.21.0",
-    "zigbee-herdsman": "^0.13.130",
+    "zigbee-herdsman": ">=0.13.130 <0.13.170",
     "zigbee-herdsman-converters": "^14.0.221"
   },
   "engines": {
