@@ -1,7 +1,6 @@
 # node-red-contrib-zigbee
 
 [![NPM version](https://badge.fury.io/js/node-red-contrib-zigbee.svg)](http://badge.fury.io/js/node-red-contrib-zigbee)
-[![Dependencies Status](https://david-dm.org/hobbyquaker/node-red-contrib-zigbee/status.svg)](https://david-dm.org/hobbyquaker/node-red-contrib-zigbee)
 [![Build Status](https://travis-ci.org/hobbyquaker/node-red-contrib-zigbee.svg?branch=master)](https://travis-ci.org/hobbyquaker/node-red-contrib-zigbee)
 [![XO code style](https://img.shields.io/badge/code_style-XO-5ed9c7.svg)](https://github.com/sindresorhus/xo)
 [![License][mit-badge]][mit-url]
@@ -9,8 +8,11 @@
 > Control Zigbee Devices (Xiaomi Aqara, Hue, Lightify, Tradfri, ...) with Node-RED via a CC253x Module. No need for
 proprietary bridges anymore, use devices of different vendors in one Zigbee network.
 
-**Work in progress** Will bump version to 1.0 as soon as todo is done, zigbee-herdsman api is stable and everything is 
-tested.
+
+
+## ⚠️ Project abondoned, I'm not using it anymore and therefore I will not work on this anymore. I strongly advice against using it - I recommend using [zigbee2mqtt](https://www.zigbee2mqtt.io/)!
+
+
 
 ## Credits
 
